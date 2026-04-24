@@ -53,7 +53,7 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const addToCart = useCallback(async (product, quantity = 1, variant = null) => {
+  const addToCart = useCallback(async (product, quantity = 1, variant = null, skipToast = false) => {
     setCartItems(prev => {
       const existingIndex = prev.findIndex(item => {
         const sameProduct = item.product._id === product._id;
@@ -67,14 +67,21 @@ export const CartProvider = ({ children }) => {
           ...updated[existingIndex],
           quantity: updated[existingIndex].quantity + quantity,
         };
-        toast.success(`Updated quantity in cart (${updated[existingIndex].quantity})`);
+        
+        // Only show toast if skipToast is false
+        if (!skipToast) {
+          toast.success(`Updated quantity in cart (${updated[existingIndex].quantity})`);
+        }
         return updated;
       }
 
-      toast.success(`${product.name} added to cart!`, {
-        icon: '🛒',
-        duration: 2000,
-      });
+      // Only show toast if skipToast is false
+      if (!skipToast) {
+        toast.success(`${product.name} added to cart!`, {
+          icon: '🛒',
+          duration: 2000,
+        });
+      }
       return [...prev, { 
         _id: `cart_${Date.now()}`,
         product, 

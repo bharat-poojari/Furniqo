@@ -53,13 +53,15 @@ import { useScrollPosition } from '../../hooks/useScrollPosition';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import SearchBar from '../common/SearchBar';
 import MobileMenu from './MobileMenu';
+import NotificationsModal from '../common/NotificationsModal';
 import { cn } from '../../utils/cn';
 
 const Header = () => {
-  const [showSearch, setShowSearch] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showCartPreview, setShowCartPreview] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isCategoryHovered, setIsCategoryHovered] = useState(false);
   
@@ -77,10 +79,26 @@ const Header = () => {
   const categoryMenuRef = useRef(null);
   const categoryButtonRef = useRef(null);
   const closeTimeoutRef = useRef(null);
+  const cartTimeoutRef = useRef(null);
 
   useEffect(() => {
     setIsScrolled(scrollPosition > 30);
   }, [scrollPosition]);
+
+  // Handle cart preview with delay for better UX
+  const handleCartMouseEnter = () => {
+    if (cartTimeoutRef.current) {
+      clearTimeout(cartTimeoutRef.current);
+      cartTimeoutRef.current = null;
+    }
+    setShowCartPreview(true);
+  };
+
+  const handleCartMouseLeave = () => {
+    cartTimeoutRef.current = setTimeout(() => {
+      setShowCartPreview(false);
+    }, 200);
+  };
 
   // Handle category dropdown with delay for better UX
   const handleCategoryMouseEnter = () => {
@@ -94,7 +112,7 @@ const Header = () => {
   const handleCategoryMouseLeave = () => {
     closeTimeoutRef.current = setTimeout(() => {
       setIsCategoryHovered(false);
-    }, 200); // 200ms delay before closing
+    }, 200);
   };
 
   // Close menus on click outside
@@ -106,7 +124,6 @@ const Header = () => {
       if (cartPreviewRef.current && !cartPreviewRef.current.contains(e.target)) {
         setShowCartPreview(false);
       }
-      // Don't close category dropdown on click outside if it's hover-enabled
       if (!isDesktop) {
         if (categoryMenuRef.current && !categoryMenuRef.current.contains(e.target) &&
             categoryButtonRef.current && !categoryButtonRef.current.contains(e.target)) {
@@ -121,8 +138,41 @@ const Header = () => {
       if (closeTimeoutRef.current) {
         clearTimeout(closeTimeoutRef.current);
       }
+      if (cartTimeoutRef.current) {
+        clearTimeout(cartTimeoutRef.current);
+      }
     };
   }, [isDesktop]);
+
+  // Helper function to get product image safely
+  const getProductImage = (item) => {
+    try {
+      if (item.product?.images && Array.isArray(item.product.images) && item.product.images[0]) {
+        return item.product.images[0];
+      }
+      return 'https://via.placeholder.com/64x64?text=No+Image';
+    } catch (error) {
+      return 'https://via.placeholder.com/64x64?text=No+Image';
+    }
+  };
+
+  // Helper function to get product price safely
+  const getProductPrice = (item) => {
+    try {
+      return (item.variant?.price || item.product?.price || 0).toFixed(2);
+    } catch (error) {
+      return '0.00';
+    }
+  };
+
+  // Helper function to get product name safely
+  const getProductName = (item) => {
+    try {
+      return item.product?.name || 'Unknown Product';
+    } catch (error) {
+      return 'Unknown Product';
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -218,7 +268,7 @@ const Header = () => {
       >
         <div className="w-full px-[1%] sm:px-[1.5%]">
           <div className="flex items-center justify-between h-14 lg:h-16">
-            {/* Logo - With proper sizing */}
+            {/* Logo */}
             <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 group">
               <div className="relative">
                 <img 
@@ -230,7 +280,6 @@ const Header = () => {
                     e.target.style.borderRadius = '8px';
                   }}
                 />
-                {/* Subtle glow effect on hover */}
                 <div className="absolute inset-0 rounded-full bg-primary-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-md -z-10"></div>
               </div>
               <div className="flex flex-col">
@@ -255,7 +304,7 @@ const Header = () => {
                   Shop
                 </Link>
                 
-                {/* Enhanced Categories Dropdown with better hover logic */}
+                {/* Categories Dropdown */}
                 <div 
                   className="relative"
                   ref={categoryMenuRef}
@@ -275,7 +324,6 @@ const Header = () => {
                     )} />
                   </button>
                   
-                  {/* Mega Menu Dropdown */}
                   <AnimatePresence>
                     {isCategoryHovered && (
                       <motion.div
@@ -327,7 +375,6 @@ const Header = () => {
                           ))}
                         </div>
                         
-                        {/* Bottom Banner */}
                         <div className="bg-gradient-to-r from-primary-600 to-primary-800 p-3">
                           <div className="flex items-center justify-between">
                             <div>
@@ -368,9 +415,9 @@ const Header = () => {
 
             {/* Right Actions */}
             <div className="flex items-center gap-1 lg:gap-1.5">
-              {/* Search Toggle */}
+              {/* Search Toggle - FIXED */}
               <button
-                onClick={() => setShowSearch(!showSearch)}
+                onClick={() => setShowSearchModal(true)}
                 className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative"
                 aria-label="Search"
               >
@@ -397,19 +444,22 @@ const Header = () => {
                 aria-label="Wishlist"
               >
                 <FiHeart className="h-4.5 w-4.5" />
-                {wishlistItems.length > 0 && (
+                {wishlistItems?.length > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-2xs w-4.5 h-4.5 rounded-full flex items-center justify-center font-bold text-[10px]">
                     {wishlistItems.length > 99 ? '99+' : wishlistItems.length}
                   </span>
                 )}
               </Link>
 
-              {/* Cart with Preview */}
-              <div className="relative" ref={cartPreviewRef}>
+              {/* Cart with Preview - FIXED */}
+              <div 
+                className="relative" 
+                ref={cartPreviewRef}
+                onMouseEnter={handleCartMouseEnter}
+                onMouseLeave={handleCartMouseLeave}
+              >
                 <button
                   onClick={() => setShowCartPreview(!showCartPreview)}
-                  onMouseEnter={() => isDesktop && setShowCartPreview(true)}
-                  onMouseLeave={() => isDesktop && setShowCartPreview(false)}
                   className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative"
                   aria-label="Cart"
                 >
@@ -430,8 +480,6 @@ const Header = () => {
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
                       className="absolute right-0 mt-2 w-80 bg-white dark:bg-neutral-900 rounded-2xl shadow-hard border border-neutral-200 dark:border-neutral-800 z-50"
-                      onMouseEnter={() => isDesktop && setShowCartPreview(true)}
-                      onMouseLeave={() => isDesktop && setShowCartPreview(false)}
                     >
                       <div className="p-4">
                         <div className="flex items-center justify-between mb-4">
@@ -447,7 +495,7 @@ const Header = () => {
                           </Link>
                         </div>
                         
-                        {cartItems.length === 0 ? (
+                        {!cartItems || cartItems.length === 0 ? (
                           <p className="text-center text-neutral-500 py-4">
                             Your cart is empty
                           </p>
@@ -455,21 +503,24 @@ const Header = () => {
                           <>
                             <div className="space-y-3 max-h-64 overflow-auto mb-4">
                               {cartItems.slice(0, 3).map((item) => (
-                                <div key={item._id} className="flex gap-3">
+                                <div key={item._id || item.product?._id} className="flex gap-3">
                                   <img
-                                    src={item.product.images[0]}
-                                    alt={item.product.name}
+                                    src={getProductImage(item)}
+                                    alt={getProductName(item)}
                                     className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                                    onError={(e) => {
+                                      e.target.src = 'https://via.placeholder.com/64x64?text=No+Image';
+                                    }}
                                   />
                                   <div className="flex-grow min-w-0">
                                     <p className="text-sm font-medium truncate">
-                                      {item.product.name}
+                                      {getProductName(item)}
                                     </p>
                                     <p className="text-xs text-neutral-500">
-                                      Qty: {item.quantity}
+                                      Qty: {item.quantity || 1}
                                     </p>
                                     <p className="text-sm font-semibold text-primary-600">
-                                      ${(item.variant?.price || item.product.price).toFixed(2)}
+                                      ${getProductPrice(item)}
                                     </p>
                                   </div>
                                 </div>
@@ -503,13 +554,14 @@ const Header = () => {
 
               {/* Notifications */}
               <button
+                onClick={() => setShowNotificationsModal(true)}
                 className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative hidden sm:flex"
                 aria-label="Notifications"
               >
                 <FiBell className="h-4.5 w-4.5" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-2xs w-4.5 h-4.5 rounded-full flex items-center justify-center font-bold text-[10px]">
-                    {unreadCount}
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-2xs w-4.5 h-4.5 rounded-full flex items-center justify-center font-bold text-[10px] animate-pulse">
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
               </button>
@@ -608,24 +660,24 @@ const Header = () => {
               </button>
             </div>
           </div>
-
-          {/* Search Overlay */}
-          <AnimatePresence>
-            {showSearch && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden border-t dark:border-neutral-800"
-              >
-                <div className="py-3">
-                  <SearchBar onClose={() => setShowSearch(false)} />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </header>
+
+      {/* Search Modal */}
+      <SearchBar 
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+      />
+
+      {/* Notifications Modal */}
+      <AnimatePresence>
+        {showNotificationsModal && (
+          <NotificationsModal
+            isOpen={showNotificationsModal}
+            onClose={() => setShowNotificationsModal(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Mobile Menu */}
       <AnimatePresence>
@@ -634,7 +686,7 @@ const Header = () => {
         )}
       </AnimatePresence>
 
-       <style>{`
+      <style>{`
         .nav-link {
           display: inline-flex;
           align-items: center;

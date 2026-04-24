@@ -12,6 +12,16 @@
   .dark * {
     border-color: #262626;
   }
+  #root {
+  position: relative;
+  z-index: 1;
+}
+body {
+  position: relative;
+}
+body > div:last-child {
+  z-index: 9999;
+}
 
   html {
     scroll-behavior: smooth;

@@ -45,7 +45,7 @@ const mockPosts = [
   },
   {
     id: 6,
-    image: 'https://images.unsplash.com/photo-1507473885765-e6ed057ab6fe?w=600',
+    image: 'https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=600',
     likes: 6789,
     comments: 156,
     caption: 'Statement pieces that inspire 🎨',
