@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { FiShoppingCart, FiHeart, FiX, FiMinus, FiPlus } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  FiShoppingCart, FiHeart, FiX, FiMinus, FiPlus, 
+  FiChevronLeft, FiChevronRight, FiTruck,
+  FiShield, FiRotateCcw
+} from 'react-icons/fi';
 import Modal from '../common/Modal';
 import Rating from '../common/Rating';
 import Button from '../common/Button';
@@ -14,84 +18,240 @@ const QuickView = ({ product, isOpen, onClose }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
+  const [imageError, setImageError] = useState({});
+  const imageContainerRef = useRef(null);
+  const touchStartX = useRef(0);
   
   const { addToCart } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
   
+  // Reset quantity when product changes
+  useEffect(() => {
+    setQuantity(1);
+    setSelectedVariant(null);
+    setSelectedImage(0);
+    setAddedToCart(false);
+    setImageError({});
+  }, [product?._id]);
+
   if (!product) return null;
 
   const discount = calculateDiscount(product.price, product.originalPrice);
   const currentPrice = selectedVariant?.price || product.price;
+  const inStock = selectedVariant?.inStock !== false && product.inStock;
+  const maxQuantity = selectedVariant?.stock || product.stock || 99;
+  const isWishlistedProduct = isWishlisted(product._id);
 
-  const handleAddToCart = () => {
-    addToCart(product, quantity, selectedVariant);
-    onClose();
+  const handleAddToCart = useCallback(async () => {
+    if (isAddingToCart) return;
+    
+    setIsAddingToCart(true);
+    try {
+      await addToCart(product, quantity, selectedVariant);
+      setAddedToCart(true);
+      
+      // Auto close after successful add
+      setTimeout(() => {
+        onClose();
+        setAddedToCart(false);
+      }, 1500);
+    } catch (error) {
+      console.error('Failed to add to cart:', error);
+    } finally {
+      setIsAddingToCart(false);
+    }
+  }, [product, quantity, selectedVariant, addToCart, onClose, isAddingToCart]);
+
+  const handleImageNavigation = useCallback((direction) => {
+    setSelectedImage(prev => {
+      if (direction === 'next') {
+        return (prev + 1) % product.images.length;
+      }
+      return prev === 0 ? product.images.length - 1 : prev - 1;
+    });
+  }, [product.images.length]);
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX.current - touchEndX;
+    
+    if (Math.abs(diff) > 50) {
+      handleImageNavigation(diff > 0 ? 'next' : 'prev');
+    }
+  };
+
+  const handleImageError = (index) => {
+    setImageError(prev => ({ ...prev, [index]: true }));
+  };
+
+  const quantityHandlers = {
+    increment: () => setQuantity(prev => Math.min(maxQuantity, prev + 1)),
+    decrement: () => setQuantity(prev => Math.max(1, prev - 1)),
+  };
+
+  const features = [
+    { icon: FiTruck, text: 'Free Shipping' },
+    { icon: FiShield, text: 'Secure Checkout' },
+    { icon: FiRotateCcw, text: '30-Day Returns' },
+  ];
+
+  // Keyboard navigation
+  const handleKeyDown = (e) => {
+    if (e.key === 'ArrowLeft') handleImageNavigation('prev');
+    if (e.key === 'ArrowRight') handleImageNavigation('next');
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="4xl">
-      <div className="grid md:grid-cols-2 gap-8">
-        {/* Images */}
-        <div className="space-y-4">
-          <div className="aspect-square rounded-2xl overflow-hidden bg-neutral-100 dark:bg-neutral-800">
-            <img
-              src={product.images[selectedImage]}
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      size="4xl"
+      closeOnOverlayClick={true}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+        className="grid md:grid-cols-2 gap-8"
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        role="dialog"
+        aria-label={`Quick view: ${product.name}`}
+      >
+        {/* Images Section */}
+        <div className="space-y-4" ref={imageContainerRef}>
+          <div className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 group">
+            <motion.img
+              key={selectedImage}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              src={imageError[selectedImage] ? '/placeholder-image.jpg' : product.images[selectedImage]}
               alt={product.name}
               className="w-full h-full object-cover"
+              onError={() => handleImageError(selectedImage)}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              draggable={false}
             />
+            
+            {/* Image Navigation Arrows */}
+            {product.images.length > 1 && (
+              <>
+                <button
+                  onClick={() => handleImageNavigation('prev')}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white dark:hover:bg-neutral-900"
+                  aria-label="Previous image"
+                >
+                  <FiChevronLeft className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => handleImageNavigation('next')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white dark:hover:bg-neutral-900"
+                  aria-label="Next image"
+                >
+                  <FiChevronRight className="h-5 w-5" />
+                </button>
+              </>
+            )}
+
+            {/* Image Counter */}
+            <div className="absolute bottom-2 right-2 px-3 py-1 rounded-full bg-black/50 backdrop-blur-sm text-white text-sm">
+              {selectedImage + 1} / {product.images.length}
+            </div>
           </div>
-          <div className="flex gap-2 overflow-x-auto">
-            {product.images.map((image, index) => (
-              <button
-                key={index}
-                onClick={() => setSelectedImage(index)}
-                className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
-                  index === selectedImage
-                    ? 'border-primary-600'
-                    : 'border-transparent'
-                }`}
-              >
-                <img src={image} alt="" className="w-full h-full object-cover" />
-              </button>
-            ))}
-          </div>
+
+          {/* Thumbnail Gallery */}
+          {product.images.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+              {product.images.map((image, index) => (
+                <motion.button
+                  key={index}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setSelectedImage(index)}
+                  className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
+                    index === selectedImage
+                      ? 'border-primary-600 ring-2 ring-primary-600/20'
+                      : 'border-transparent hover:border-neutral-300 dark:hover:border-neutral-600'
+                  }`}
+                  aria-label={`View image ${index + 1}`}
+                  aria-current={index === selectedImage ? 'true' : 'false'}
+                >
+                  <img 
+                    src={imageError[index] ? '/placeholder-image.jpg' : image} 
+                    alt={`${product.name} - View ${index + 1}`}
+                    className="w-full h-full object-cover"
+                    onError={() => handleImageError(index)}
+                    loading="lazy"
+                  />
+                </motion.button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Product Info */}
+        {/* Product Info Section */}
         <div className="space-y-6">
+          {/* Header */}
           <div>
             <Link
               to={`/products/${product.slug}`}
-              className="text-2xl font-bold text-neutral-900 dark:text-white hover:text-primary-600 transition-colors"
+              className="text-2xl font-bold text-neutral-900 dark:text-white hover:text-primary-600 transition-colors line-clamp-2"
               onClick={onClose}
             >
               {product.name}
             </Link>
+            
             <div className="flex items-center gap-3 mt-2">
-              <Rating value={product.rating} numReviews={product.numReviews} size="sm" />
+              <Rating 
+                value={product.rating} 
+                numReviews={product.numReviews} 
+                size="sm"
+                showCount={true}
+              />
               {discount > 0 && (
-                <span className="bg-red-100 dark:bg-red-900/20 text-red-600 text-sm font-medium px-2 py-0.5 rounded-full">
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="bg-red-100 dark:bg-red-900/20 text-red-600 text-sm font-medium px-2 py-0.5 rounded-full"
+                >
                   Save {discount}%
-                </span>
+                </motion.span>
               )}
             </div>
           </div>
 
+          {/* Price */}
           <div className="flex items-center gap-3">
             <span className="text-3xl font-bold text-primary-600">
               {formatPrice(currentPrice)}
             </span>
             {product.originalPrice > currentPrice && (
-              <span className="text-lg text-neutral-400 line-through">
-                {formatPrice(product.originalPrice)}
-              </span>
+              <>
+                <span className="text-lg text-neutral-400 line-through">
+                  {formatPrice(product.originalPrice)}
+                </span>
+                <span className="text-sm text-green-600 font-medium">
+                  You save {formatPrice(product.originalPrice - currentPrice)}
+                </span>
+              </>
             )}
           </div>
 
+          {/* Description */}
           <p className="text-neutral-600 dark:text-neutral-400 line-clamp-3">
             {product.description}
           </p>
 
+          {/* Variants */}
           {product.variants && product.variants.length > 0 && (
             <ProductVariants
               variants={product.variants}
@@ -100,20 +260,33 @@ const QuickView = ({ product, isOpen, onClose }) => {
             />
           )}
 
+          {/* Stock Status */}
+          <div className="flex items-center gap-2">
+            <div className={`h-2 w-2 rounded-full ${inStock ? 'bg-green-500' : 'bg-red-500'}`} />
+            <span className={`text-sm font-medium ${inStock ? 'text-green-600' : 'text-red-600'}`}>
+              {inStock ? `In Stock (${maxQuantity} available)` : 'Out of Stock'}
+            </span>
+          </div>
+
+          {/* Quantity and Add to Cart */}
           <div className="flex items-center gap-4">
-            <div className="flex items-center border border-neutral-200 dark:border-neutral-700 rounded-xl">
+            <div className="flex items-center border-2 border-neutral-200 dark:border-neutral-700 rounded-xl">
               <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="p-3 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                onClick={quantityHandlers.decrement}
+                disabled={quantity <= 1}
+                className="p-3 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Decrease quantity"
               >
                 <FiMinus className="h-4 w-4" />
               </button>
-              <span className="px-6 font-semibold min-w-[60px] text-center">
+              <span className="px-6 font-semibold min-w-[60px] text-center select-none">
                 {quantity}
               </span>
               <button
-                onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                className="p-3 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                onClick={quantityHandlers.increment}
+                disabled={quantity >= maxQuantity}
+                className="p-3 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Increase quantity"
               >
                 <FiPlus className="h-4 w-4" />
               </button>
@@ -121,35 +294,58 @@ const QuickView = ({ product, isOpen, onClose }) => {
 
             <Button
               onClick={handleAddToCart}
-              disabled={!product.inStock}
+              disabled={!inStock || isAddingToCart}
               className="flex-grow"
               size="lg"
-              icon={FiShoppingCart}
+              icon={addedToCart ? undefined : FiShoppingCart}
+              loading={isAddingToCart}
             >
-              {product.inStock ? 'Add to Cart' : 'Out of Stock'}
+              {!inStock 
+                ? 'Out of Stock' 
+                : addedToCart 
+                  ? '✓ Added to Cart!' 
+                  : 'Add to Cart'
+              }
             </Button>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               onClick={() => toggleWishlist(product)}
               className={`p-3 rounded-xl border-2 transition-colors ${
-                isWishlisted(product._id)
+                isWishlistedProduct
                   ? 'border-red-500 text-red-500 bg-red-50 dark:bg-red-900/20'
                   : 'border-neutral-200 dark:border-neutral-700 hover:border-red-300'
               }`}
+              aria-label={isWishlistedProduct ? 'Remove from wishlist' : 'Add to wishlist'}
             >
-              <FiHeart className={`h-5 w-5 ${isWishlisted(product._id) ? 'fill-current' : ''}`} />
-            </button>
+              <FiHeart 
+                className={`h-5 w-5 ${isWishlistedProduct ? 'fill-current' : ''}`} 
+              />
+            </motion.button>
           </div>
 
+          {/* Features */}
+          <div className="grid grid-cols-3 gap-4 pt-6 border-t border-neutral-200 dark:border-neutral-700">
+            {features.map((feature, index) => (
+              <div key={index} className="text-center">
+                <feature.icon className="h-5 w-5 mx-auto mb-1 text-neutral-400" />
+                <span className="text-xs text-neutral-500">{feature.text}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Full Details Link */}
           <Link
             to={`/products/${product.slug}`}
             onClick={onClose}
-            className="block text-center text-primary-600 hover:text-primary-700 font-medium"
+            className="block text-center text-primary-600 hover:text-primary-700 font-medium group"
           >
-            View Full Details →
+            View Full Details{' '}
+            <span className="inline-block transition-transform group-hover:translate-x-1">→</span>
           </Link>
         </div>
-      </div>
+      </motion.div>
     </Modal>
   );
 };

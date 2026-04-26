@@ -3,7 +3,7 @@ import { cn } from '../../utils/cn';
 const Spinner = ({ size = 'md', className }) => {
   const sizeClasses = {
     sm: 'h-4 w-4 border-2',
-    md: 'h-8 w-8 border-3',
+    md: 'h-8 w-8 border-[3px]',
     lg: 'h-12 w-12 border-4',
     xl: 'h-16 w-16 border-4',
   };
@@ -11,7 +11,7 @@ const Spinner = ({ size = 'md', className }) => {
   return (
     <div
       className={cn(
-        'animate-spin rounded-full border-primary-600 border-t-transparent',
+        'animate-spin rounded-full border-primary-500/30 border-t-primary-600 dark:border-primary-400/20 dark:border-t-primary-400',
         sizeClasses[size],
         className
       )}
@@ -26,15 +26,23 @@ const Spinner = ({ size = 'md', className }) => {
 export const LoadingScreen = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950">
-      <div className="text-center">
+      <div className="flex flex-col items-center gap-6">
+        {/* Logo + Spinner */}
         <div className="relative">
-          <Spinner size="xl" className=" mb-6" />
+          <Spinner size="xl" className="border-primary-200 dark:border-primary-800 border-t-primary-600 dark:border-t-primary-400" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-2xl">🪑</span>
+            <img 
+              src="/logo.svg" 
+              alt="Furniqo" 
+              className="h-8 w-8 object-contain"
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
           </div>
         </div>
-        <p className="text-neutral-500 dark:text-neutral-400 animate-pulse">
-          Loading Furniqo...
+        
+        {/* Loading Text */}
+        <p className="text-sm text-neutral-400 dark:text-neutral-500 animate-pulse">
+          Loading...
         </p>
       </div>
     </div>

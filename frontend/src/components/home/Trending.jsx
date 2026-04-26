@@ -562,17 +562,17 @@ const Trending = () => {
         <div className="w-full px-[2%] sm:px-[3%] lg:px-[5%] max-w-[1600px] mx-auto">
           <div className="text-center mb-12">
             <div className="h-6 w-36 bg-gradient-to-r from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-600 rounded-full mx-auto mb-4 animate-pulse" />
-            <div className="h-12 w-80 bg-gradient-to-r from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-600 rounded-lg mx-auto mb-3 animate-pulse" />
-            <div className="h-5 w-96 bg-gradient-to-r from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-600 rounded-full mx-auto animate-pulse" />
+            <div className="h-10 sm:h-12 w-64 sm:w-80 bg-gradient-to-r from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-600 rounded-lg mx-auto mb-3 animate-pulse" />
+            <div className="h-5 w-72 sm:w-96 bg-gradient-to-r from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-600 rounded-full mx-auto animate-pulse" />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 xl:gap-8">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="relative overflow-hidden rounded-2xl bg-white dark:bg-neutral-800 shadow-lg">
+              <div key={i} className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-white dark:bg-neutral-800 shadow-lg">
                 <div className="aspect-square bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-600 animate-pulse" />
-                <div className="p-5 space-y-3">
-                  <div className="h-5 bg-gradient-to-r from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-600 rounded-lg w-3/4 animate-pulse" />
-                  <div className="h-4 bg-gradient-to-r from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-600 rounded-lg w-1/2 animate-pulse" />
-                  <div className="h-7 bg-gradient-to-r from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-600 rounded-lg w-1/3 animate-pulse" />
+                <div className="p-3 sm:p-5 space-y-2 sm:space-y-3">
+                  <div className="h-4 sm:h-5 bg-gradient-to-r from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-600 rounded-lg w-3/4 animate-pulse" />
+                  <div className="h-3 sm:h-4 bg-gradient-to-r from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-600 rounded-lg w-1/2 animate-pulse" />
+                  <div className="h-6 sm:h-7 bg-gradient-to-r from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-600 rounded-lg w-1/3 animate-pulse" />
                 </div>
               </div>
             ))}
@@ -583,23 +583,23 @@ const Trending = () => {
   }
 
   return (
-    <section className="py-16 lg:py-20 bg-gradient-to-b from-neutral-50 to-white dark:from-neutral-900 dark:to-neutral-950 overflow-hidden">
+    <section className="py-12 sm:py-16 lg:py-20 bg-gradient-to-b from-neutral-50 to-white dark:from-neutral-900 dark:to-neutral-950 overflow-hidden">
       <div className="w-full px-[2%] sm:px-[3%] lg:px-[5%] max-w-[1600px] mx-auto">
-        {/* Animated Header */}
+        {/* Animated Header - Responsive */}
         <motion.div
           variants={headerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
-          className="text-center mb-12 lg:mb-16"
+          className="text-center mb-8 sm:mb-12 lg:mb-16"
         >
           <motion.div 
-            className="flex items-center justify-center gap-2 mb-4"
+            className="flex items-center justify-center gap-2 mb-3 sm:mb-4"
             whileHover={{ scale: 1.05 }}
             transition={{ type: "spring", stiffness: 400 }}
           >
             <div className="relative">
-              <FiTrendingUp className="h-6 w-6 text-primary-600 dark:text-primary-400" />
+              <FiTrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600 dark:text-primary-400" />
               <motion.div
                 className="absolute inset-0"
                 animate={{ 
@@ -612,16 +612,16 @@ const Trending = () => {
                   ease: "easeInOut" 
                 }}
               >
-                <FiTrendingUp className="h-6 w-6 text-primary-400 dark:text-primary-300" />
+                <FiTrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary-400 dark:text-primary-300" />
               </motion.div>
             </div>
-            <span className="text-primary-600 dark:text-primary-400 font-semibold text-sm uppercase tracking-wider">
+            <span className="text-primary-600 dark:text-primary-400 font-semibold text-xs sm:text-sm uppercase tracking-wider">
               Trending Now
             </span>
           </motion.div>
           
           <motion.h2 
-            className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-900 dark:from-white dark:via-neutral-200 dark:to-white bg-clip-text text-transparent mb-3"
+            className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-neutral-900 via-neutral-800 to-neutral-900 dark:from-white dark:via-neutral-200 dark:to-white bg-clip-text text-transparent mb-2 sm:mb-3 px-4 sm:px-0"
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
@@ -630,7 +630,7 @@ const Trending = () => {
           </motion.h2>
           
           <motion.p 
-            className="text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto text-base lg:text-lg"
+            className="text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto text-sm sm:text-base lg:text-lg px-4 sm:px-0"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.5 }}
@@ -639,13 +639,13 @@ const Trending = () => {
           </motion.p>
         </motion.div>
 
-        {/* Products Grid */}
+        {/* Products Grid - 2 cards on mobile, 4 on desktop */}
         <motion.div
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-50px" }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8"
+          className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-6 xl:gap-8"
         >
           {products.map((product) => (
             <motion.div
@@ -653,10 +653,10 @@ const Trending = () => {
               variants={itemVariants}
               onHoverStart={() => setHoveredProduct(product._id)}
               onHoverEnd={() => setHoveredProduct(null)}
-              whileHover={{ y: -8 }}
+              whileHover={{ y: -4 }}
               transition={{ type: "spring", stiffness: 300 }}
             >
-              <div className="group relative bg-white dark:bg-neutral-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 ease-out h-full flex flex-col">
+              <div className="group relative bg-white dark:bg-neutral-800 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 ease-out h-full flex flex-col">
                 {/* Image Container with Overlay */}
                 <div className="relative overflow-hidden bg-neutral-100 dark:bg-neutral-700 flex-shrink-0">
                   {!imageLoaded[product._id] && (
@@ -683,23 +683,23 @@ const Trending = () => {
                   >
                     <button
                       onClick={() => handleQuickView(product)}
-                      className="bg-white/90 backdrop-blur-md text-neutral-900 px-6 py-2.5 rounded-full font-medium transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:bg-white shadow-lg text-sm"
+                      className="bg-white/90 backdrop-blur-md text-neutral-900 px-4 sm:px-6 py-1.5 sm:py-2.5 rounded-full font-medium transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:bg-white shadow-lg text-xs sm:text-sm"
                     >
                       Quick View
                     </button>
                   </motion.div>
                 </div>
 
-                {/* Wishlist Button */}
+                {/* Wishlist Button - Responsive positioning */}
                 <motion.button
                   onClick={(e) => handleWishlistToggle(product, e)}
-                  className="absolute top-3 right-3 p-2 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 z-10"
+                  className="absolute top-2 sm:top-3 right-2 sm:right-3 p-1.5 sm:p-2 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-shadow duration-200 z-10"
                   aria-label="Add to wishlist"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                 >
                   <FiHeart
-                    className={`h-4 w-4 transition-all duration-300 ${
+                    className={`h-3 w-3 sm:h-4 sm:w-4 transition-all duration-300 ${
                       isWishlisted(product._id)
                         ? 'fill-red-500 text-red-500'
                         : 'text-neutral-600 dark:text-neutral-400 group-hover:text-red-500'
@@ -707,59 +707,59 @@ const Trending = () => {
                   />
                 </motion.button>
 
-                {/* Trending Badge */}
+                {/* Trending Badge - Responsive */}
                 <motion.div 
-                  className="absolute top-3 left-3 z-10"
+                  className="absolute top-2 sm:top-3 left-2 sm:left-3 z-10"
                   initial={{ x: -20, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
                   transition={{ delay: 0.2 }}
                 >
-                  <div className="flex items-center gap-1 bg-gradient-to-r from-primary-500 to-purple-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full shadow-lg">
-                    <FiZap className="h-2.5 w-2.5" />
+                  <div className="flex items-center gap-0.5 sm:gap-1 bg-gradient-to-r from-primary-500 to-purple-500 text-white text-[9px] sm:text-xs font-semibold px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-lg">
+                    <FiZap className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
                     <span>Trending</span>
                   </div>
                 </motion.div>
 
-                {/* Product Info */}
-                <div className="p-4 flex flex-col flex-grow">
+                {/* Product Info - Responsive padding */}
+                <div className="p-2.5 sm:p-4 flex flex-col flex-grow">
                   {/* Category */}
                   {product.category && (
-                    <p className="text-xs text-primary-600 dark:text-primary-400 font-medium mb-1">
+                    <p className="text-[10px] sm:text-xs text-primary-600 dark:text-primary-400 font-medium mb-0.5 sm:mb-1">
                       {getDisplayCategory(product)}
                     </p>
                   )}
 
                   {/* Product Name */}
-                  <Link to={`/product/${product._id}`} className="block mb-2">
-                    <h3 className="font-semibold text-neutral-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200 line-clamp-2 text-sm lg:text-base">
+                  <Link to={`/product/${product._id}`} className="block mb-1 sm:mb-2">
+                    <h3 className="font-semibold text-neutral-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200 line-clamp-2 text-xs sm:text-sm lg:text-base">
                       {product.name}
                     </h3>
                   </Link>
 
-                  {/* Rating */}
+                  {/* Rating - Responsive */}
                   {product.rating && (
-                    <div className="flex items-center gap-1.5 mb-3">
+                    <div className="flex items-center gap-1 sm:gap-1.5 mb-2 sm:mb-3">
                       <div className="flex items-center gap-0.5">
-                        <FiStar className="h-3 w-3 text-yellow-500 fill-yellow-500" />
-                        <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                        <FiStar className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-yellow-500 fill-yellow-500" />
+                        <span className="text-[10px] sm:text-xs font-medium text-neutral-700 dark:text-neutral-300">
                           {product.rating}
                         </span>
                       </div>
-                      <span className="text-xs text-neutral-400">•</span>
-                      <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                      <span className="text-[9px] sm:text-xs text-neutral-400">•</span>
+                      <span className="text-[9px] sm:text-xs text-neutral-500 dark:text-neutral-400">
                         {product.numReviews || 0} reviews
                       </span>
                     </div>
                   )}
 
-                  {/* Price and Cart Button */}
-                  <div className="flex items-center justify-between mt-auto pt-3 border-t border-neutral-100 dark:border-neutral-700">
+                  {/* Price and Cart Button - Responsive */}
+                  <div className="flex items-center justify-between mt-auto pt-2 sm:pt-3 border-t border-neutral-100 dark:border-neutral-700">
                     <div className="flex flex-col">
-                      <span className="text-lg lg:text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 dark:from-primary-400 dark:to-primary-300 bg-clip-text text-transparent">
+                      <span className="text-base sm:text-lg lg:text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 dark:from-primary-400 dark:to-primary-300 bg-clip-text text-transparent">
                         ${(product.price || 0).toLocaleString()}
                       </span>
                       {product.originalPrice && product.originalPrice > product.price && (
-                        <span className="text-xs text-neutral-400 line-through">
+                        <span className="text-[8px] sm:text-xs text-neutral-400 line-through">
                           ${product.originalPrice.toLocaleString()}
                         </span>
                       )}
@@ -768,7 +768,7 @@ const Trending = () => {
                     <motion.button
                       onClick={(e) => handleAddToCart(product, e)}
                       disabled={isAddingToCart}
-                      className="relative overflow-hidden group/btn p-2.5 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white rounded-xl transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="relative overflow-hidden group/btn p-1.5 sm:p-2.5 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white rounded-lg sm:rounded-xl transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       whileHover={{ scale: 1.08 }}
                       whileTap={{ scale: 0.92 }}
                     >
@@ -778,19 +778,19 @@ const Trending = () => {
                         whileHover={{ x: "100%" }}
                         transition={{ duration: 0.5 }}
                       />
-                      <FiShoppingCart className="h-4 w-4 relative z-10" />
+                      <FiShoppingCart className="h-3 w-3 sm:h-4 sm:w-4 relative z-10" />
                     </motion.button>
                   </div>
                 </div>
 
                 {/* Hover Border Effect */}
                 <motion.div
-                  className="absolute inset-0 rounded-2xl pointer-events-none"
+                  className="absolute inset-0 rounded-xl sm:rounded-2xl pointer-events-none"
                   initial={{ opacity: 0 }}
                   whileHover={{ opacity: 1 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <div className="absolute inset-0 rounded-2xl ring-2 ring-primary-500/50" />
+                  <div className="absolute inset-0 rounded-xl sm:rounded-2xl ring-2 ring-primary-500/50" />
                 </motion.div>
               </div>
             </motion.div>
@@ -799,7 +799,7 @@ const Trending = () => {
 
         {products.length > 0 && (
           <motion.div 
-            className="text-center mt-12 lg:mt-16"
+            className="text-center mt-8 sm:mt-12 lg:mt-16"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.5 }}
@@ -807,7 +807,7 @@ const Trending = () => {
           >
             <Link
               to="/products?sort=popular"
-              className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl group"
+              className="inline-flex items-center gap-2 px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 md:py-3.5 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 shadow-lg hover:shadow-xl group"
             >
               <span>Explore All Trending Products</span>
               <motion.div

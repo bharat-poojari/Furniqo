@@ -44,6 +44,15 @@ const Press = lazy(() => import('./pages/Press'));
 const Careers = lazy(() => import('./pages/Careers'));
 const Affiliate = lazy(() => import('./pages/Affiliate'));
 const Trade = lazy(() => import('./pages/Trade'));
+const Reviews = lazy(() => import('./pages/Reviews'));         
+const Returns = lazy(() => import('./pages/Returns'));    
+const TrackOrder = lazy(() => import('./pages/TrackOrder'));    
+const Shipping = lazy(() => import('./pages/Shipping'));
+const SizeGuide = lazy(() => import('./pages/SizeGuide'));
+const OrderDetails = lazy(() => import('./pages/OrderDetails'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const Accessibility = lazy(() => import('./pages/Accessibility'));
+const Sustainability = lazy(() => import('./pages/Sustainability'));
 
 // Scroll to top on route change
 function ScrollToTop() {
@@ -96,7 +105,16 @@ function App() {
                   <Route path="careers" element={<Careers />} />
                   <Route path="affiliate" element={<Affiliate />} />
                   <Route path="trade" element={<Trade />} />
+                  <Route path="reviews" element={<Reviews />} />
+                  <Route path="returns" element={<Returns />} />
+                  <Route path="shipping" element={<Shipping />} />
+                  <Route path="size-guide" element={<SizeGuide />} />
+                  <Route path="accessibility" element={<Accessibility />} />
+                  <Route path="sustainability" element={<Sustainability />} />
                   <Route path="policies/:type" element={<Policies />} />
+                  <Route path="forgot-password" element={<ForgotPassword />} />
+                  <Route path="/orders/:id" element={<OrderDetails />} />
+                  <Route path="track-order" element={<TrackOrder />} />
                   <Route path="room-inspiration" element={<RoomInspiration />} />
                   <Route path="custom-furniture" element={<CustomFurniture />} />
                   <Route path="offers" element={<Offers />} />

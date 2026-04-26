@@ -161,9 +161,10 @@ const Orders = () => {
                       exit={{ opacity: 0, x: -20 }}
                     >
                       <Link
-                        to={`/orders/${order._id}`}
-                        className="block bg-white dark:bg-neutral-900 rounded-2xl shadow-soft border border-neutral-100 dark:border-neutral-800 hover:shadow-medium transition-all overflow-hidden group"
-                      >
+  to={`/orders/${order._id}`}
+  state={{ order: order }}  // Add this line
+  className="block bg-white dark:bg-neutral-900 rounded-2xl shadow-soft border border-neutral-100 dark:border-neutral-800 hover:shadow-medium transition-all overflow-hidden group"
+>
                         <div className="p-4 lg:p-6">
                           <div className="flex items-start justify-between mb-4">
                             <div>

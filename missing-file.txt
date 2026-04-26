@@ -1,0 +1,823 @@
+
+### `src/components/common/Accordion.jsx`
+
+### `src/components/common/Alert.jsx`
+
+### `src/components/common/Avatar.jsx`
+
+### `src/components/common/Card.jsx`
+**Purpose:** Wrapper component for consistent card styling across the app.
+
+**Props:**
+- `children`: Card content
+- `variant`: 'default' | 'outlined' | 'elevated' | 'glass'
+- `padding`: 'none' | 'sm' | 'md' | 'lg'
+- `hover`: Boolean - enable hover lift effect
+- `onClick`: Click handler (makes card clickable)
+- `className`: Additional classes
+
+**Connected to:**
+- Used as base container in 90% of components
+- Product cards (via ProductCard)
+- Blog post cards
+- Testimonial cards
+- Category cards
+- Order summary cards
+- Profile sections
+
+**States:** Default, hovered, clicked/pressed, loading (with skeleton)
+
+**Edge cases:** Nested cards, card with image vs without, responsive padding
+
+```jsx
+<Card variant="elevated" padding="md" hover onClick={handleClick}>
+  <h3>Card Title</h3>
+  <p>Card content</p>
+</Card>
+```
+
+---
+
+### `src/components/common/Dropdown.jsx`
+**Purpose:** Dropdown menu for actions, filters, user menu, sort options.
+
+**Props:**
+- `trigger`: React node for the trigger button
+- `items`: Array of `{ label, icon, onClick, href, divider, danger }` objects
+- `position`: 'left' | 'right' | 'center'
+- `width`: 'auto' | 'sm' | 'md' | 'lg'
+- `closeOnClick`: Boolean (default: true)
+
+**Connected to:**
+- `Header.jsx` - User menu dropdown, cart preview
+- `Products.jsx` - Sort dropdown, filter dropdowns
+- `ProductDetail.jsx` - Share menu, variant selector
+- `Orders.jsx` - Order actions menu
+- `Profile.jsx` - Profile settings menu
+
+**States:** Open/closed, active index for keyboard nav, enter/exit animation
+
+**Edge cases:** Click outside to close, escape key, nested dropdowns, mobile responsiveness
+
+```jsx
+<Dropdown
+  trigger={<button>Options</button>}
+  items={[
+    { label: 'Edit', icon: FiEdit, onClick: handleEdit },
+    { label: 'Delete', icon: FiTrash, onClick: handleDelete, danger: true },
+    { divider: true },
+    { label: 'View Details', href: '/details' },
+  ]}
+/>
+```
+
+---
+
+### `src/components/common/Tabs.jsx`
+**Purpose:** Tabbed interface for switching between content sections.
+
+**Props:**
+- `tabs`: Array of `{ id, label, icon, badge }` objects
+- `activeTab`: Currently selected tab id
+- `onChange`: Tab change callback
+- `variant`: 'underline' | 'pills' | 'buttons'
+- `fullWidth`: Boolean
+
+**Connected to:**
+- `ProductDetail.jsx` - Description/Specifications/Reviews tabs
+- `Profile.jsx` - Profile/Orders/Wishlist tabs
+- `Checkout.jsx` - Shipping/Payment/Review steps
+- `Orders.jsx` - Order status filter tabs
+
+**States:** Active tab indicator animation, disabled tabs, loading tab content
+
+**Edge cases:** Single tab (hide tabs?), empty tabs array, very long tab labels, mobile scrollable tabs
+
+```jsx
+<Tabs
+  tabs={[
+    { id: 'description', label: 'Description' },
+    { id: 'reviews', label: 'Reviews', badge: 12 },
+  ]}
+  activeTab={activeTab}
+  onChange={setActiveTab}
+  variant="underline"
+/>
+```
+
+---
+
+### `src/components/common/Tooltip.jsx`
+**Purpose:** Show contextual information on hover/focus.
+
+**Props:**
+- `content`: Tooltip text
+- `position`: 'top' | 'bottom' | 'left' | 'right'
+- `delay`: Show delay in ms (default: 200)
+- `children`: Target element
+- `disabled`: Boolean
+
+**Connected to:**
+- Icon buttons throughout the app
+- Wishlist button (add/remove)
+- Cart actions
+- Product variant info
+- Disabled buttons (explain why disabled)
+
+**States:** Hidden, showing, positioning calculation, mobile (show on tap)
+
+**Edge cases:** Overflow near screen edges, content too long, nested tooltips
+
+```jsx
+<Tooltip content="Add to wishlist" position="top">
+  <button><FiHeart /></button>
+</Tooltip>
+```
+
+---
+
+## 2. AUTH COMPONENTS
+
+### `src/components/auth/ForgotPasswordForm.jsx`
+**Purpose:** Form to request password reset email.
+
+**Props:** None (uses useAuth hook)
+
+**Connected to:**
+- `ForgotPassword.jsx` page
+- `AuthContext.jsx` - forgotPassword function
+- `apiWrapper.js` - authAPI.forgotPassword
+
+**States:**
+- Idle (show email input)
+- Loading (sending request)
+- Success (email sent confirmation)
+- Error (invalid email, server error)
+
+**Validations:** Email format, email exists in system
+
+**Edge cases:** Multiple rapid submissions, wrong email format, network timeout
+
+---
+
+### `src/components/auth/LoginForm.jsx`
+**Purpose:** Email/password login form with validation.
+
+**Props:** `onSuccess` callback, `redirectPath`
+
+**Connected to:**
+- `Login.jsx` page
+- `AuthContext.jsx` - login function
+- `apiWrapper.js` - authAPI.login
+- `CartContext.jsx` - Merge local cart on login
+
+**States:** Idle, loading, error (invalid credentials), success redirect
+
+**Validations:** Email format, password minimum length, remember me toggle
+
+**Edge cases:** Already logged in redirect, expired token, locked account, social login fallback
+
+---
+
+### `src/components/auth/SignupForm.jsx`
+**Purpose:** Registration form with name, email, password, confirm password.
+
+**Props:** `onSuccess` callback
+
+**Connected to:**
+- `Signup.jsx` page
+- `AuthContext.jsx` - signup function
+- `apiWrapper.js` - authAPI.signup
+- `Newsletter.jsx` - Auto-subscribe checkbox
+
+**States:** Idle, step 1 (credentials), step 2 (profile details), loading, success, error
+
+**Validations:** Name, email, password strength, password match, terms agreement
+
+**Edge cases:** Existing email, password requirements display, social signup integration
+
+---
+
+### `src/components/auth/SocialLogin.jsx`
+**Purpose:** Social media login buttons (Google, Facebook, Apple).
+
+**Props:** `onSuccess` callback, `mode`: 'login' | 'signup'
+
+**Connected to:**
+- `Login.jsx` page
+- `Signup.jsx` page
+- `AuthContext.jsx` - social login handler
+- `apiWrapper.js` - authAPI.googleLogin/facebookLogin
+
+**States:** Idle, loading per provider, error, linking existing account
+
+**Providers:** Google (OAuth2), Facebook (OAuth), Apple (Sign in with Apple)
+
+**Edge cases:** Popup blocked, user cancels, account already linked, merge accounts prompt
+
+---
+
+## 3. CART COMPONENTS
+
+### `src/components/cart/CartDrawer.jsx`
+**Purpose:** Slide-in cart panel from right side of screen.
+
+**Props:** `isOpen`, `onClose`
+
+**Connected to:**
+- `Header.jsx` - Cart icon click
+- `CartContext.jsx` - Cart items, totals
+- `CartItem.jsx` - Individual items
+- `CartSummary.jsx` - Price summary
+- React Router - Checkout navigation
+
+**States:** Open/close animation, empty cart state, loading, updating quantity
+
+**Features:**
+- Slide from right animation (Framer Motion)
+- Backdrop overlay
+- Scroll lock when open
+- Close on Escape key
+- Quick quantity adjustment
+- Remove items
+- "Go to Cart" and "Checkout" buttons
+- Free shipping progress bar
+
+**Edge cases:** Cart empty after item removal, rapid toggle, mobile full-screen mode
+
+---
+
+### `src/components/cart/CartItem.jsx`
+**Purpose:** Individual cart item row with image, details, quantity, price.
+
+**Props:** `item` (cart item object), `onUpdateQuantity`, `onRemove`
+
+**Connected to:**
+- `Cart.jsx` page
+- `CartDrawer.jsx`
+- `CartContext.jsx` - updateQuantity, removeFromCart
+- `WishlistContext.jsx` - Move to wishlist
+- React Router - Product link
+
+**States:** Normal, updating quantity (loading), removing (animation), out of stock warning
+
+**Features:**
+- Product image with link
+- Variant details (color, material, size)
+- Quantity +/- controls
+- Remove button with confirmation
+- "Move to Wishlist" action
+- Stock availability indicator
+- Price breakdown (unit price × quantity)
+
+**Edge cases:** Min/max quantity limits, stock changes while in cart, variant mismatch
+
+---
+
+### `src/components/cart/CartSummary.jsx`
+**Purpose:** Order totals, coupon input, checkout button.
+
+**Props:** None (uses useCart hook)
+
+**Connected to:**
+- `Cart.jsx` page
+- `CartDrawer.jsx`
+- `CartContext.jsx` - subtotal, discount, shipping, tax, total
+- `couponAPI` - Validate and apply coupons
+- React Router - Checkout navigation
+
+**States:** Calculating, coupon applying, coupon error, free shipping unlocked
+
+**Features:**
+- Subtotal, discount, shipping, tax, total breakdown
+- Coupon code input with apply button
+- Applied coupon display with remove option
+- Free shipping threshold progress bar
+- Proceed to checkout button
+- Accepted payment methods display
+
+**Edge cases:** Multiple coupon attempts, expired coupon, minimum purchase not met, zero total
+
+---
+
+## 4. CHECKOUT COMPONENTS
+
+### `src/components/checkout/ShippingForm.jsx`
+**Purpose:** Shipping address collection form.
+
+**Props:** `onSubmit`, `initialData`, `onBack`
+
+**Connected to:**
+- `Checkout.jsx` page
+- `AuthContext.jsx` - User saved addresses
+- `api.js` - Address validation/lookup
+- `orderAPI` - Shipping estimate
+
+**States:** Filling form, validating, saving address, address suggestions
+
+**Validations:** Name, address, city, state, zip, phone, email
+
+**Features:**
+- Save address for future
+- Use saved addresses dropdown
+- Address autocomplete (Google Places API ready)
+- Shipping method selection
+- Delivery estimate display
+- International address support
+
+**Edge cases:** PO Box restrictions, invalid zip format, international addresses, same as billing toggle
+
+---
+
+### `src/components/checkout/PaymentForm.jsx`
+**Purpose:** Payment method collection (card details or payment gateway).
+
+**Props:** `onSubmit`, `total`, `onBack`
+
+**Connected to:**
+- `Checkout.jsx` page
+- `payment.js` - Razorpay/Stripe integration
+- `orderAPI` - Create payment intent
+- `api.js` - Payment processing
+
+**States:** Card input, processing payment, 3D Secure, payment success/error
+
+**Features:**
+- Card number formatting (XXXX XXXX XXXX XXXX)
+- Expiry date formatting (MM/YY)
+- CVV input
+- Card type detection (Visa, MC, Amex)
+- Save card option
+- Test mode indicator (Razorpay test key)
+- Secure payment badges
+
+**Edge cases:** Invalid card, insufficient funds, expired card, 3D Secure redirect, test mode simulation
+
+---
+
+### `src/components/checkout/OrderReview.jsx`
+**Purpose:** Final order review before placing.
+
+**Props:** `orderData`, `onConfirm`, `onBack`
+
+**Connected to:**
+- `Checkout.jsx` page
+- `CartContext.jsx` - Cart items
+- `orderAPI` - Place order
+
+**States:** Reviewing, placing order, order placed, error
+
+**Features:**
+- Shipping address summary
+- Payment method summary (last 4 digits)
+- All cart items with images
+- Final price breakdown
+- Delivery estimate
+- Terms acceptance checkbox
+- Place order button with total
+
+**Edge cases:** Order fails after payment, inventory changes, coupon expired mid-checkout
+
+---
+
+### `src/components/checkout/OrderSuccess.jsx`
+**Purpose:** Order confirmation celebration screen.
+
+**Props:** `order` (order data object)
+
+**Connected to:**
+- `OrderConfirmation.jsx` page
+- `CartContext.jsx` - Clear cart
+- `analytics.js` - Track purchase
+- React Router - Order detail navigation
+
+**States:** Animating celebration, order details loaded, share prompt
+
+**Features:**
+- Confetti animation
+- Order number display
+- Items purchased summary
+- Shipping address
+- Estimated delivery date
+- "Track Order" button
+- "Continue Shopping" button
+- Share order on social media
+- Email confirmation sent notice
+
+**Edge cases:** Order not found, payment pending, guest order tracking
+
+---
+
+## 5. HOME COMPONENTS
+
+### `src/components/home/Newsletter.jsx`
+**Purpose:** Email newsletter signup section.
+
+**Props:** None
+
+**Connected to:**
+- Home, About, Contact, Blog, and most page footers
+- `api.js` - Subscribe endpoint
+- `analytics.js` - Track signup
+
+**States:** Empty input, typing, submitting, success, error, already subscribed
+
+**Features:**
+- Email input
+- Subscribe button
+- Loading state
+- Success confirmation
+- Error handling
+- Privacy policy link
+- Benefit text ("Get 10% off your first order!")
+
+**Edge cases:** Invalid email, already subscribed email, rate limiting, GDPR checkbox
+
+---
+
+### `src/components/layout/Navbar.jsx`
+**Purpose:** Secondary navigation bar below header with category links.
+
+**Props:** None (reads from constants)
+
+**Connected to:**
+- `Header.jsx` - Conditionally shown
+- React Router - Navigation links
+- `constants.js` - NAV_LINKS config
+- `useScrollPosition.js` - Show/hide on scroll
+
+**States:** Visible, hidden (scroll down), category hover dropdowns, active section highlight
+
+**Features:**
+- Category quick links
+- Scroll position aware (hide on scroll down, show on scroll up)
+- Hover dropdown for subcategories
+- Current page indicator
+- Mobile horizontal scroll
+
+**Edge cases:** Many categories overflow, mobile touch scroll, keyboard navigation
+
+---
+
+## 6. UI UTILITY COMPONENTS
+
+### `src/components/ui/BackToTop.jsx`
+**Purpose:** Floating button to scroll back to page top.
+
+**Props:** `threshold` (pixels to show, default: 400), `position`: 'bottom-right' | 'bottom-left'
+
+**Connected to:**
+- `Layout.jsx` - Included in layout
+- `useScrollPosition.js` - Detect scroll position
+
+**States:** Hidden (near top), visible (scrolled down), animating scroll
+
+**Features:**
+- Smooth scroll to top animation
+- Fade in/out based on scroll position
+- Hover scale effect
+- Accessible (aria-label, keyboard focusable)
+
+**Edge cases:** Very short pages (never shown), smooth scroll browser support, mobile position adjustment
+
+---
+
+### `src/components/ui/CookieConsent.jsx`
+**Purpose:** Cookie consent banner (GDPR compliance).
+
+**Props:** None (uses localStorage)
+
+**Connected to:**
+- `Layout.jsx` - Rendered at app level
+- `analytics.js` - Enable/disable tracking based on consent
+
+**States:** Not yet accepted, accepted, customizing preferences, hidden
+
+**Features:**
+- Cookie usage explanation
+- Accept all button
+- Customize preferences button
+- Privacy policy link
+- Slide-up animation
+- Saves preference to localStorage
+- Respects "Do Not Track" browser setting
+
+**Edge cases:** User clears localStorage, legal requirement updates, different regional requirements
+
+---
+
+### `src/components/ui/LiveChat.jsx`
+**Purpose:** Floating live chat widget for customer support.
+
+**Props:** `provider`: 'tawk' | 'intercom' | 'custom'
+
+**Connected to:**
+- `Layout.jsx` - Included in layout
+- `AuthContext.jsx` - User info for chat
+- External chat service (Tawk.to, Intercom, etc.)
+
+**States:** Closed, open, minimized, unread messages, loading chat
+
+**Features:**
+- Floating chat button (bottom-right)
+- Expandable chat window
+- Minimize/maximize
+- Unread message badge
+- Offline form fallback
+- Sound notification
+- Mobile responsive
+
+**Edge cases:** Chat service blocked by adblocker, offline mode, API key missing, mobile fullscreen
+
+---
+
+### `src/components/ui/LoadingScreen.jsx`
+**Purpose:** Full-page loading screen with brand logo.
+
+**Props:** `message` (optional loading text), `fullScreen`: boolean
+
+**Connected to:**
+- `App.jsx` - Lazy loading fallback
+- All page transitions
+
+**States:** Loading, loaded (fade out)
+
+**Features:**
+- Animated Furniqo logo
+- Spinning loader
+- Fade out transition on complete
+- Minimum display time (avoid flash)
+
+**Edge cases:** Very fast loads (skip animation), very slow loads (show message), error during loading
+
+---
+
+## 7. WISHLIST COMPONENT
+
+### `src/components/wishlist/WishlistButton.jsx`
+**Purpose:** Heart icon button to toggle wishlist status.
+
+**Props:** `product`, `size`, `showText`, `className`
+
+**Connected to:**
+- `ProductCard.jsx` - Quick add to wishlist
+- `ProductDetail.jsx` - Add to wishlist from detail
+- `WishlistContext.jsx` - isWishlisted, toggleWishlist
+
+**States:** Not wishlisted (outline heart), wishlisted (filled heart, red), animating toggle
+
+**Features:**
+- Heart icon with fill animation
+- Scale bounce on toggle
+- Tooltip ("Add to Wishlist" / "Remove from Wishlist")
+- Red color when active
+- Accessible label
+- Prevent event propagation (when in cards)
+
+**Edge cases:** Not logged in (prompt login), rapid clicking, product removed from catalog
+
+---
+
+## 8. HOOKS
+
+### `src/hooks/useAuth.js`
+```javascript
+// Returns auth context with: user, token, isAuthenticated, login, signup, logout, updateProfile, loading
+// Connected to: AuthContext, all auth pages, Header, Profile
+```
+
+### `src/hooks/useCart.js`
+```javascript
+// Returns cart context with: cartItems, addToCart, removeFromCart, updateQuantity, clearCart, totals, coupon
+// Connected to: CartContext, Cart page, CartDrawer, Header (cart count)
+```
+
+### `src/hooks/useRecentlyViewed.js`
+```javascript
+// Returns: recentlyViewed array, addToRecentlyViewed(product)
+// Connected to: RecentlyViewedContext, ProductDetail (add on view)
+```
+
+### `src/hooks/useTheme.js`
+```javascript
+// Returns: isDark, theme ('dark'|'light'), toggleTheme
+// Connected to: ThemeContext, Header (theme toggle)
+```
+
+### `src/hooks/useWishlist.js`
+```javascript
+// Returns: wishlistItems, addToWishlist, removeFromWishlist, isWishlisted, toggleWishlist
+// Connected to: WishlistContext, ProductCard, ProductDetail, Wishlist page
+```
+
+---
+
+## 9. PAGES
+
+### `src/pages/ForgotPassword.jsx`
+**Purpose:** Password reset request page.
+
+**Features:**
+- Email input form
+- Sends reset link via `authAPI.forgotPassword`
+- Success: "Check your email" message
+- Error: "Email not found" message
+- Link back to login
+- Uses `ForgotPasswordForm` component
+
+**States:** Idle → Submitting → Success | Error
+
+---
+
+### `src/pages/OrderDetail.jsx`
+**Purpose:** Single order detail view with tracking.
+
+**Features:**
+- Order number, date, status badge
+- Status timeline (Confirmed → Processing → Shipped → Delivered)
+- Tracking number and link
+- All items with images
+- Price breakdown
+- Shipping address
+- Payment info
+- Cancel/Return buttons (if eligible)
+- Print invoice button
+
+**States:** Loading order, order found, order not found, cancelling, returning
+
+---
+
+## 10. SERVICES
+
+### `src/services/analytics.js`
+```javascript
+// Purpose: Centralized analytics tracking
+// Methods:
+//   trackPageView(page, metadata)
+//   trackProductView(productId, productName)
+//   trackAddToCart(productId, name, price, quantity)
+//   trackRemoveFromCart(productId, name)
+//   trackPurchase(orderData)
+//   trackSearch(query, resultsCount)
+//   trackWishlistAdd(productId)
+//   trackEvent(category, action, label, value)
+
+// Connected to: apiWrapper (backend), Google Analytics (future), Facebook Pixel (future)
+// Fallback: Console.log in development, batch sends to prevent rate limiting
+```
+
+---
+
+## 11. STORE
+
+### `src/store/CompareContext.jsx`
+**Purpose:** Product comparison feature (compare up to 4 products).
+
+**Features:**
+- `compareItems`: Array of products (max 4)
+- `addToCompare(product)`: Add product, reject if 4 already
+- `removeFromCompare(productId)`: Remove product
+- `isInCompare(productId)`: Check if product is being compared
+- `clearCompare()`: Clear all
+- Persists to localStorage
+- Floating "Compare" button when items added
+- Compare page with side-by-side specs
+
+**States:** Empty, 1 item, 2 items, 3 items, 4 items (max), compare modal open
+
+---
+
+## 12. STYLES
+
+### `src/styles/animations.css`
+```css
+/* Purpose: Additional CSS animations beyond Tailwind utilities */
+
+/* Page transitions */
+.page-enter { opacity: 0; transform: translateY(20px); }
+.page-enter-active { opacity: 1; transform: translateY(0); transition: all 0.3s ease-out; }
+.page-exit { opacity: 1; }
+.page-exit-active { opacity: 0; transition: all 0.2s ease-in; }
+
+/* Card entrance stagger */
+.card-stagger-enter { opacity: 0; transform: translateY(30px); }
+.card-stagger-enter-active { opacity: 1; transform: translateY(0); transition: all 0.4s ease-out; }
+
+/* Skeleton shimmer */
+@keyframes shimmer { ... }
+
+/* Loading spinner variants */
+@keyframes spinner-dash { ... }
+
+/* Notification slide */
+@keyframes slideInRight { ... }
+@keyframes slideOutRight { ... }
+
+/* Pulse ring for notifications */
+@keyframes pulse-ring { ... }
+
+/* Drawer slide */
+@keyframes drawerSlideIn { ... }
+@keyframes drawerSlideOut { ... }
+
+/* Modal backdrop */
+@keyframes backdropFadeIn { ... }
+```
+
+### `src/utils/animations.js`
+```javascript
+// Purpose: Framer Motion animation presets for consistent animations
+
+export const fadeIn = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
+  transition: { duration: 0.3 }
+};
+
+export const fadeInUp = {
+  initial: { opacity: 0, y: 30 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.5, ease: 'easeOut' }
+};
+
+export const fadeInDown = {
+  initial: { opacity: 0, y: -20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.4, ease: 'easeOut' }
+};
+
+export const scaleIn = {
+  initial: { opacity: 0, scale: 0.9 },
+  animate: { opacity: 1, scale: 1 },
+  transition: { duration: 0.3, ease: 'easeOut' }
+};
+
+export const slideInRight = {
+  initial: { x: '100%' },
+  animate: { x: 0 },
+  exit: { x: '100%' },
+  transition: { type: 'spring', damping: 30, stiffness: 300 }
+};
+
+export const staggerContainer = {
+  animate: { transition: { staggerChildren: 0.1 } }
+};
+
+export const staggerItem = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 }
+};
+
+export const pageTransition = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -20 },
+  transition: { duration: 0.3 }
+};
+
+export const listItemAnimation = (index) => ({
+  initial: { opacity: 0, x: -20 },
+  animate: { opacity: 1, x: 0 },
+  transition: { delay: index * 0.05, duration: 0.3 }
+});
+
+// Export all presets as named and default
+```
+
+---
+
+## DEPENDENCY FLOW DIAGRAM
+
+```
+App.jsx
+├── AppProvider
+│   ├── ThemeProvider → useTheme hook
+│   ├── AuthProvider → useAuth hook → LoginForm, SignupForm, Header, Profile
+│   ├── CartProvider → useCart hook → CartDrawer, CartItem, CartSummary, Header
+│   ├── WishlistProvider → useWishlist hook → WishlistButton, Wishlist page
+│   ├── RecentlyViewedProvider → useRecentlyViewed hook → RecentlyViewed component
+│   ├── CompareProvider → CompareContext → ProductCard (compare checkbox)
+│   └── NotificationProvider → Toast notifications
+├── Layout
+│   ├── Header → CartDrawer, UserMenu (Dropdown), SearchBar
+│   ├── Navbar → Category links
+│   ├── Footer → Newsletter, Social links, Policy links
+│   ├── BackToTop
+│   ├── CookieConsent
+│   └── LiveChat
+└── Pages
+    ├── Home → Hero, Categories, Trending, Features, Testimonials, Newsletter
+    ├── Products → ProductGrid, ProductFilters (Dropdown, Tabs)
+    ├── ProductDetail → ProductImages, ProductVariants, Tabs (Accordion), ProductReviews
+    ├── Cart → CartItem, CartSummary
+    ├── Checkout → ShippingForm, PaymentForm, OrderReview
+    ├── Profile → Tabs, Avatar, Accordion
+    ├── Orders → Badge, Dropdown, Pagination
+    ├── About/Contact → Card, Alert, Newsletter
+    └── Auth pages → LoginForm, SignupForm, SocialLogin, ForgotPasswordForm
+```
+
+---
+
+This complete documentation describes every pending component, its purpose, props, states, edge cases, and connections to other components. Each file should be created with full error handling, loading states, empty states, and responsive design following these specifications.

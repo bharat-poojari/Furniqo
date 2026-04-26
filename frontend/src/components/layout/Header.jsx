@@ -64,6 +64,7 @@ const Header = () => {
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isCategoryHovered, setIsCategoryHovered] = useState(false);
+  const [isCategoryClicked, setIsCategoryClicked] = useState(false);
   
   const { isAuthenticated, user, logout } = useAuth();
   const { cartItems, getCartCount, getSubtotal } = useCart();
@@ -80,6 +81,13 @@ const Header = () => {
   const categoryButtonRef = useRef(null);
   const closeTimeoutRef = useRef(null);
   const cartTimeoutRef = useRef(null);
+
+  // Load avatar from localStorage
+  const [avatar, setAvatar] = useState(null);
+  useEffect(() => {
+    const savedAvatar = localStorage.getItem('userAvatar');
+    if (savedAvatar) setAvatar(savedAvatar);
+  }, [user]); // Reload when user changes
 
   useEffect(() => {
     setIsScrolled(scrollPosition > 30);
@@ -100,19 +108,22 @@ const Header = () => {
     }, 200);
   };
 
-  // Handle category dropdown with delay for better UX
-  const handleCategoryMouseEnter = () => {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
-    setIsCategoryHovered(true);
+  // Handle cart click - navigate to cart page directly
+  const handleCartClick = () => {
+    setShowCartPreview(false);
+    navigate('/cart');
   };
 
-  const handleCategoryMouseLeave = () => {
-    closeTimeoutRef.current = setTimeout(() => {
-      setIsCategoryHovered(false);
-    }, 200);
+  // Handle category dropdown with click instead of hover
+  const handleCategoryClick = (categoryName) => {
+    setIsCategoryClicked(false);
+    navigate(`/products?category=${encodeURIComponent(categoryName)}`);
+  };
+
+  // Handle subcategory click - navigate to shop and close dropdown
+  const handleSubcategoryClick = (categoryName, subcategoryName) => {
+    setIsCategoryClicked(false);
+    navigate(`/products?category=${encodeURIComponent(categoryName)}&subcategory=${encodeURIComponent(subcategoryName)}`);
   };
 
   // Close menus on click outside
@@ -124,11 +135,9 @@ const Header = () => {
       if (cartPreviewRef.current && !cartPreviewRef.current.contains(e.target)) {
         setShowCartPreview(false);
       }
-      if (!isDesktop) {
-        if (categoryMenuRef.current && !categoryMenuRef.current.contains(e.target) &&
-            categoryButtonRef.current && !categoryButtonRef.current.contains(e.target)) {
-          setIsCategoryHovered(false);
-        }
+      if (categoryMenuRef.current && !categoryMenuRef.current.contains(e.target) &&
+          categoryButtonRef.current && !categoryButtonRef.current.contains(e.target)) {
+        setIsCategoryClicked(false);
       }
     };
 
@@ -142,7 +151,7 @@ const Header = () => {
         clearTimeout(cartTimeoutRef.current);
       }
     };
-  }, [isDesktop]);
+  }, []);
 
   // Helper function to get product image safely
   const getProductImage = (item) => {
@@ -304,28 +313,27 @@ const Header = () => {
                   Shop
                 </Link>
                 
-                {/* Categories Dropdown */}
+                {/* Categories Dropdown - Opens on Click */}
                 <div 
                   className="relative"
                   ref={categoryMenuRef}
-                  onMouseEnter={handleCategoryMouseEnter}
-                  onMouseLeave={handleCategoryMouseLeave}
                 >
                   <button 
                     ref={categoryButtonRef}
+                    onClick={() => setIsCategoryClicked(!isCategoryClicked)}
                     className="nav-link flex items-center gap-1"
-                    aria-expanded={isCategoryHovered}
+                    aria-expanded={isCategoryClicked}
                   >
                     <FiGrid className="h-3.5 w-3.5" />
                     Categories
                     <FiChevronDown className={cn(
                       "h-3 w-3 transition-transform duration-200",
-                      isCategoryHovered && "rotate-180"
+                      isCategoryClicked && "rotate-180"
                     )} />
                   </button>
                   
                   <AnimatePresence>
-                    {isCategoryHovered && (
+                    {isCategoryClicked && (
                       <motion.div
                         initial={{ opacity: 0, y: 10, scaleY: 0.95 }}
                         animate={{ opacity: 1, y: 0, scaleY: 1 }}
@@ -337,9 +345,9 @@ const Header = () => {
                         <div className="grid grid-cols-4 gap-0">
                           {categories.map((category) => (
                             <div key={category.name} className="group/category">
-                              <Link
-                                to={`/products?category=${encodeURIComponent(category.name)}`}
-                                className="block p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-all duration-200 border-r border-b border-neutral-100 dark:border-neutral-800"
+                              <div
+                                onClick={() => handleCategoryClick(category.name)}
+                                className="block p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-all duration-200 border-r border-b border-neutral-100 dark:border-neutral-800 cursor-pointer"
                               >
                                 <div className="flex items-center gap-3 mb-3">
                                   <div className={cn(
@@ -359,18 +367,31 @@ const Header = () => {
                                 </div>
                                 <div className="space-y-1.5">
                                   {category.subcategories.slice(0, 3).map((sub) => (
-                                    <p key={sub} className="text-xs text-neutral-600 dark:text-neutral-400 hover:text-primary-600 transition-colors cursor-pointer">
+                                    <p 
+                                      key={sub} 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSubcategoryClick(category.name, sub);
+                                      }}
+                                      className="text-xs text-neutral-600 dark:text-neutral-400 hover:text-primary-600 transition-colors cursor-pointer"
+                                    >
                                       {sub}
                                     </p>
                                   ))}
                                   {category.subcategories.length > 3 && (
-                                    <p className="text-xs text-primary-600 font-medium mt-1.5 flex items-center gap-1">
+                                    <p 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCategoryClick(category.name);
+                                      }}
+                                      className="text-xs text-primary-600 font-medium mt-1.5 flex items-center gap-1 cursor-pointer hover:text-primary-700"
+                                    >
                                       +{category.subcategories.length - 3} more
                                       <FiChevronRight className="h-3 w-3" />
                                     </p>
                                   )}
                                 </div>
-                              </Link>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -383,6 +404,7 @@ const Header = () => {
                             </div>
                             <Link
                               to="/products"
+                              onClick={() => setIsCategoryClicked(false)}
                               className="px-4 py-1.5 bg-white/20 backdrop-blur-sm rounded-lg text-white text-sm font-medium hover:bg-white/30 transition-all duration-200 hover:scale-105"
                             >
                               View All
@@ -415,7 +437,7 @@ const Header = () => {
 
             {/* Right Actions */}
             <div className="flex items-center gap-1 lg:gap-1.5">
-              {/* Search Toggle - FIXED */}
+              {/* Search Toggle */}
               <button
                 onClick={() => setShowSearchModal(true)}
                 className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative"
@@ -451,7 +473,7 @@ const Header = () => {
                 )}
               </Link>
 
-              {/* Cart with Preview - FIXED */}
+              {/* Cart - Hover shows preview, Click goes to cart page */}
               <div 
                 className="relative" 
                 ref={cartPreviewRef}
@@ -459,7 +481,7 @@ const Header = () => {
                 onMouseLeave={handleCartMouseLeave}
               >
                 <button
-                  onClick={() => setShowCartPreview(!showCartPreview)}
+                  onClick={handleCartClick}
                   className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative"
                   aria-label="Cart"
                 >
@@ -471,7 +493,7 @@ const Header = () => {
                   )}
                 </button>
                 
-                {/* Cart Preview Dropdown */}
+                {/* Cart Preview Dropdown - Shows on Hover */}
                 <AnimatePresence>
                   {showCartPreview && (
                     <motion.div
@@ -574,10 +596,14 @@ const Header = () => {
                       onClick={() => setShowUserMenu(!showUserMenu)}
                       className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                     >
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-md">
-                        <span className="text-xs font-semibold text-white">
-                          {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-                        </span>
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-md overflow-hidden">
+                        {avatar ? (
+                          <img src={avatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xs font-semibold text-white">
+                            {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                          </span>
+                        )}
                       </div>
                       <span className="text-sm font-medium hidden lg:block text-neutral-700 dark:text-neutral-300">
                         {user?.name?.split(' ')[0]}

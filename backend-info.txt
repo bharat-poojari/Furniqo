@@ -1,0 +1,665 @@
+# FURNIQO - Complete Frontend Documentation for Backend Development
+
+## 📋 Project Overview
+
+**Furniqo** is a premium furniture e-commerce web application built with React + Vite. The frontend is fully functional with a local data fallback system that works when the backend is unavailable.
+
+---
+
+## 🏗️ Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Framework | React 18.2 |
+| Build Tool | Vite 5.0 |
+| Styling | Tailwind CSS 3.4 |
+| Routing | React Router DOM 6.21 |
+| State Management | React Context API |
+| HTTP Client | Axios 1.6 |
+| Animations | Framer Motion 10.18 |
+| Icons | React Icons 4.12 |
+| Notifications | React Hot Toast 2.4 |
+| Date Handling | date-fns 3.2 |
+
+---
+
+## 📁 Project Structure
+
+```
+frontend/
+├── public/
+│   ├── logo.png              # Site logo (add your logo file)
+│   ├── manifest.json          # PWA manifest
+│   ├── sw.js                  # Service Worker for PWA
+│   └── robots.txt             # SEO robots file
+├── src/
+│   ├── components/
+│   │   ├── common/            # Reusable UI components
+│   │   │   ├── Button.jsx
+│   │   │   ├── Card.jsx
+│   │   │   ├── Input.jsx
+│   │   │   ├── Modal.jsx
+│   │   │   ├── Badge.jsx
+│   │   │   ├── Rating.jsx
+│   │   │   ├── SearchBar.jsx
+│   │   │   ├── Skeleton.jsx
+│   │   │   ├── Spinner.jsx
+│   │   │   ├── Pagination.jsx
+│   │   │   ├── Breadcrumb.jsx
+│   │   │   ├── EmptyState.jsx
+│   │   │   ├── ErrorBoundary.jsx
+│   │   │   └── ScrollToTop.jsx
+│   │   ├── layout/            # Layout components
+│   │   │   ├── Header.jsx
+│   │   │   ├── Footer.jsx
+│   │   │   ├── Navbar.jsx
+│   │   │   ├── Layout.jsx
+│   │   │   ├── MobileMenu.jsx
+│   │   │   ├── TopBar.jsx
+│   │   │   └── Newsletter.jsx
+│   │   ├── home/              # Home page sections
+│   │   │   ├── Hero.jsx
+│   │   │   ├── Categories.jsx
+│   │   │   ├── Trending.jsx
+│   │   │   ├── Features.jsx
+│   │   │   ├── Testimonials.jsx
+│   │   │   ├── PromoBanner.jsx
+│   │   │   └── InstagramFeed.jsx
+│   │   ├── product/           # Product related components
+│   │   │   ├── ProductCard.jsx
+│   │   │   ├── ProductGrid.jsx
+│   │   │   ├── ProductFilters.jsx
+│   │   │   ├── ProductVariants.jsx
+│   │   │   ├── ProductImages.jsx
+│   │   │   ├── ProductReviews.jsx
+│   │   │   ├── QuickView.jsx
+│   │   │   ├── RecentlyViewed.jsx
+│   │   │   └── RelatedProducts.jsx
+│   │   ├── cart/              # Cart components
+│   │   │   ├── CartItem.jsx
+│   │   │   └── CartSummary.jsx
+│   │   ├── wishlist/          # Wishlist components
+│   │   │   └── WishlistButton.jsx
+│   │   ├── auth/              # Authentication forms
+│   │   │   ├── LoginForm.jsx
+│   │   │   └── SignupForm.jsx
+│   │   └── checkout/          # Checkout components
+│   │       ├── ShippingForm.jsx
+│   │       └── PaymentForm.jsx
+│   ├── pages/                 # All page components
+│   │   ├── Home.jsx
+│   │   ├── Products.jsx
+│   │   ├── ProductDetail.jsx
+│   │   ├── Cart.jsx
+│   │   ├── Checkout.jsx
+│   │   ├── OrderConfirmation.jsx
+│   │   ├── Wishlist.jsx
+│   │   ├── Profile.jsx
+│   │   ├── Orders.jsx
+│   │   ├── Login.jsx
+│   │   ├── Signup.jsx
+│   │   ├── About.jsx
+│   │   ├── Contact.jsx
+│   │   ├── Blog.jsx
+│   │   ├── BlogPost.jsx
+│   │   ├── FAQ.jsx
+│   │   ├── Policies.jsx
+│   │   ├── RoomInspiration.jsx
+│   │   ├── CustomFurniture.jsx
+│   │   ├── Offers.jsx
+│   │   └── NotFound.jsx
+│   ├── services/
+│   │   ├── api.js             # Axios API configuration
+│   │   ├── apiWrapper.js      # API wrapper with local fallback
+│   │   └── payment.js         # Razorpay payment integration
+│   ├── store/                 # Context API stores
+│   │   ├── AuthContext.jsx
+│   │   ├── CartContext.jsx
+│   │   ├── WishlistContext.jsx
+│   │   ├── ThemeContext.jsx
+│   │   ├── RecentlyViewedContext.jsx
+│   │   ├── NotificationContext.jsx
+│   │   └── AppProvider.jsx
+│   ├── hooks/                 # Custom React hooks
+│   │   ├── useApi.js
+│   │   ├── useAuth.js
+│   │   ├── useCart.js
+│   │   ├── useWishlist.js
+│   │   ├── useTheme.js
+│   │   ├── useDebounce.js
+│   │   ├── useScrollPosition.js
+│   │   ├── useMediaQuery.js
+│   │   └── useLocalStorage.js
+│   ├── utils/
+│   │   ├── helpers.js         # Utility functions
+│   │   ├── validators.js      # Form validation
+│   │   ├── constants.js       # App constants
+│   │   └── cn.js              # Class name utility
+│   ├── data/
+│   │   └── data.js            # LOCAL FALLBACK DATA
+│   ├── App.jsx                # Main app component
+│   ├── main.jsx               # Entry point
+│   └── index.css              # Global styles
+├── index.html
+├── package.json
+├── vite.config.js
+├── tailwind.config.js
+├── postcss.config.js
+├── .env.example
+└── vercel.json
+```
+
+---
+
+## 📡 API ENDPOINTS (Backend Requirements)
+
+The frontend expects these API endpoints. Build your backend to match:
+
+### Base URL: `/api/v1`
+
+### AUTHENTICATION
+| Method | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| POST | `/auth/login` | `{ email, password }` | `{ success, data: { user, token, refreshToken } }` |
+| POST | `/auth/signup` | `{ name, email, password }` | `{ success, data: { user, token, refreshToken } }` |
+| POST | `/auth/logout` | - | `{ success, message }` |
+| GET | `/auth/profile` | Headers: `Authorization: Bearer <token>` | `{ success, data: user }` |
+| PUT | `/auth/profile` | `{ name, phone, address, city, state, zipCode }` | `{ success, data: updatedUser }` |
+| POST | `/auth/forgot-password` | `{ email }` | `{ success, message }` |
+| POST | `/auth/reset-password` | `{ token, password }` | `{ success, message }` |
+| POST | `/auth/refresh` | `{ refreshToken }` | `{ success, data: { token } }` |
+
+### PRODUCTS
+| Method | Endpoint | Query Params | Response |
+|--------|----------|--------------|----------|
+| GET | `/products` | `category, material, color, style, minPrice, maxPrice, sort, page, limit, search` | `{ success, data: [...], pagination: { page, limit, total, pages } }` |
+| GET | `/products/:slug` | - | `{ success, data: product }` |
+| GET | `/products/id/:id` | - | `{ success, data: product }` |
+| GET | `/products/featured` | `limit` | `{ success, data: [...] }` |
+| GET | `/products/trending` | `limit` | `{ success, data: [...] }` |
+| GET | `/products/bestsellers` | `limit` | `{ success, data: [...] }` |
+| GET | `/products/new-arrivals` | `limit` | `{ success, data: [...] }` |
+| GET | `/products/on-sale` | `limit` | `{ success, data: [...] }` |
+| GET | `/products/:id/related` | `limit` | `{ success, data: [...] }` |
+| GET | `/products/search` | `q, category, material, etc.` | `{ success, data: [...], pagination }` |
+| POST | `/products` | Full product object (multipart for images) | `{ success, data: product }` |
+| PUT | `/products/:id` | Updated product fields | `{ success, data: product }` |
+| DELETE | `/products/:id` | - | `{ success, message }` |
+
+### CATEGORIES
+| Method | Endpoint | Response |
+|--------|----------|----------|
+| GET | `/categories` | `{ success, data: [...] }` |
+
+### CART
+| Method | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| GET | `/cart` | - | `{ success, data: { items: [...], coupon, shippingMethod } }` |
+| POST | `/cart/items` | `{ productId, quantity, variant }` | `{ success, data: cart }` |
+| PUT | `/cart/items/:itemId` | `{ quantity }` | `{ success, data: cart }` |
+| DELETE | `/cart/items/:itemId` | - | `{ success, data: cart }` |
+| DELETE | `/cart` | - | `{ success, message }` |
+| POST | `/cart/coupon` | `{ code }` | `{ success, data: coupon }` |
+| DELETE | `/cart/coupon` | - | `{ success, message }` |
+
+### WISHLIST
+| Method | Endpoint | Response |
+|--------|----------|----------|
+| GET | `/wishlist` | `{ success, data: [...] }` |
+| POST | `/wishlist` | `{ productId }` | `{ success, data: wishlist }` |
+| DELETE | `/wishlist/:productId` | `{ success, data: wishlist }` |
+| GET | `/wishlist/check/:productId` | `{ success, data: { isWishlisted: boolean } }` |
+| POST | `/wishlist/move-to-cart/:productId` | `{ success, message }` |
+| DELETE | `/wishlist` | `{ success, message }` |
+
+### ORDERS
+| Method | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| POST | `/orders` | `{ shipping, shippingMethod, payment, items, subtotal, discount, shippingCost, tax, total, coupon }` | `{ success, data: order }` |
+| GET | `/orders` | `status, page, limit` | `{ success, data: [...], pagination }` |
+| GET | `/orders/:id` | - | `{ success, data: order }` |
+| PUT | `/orders/:id/cancel` | - | `{ success, data: order }` |
+| POST | `/orders/:id/return` | `{ reason }` | `{ success, data: order }` |
+| GET | `/orders/:id/tracking` | - | `{ success, data: tracking }` |
+| GET | `/orders/:id/invoice` | - | Blob/PDF response |
+
+### REVIEWS
+| Method | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| GET | `/reviews/product/:productId` | `sort, page, limit` | `{ success, data: [...], pagination }` |
+| POST | `/reviews` | `{ productId, rating, title, comment }` | `{ success, data: review }` |
+| PUT | `/reviews/:id` | `{ rating, title, comment }` | `{ success, data: review }` |
+| DELETE | `/reviews/:id` | - | `{ success, message }` |
+| POST | `/reviews/:id/helpful` | - | `{ success, data: review }` |
+| GET | `/reviews/user` | - | `{ success, data: [...] }` |
+
+### COUPONS
+| Method | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| POST | `/coupons/validate` | `{ code, orderTotal }` | `{ success, data: coupon, message }` |
+| GET | `/coupons/active` | - | `{ success, data: [...] }` |
+| GET | `/coupons/user` | - | `{ success, data: [...] }` |
+
+### CONTENT
+| Method | Endpoint | Response |
+|--------|----------|----------|
+| GET | `/content/blog` | `{ success, data: [...] }` |
+| GET | `/content/blog/:slug` | `{ success, data: post }` |
+| GET | `/content/faqs` | `{ success, data: [...] }` |
+| GET | `/content/policies` | `{ success, data: { privacy, terms, shipping, returns } }` |
+| GET | `/content/testimonials` | `{ success, data: [...] }` |
+| GET | `/content/rooms` | `{ success, data: [...] }` |
+
+### ANALYTICS
+| Method | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| POST | `/analytics/event` | `{ type, productId, ... }` | `{ success }` |
+| POST | `/analytics/pageview` | `{ page, metadata }` | `{ success }` |
+| POST | `/analytics/product-view` | `{ productId }` | `{ success }` |
+| POST | `/analytics/add-to-cart` | `{ productId, quantity }` | `{ success }` |
+| POST | `/analytics/purchase` | Order data | `{ success }` |
+
+### PAYMENT
+| Method | Endpoint | Request Body | Response |
+|--------|----------|--------------|----------|
+| POST | `/payment/create-intent` | `{ amount, currency }` | `{ success, data: { clientSecret } }` |
+| POST | `/payment/confirm` | `{ paymentIntentId }` | `{ success, data: payment }` |
+
+### HEALTH CHECK
+| Method | Endpoint | Response |
+|--------|----------|----------|
+| GET | `/health` | `{ status: "ok", timestamp }` |
+
+---
+
+## 📊 DATABASE SCHEMA
+
+### Users Collection
+```javascript
+{
+  _id: ObjectId,
+  name: String,
+  email: String (unique, indexed),
+  password: String (bcrypt hashed),
+  phone: String,
+  avatar: String (Cloudinary URL),
+  role: String (enum: ['user', 'admin']),
+  addresses: [{
+    _id: ObjectId,
+    type: String (enum: ['home', 'work', 'other']),
+    firstName: String,
+    lastName: String,
+    address: String,
+    city: String,
+    state: String,
+    zipCode: String,
+    country: String,
+    phone: String,
+    isDefault: Boolean
+  }],
+  refreshToken: String,
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
+  emailVerified: Boolean,
+  emailVerificationToken: String,
+  createdAt: Date,
+  updatedAt: Date
+}
+// Indexes: email (unique), role
+```
+
+### Products Collection
+```javascript
+{
+  _id: ObjectId,
+  name: String (required),
+  slug: String (unique, required),
+  description: String,
+  shortDescription: String,
+  price: Number (required),
+  originalPrice: Number,
+  category: String (required),
+  subcategory: String,
+  material: String,
+  color: String,
+  style: String,
+  dimensions: String,
+  weight: String,
+  inStock: Boolean (default: true),
+  stock: Number (default: 0),
+  rating: Number (default: 0),
+  numReviews: Number (default: 0),
+  images: [String],  // Cloudinary URLs
+  variants: [{
+    size: String,
+    color: String,
+    material: String,
+    price: Number,
+    stock: Number,
+    sku: String
+  }],
+  features: [String],
+  tags: [String],
+  featured: Boolean (default: false),
+  trending: Boolean (default: false),
+  bestSeller: Boolean (default: false),
+  newArrival: Boolean (default: false),
+  onSale: Boolean (default: false),
+  createdAt: Date,
+  updatedAt: Date
+}
+// Indexes: slug (unique), category, material, color, style, featured, trending, tags
+// Text index: name, description, tags
+```
+
+### Categories Collection
+```javascript
+{
+  _id: ObjectId,
+  name: String (required, unique),
+  slug: String (unique),
+  image: String,
+  description: String,
+  icon: String,
+  itemCount: Number,
+  featured: Boolean,
+  parentCategory: ObjectId (ref: 'categories', nullable),
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Orders Collection
+```javascript
+{
+  _id: ObjectId,
+  orderNumber: String (unique, format: "FNQ-XXXXX-XXXXX"),
+  user: ObjectId (ref: 'users'),
+  items: [{
+    product: ObjectId (ref: 'products'),
+    name: String,
+    price: Number,
+    quantity: Number,
+    variant: {
+      size: String,
+      color: String,
+      material: String
+    },
+    image: String
+  }],
+  shipping: {
+    firstName: String,
+    lastName: String,
+    email: String,
+    phone: String,
+    address: String,
+    city: String,
+    state: String,
+    zipCode: String,
+    country: String
+  },
+  shippingMethod: String (enum: ['standard', 'express', 'overnight', 'white-glove']),
+  shippingCost: Number,
+  payment: {
+    method: String (enum: ['razorpay', 'stripe', 'paypal']),
+    paymentId: String,
+    razorpayOrderId: String,
+    razorpaySignature: String,
+    status: String (enum: ['pending', 'paid', 'failed', 'refunded']),
+    last4: String,
+    brand: String
+  },
+  subtotal: Number,
+  discount: Number,
+  tax: Number,
+  total: Number,
+  coupon: String,
+  status: String (enum: ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned']),
+  tracking: {
+    carrier: String,
+    trackingNumber: String,
+    trackingUrl: String,
+    estimatedDelivery: Date
+  },
+  statusHistory: [{
+    status: String,
+    date: Date,
+    note: String
+  }],
+  createdAt: Date,
+  updatedAt: Date
+}
+// Indexes: orderNumber (unique), user, status, createdAt
+```
+
+### Reviews Collection
+```javascript
+{
+  _id: ObjectId,
+  user: ObjectId (ref: 'users'),
+  product: ObjectId (ref: 'products'),
+  rating: Number (1-5, required),
+  title: String,
+  comment: String,
+  verified: Boolean (default: false),
+  helpful: [{
+    user: ObjectId (ref: 'users'),
+    date: Date
+  }],
+  helpfulCount: Number (default: 0),
+  reports: [{
+    user: ObjectId,
+    reason: String,
+    date: Date
+  }],
+  createdAt: Date,
+  updatedAt: Date
+}
+// Indexes: product, user, rating
+// Compound index: { product: 1, user: 1 } (unique - one review per user per product)
+```
+
+### Coupons Collection
+```javascript
+{
+  _id: ObjectId,
+  code: String (unique, uppercase),
+  discount: Number,
+  type: String (enum: ['percentage', 'fixed', 'freeShipping']),
+  minPurchase: Number (default: 0),
+  maxDiscount: Number (nullable),
+  validFrom: Date,
+  validUntil: Date,
+  description: String,
+  usageLimit: Number (nullable),
+  usedCount: Number (default: 0),
+  isActive: Boolean (default: true),
+  forNewUsers: Boolean (default: false),
+  applicableCategories: [String],
+  applicableProducts: [ObjectId],
+  createdAt: Date,
+  updatedAt: Date
+}
+// Indexes: code (unique), isActive, validUntil
+```
+
+### Analytics Events Collection
+```javascript
+{
+  _id: ObjectId,
+  type: String (enum: ['pageview', 'product_view', 'add_to_cart', 'purchase', 'search', 'wishlist_add']),
+  user: ObjectId (ref: 'users', nullable),
+  sessionId: String,
+  page: String,
+  productId: ObjectId (nullable),
+  metadata: Object,
+  userAgent: String,
+  ip: String,
+  createdAt: Date
+}
+// Indexes: type, user, sessionId, createdAt
+// TTL index on createdAt (auto-delete after 90 days)
+```
+
+### Blog Posts Collection
+```javascript
+{
+  _id: ObjectId,
+  title: String,
+  slug: String (unique),
+  excerpt: String,
+  content: String (HTML/Markdown),
+  image: String,
+  author: String,
+  authorRole: String,
+  authorImage: String,
+  category: String,
+  tags: [String],
+  readTime: String,
+  featured: Boolean,
+  published: Boolean (default: false),
+  publishedAt: Date,
+  createdAt: Date,
+  updatedAt: Date
+}
+// Indexes: slug (unique), category, published, createdAt
+```
+
+---
+
+## 🔐 AUTHENTICATION FLOW
+
+### JWT Token Structure
+```javascript
+// Access Token (short-lived: 15 min - 1 hour)
+{
+  userId: String,
+  email: String,
+  role: String ('user' | 'admin'),
+  iat: Number,
+  exp: Number
+}
+
+// Refresh Token (long-lived: 7-30 days)
+{
+  userId: String,
+  tokenVersion: Number,
+  iat: Number,
+  exp: Number
+}
+```
+
+### Auth Headers
+The frontend sends:
+```
+Authorization: Bearer <access_token>
+```
+
+### Token Storage (Frontend)
+- `localStorage.furniqo_token` - Access Token
+- `localStorage.furniqo_refresh_token` - Refresh Token
+- `localStorage.furniqo_user` - User Object (JSON)
+
+---
+
+## 🎨 ENVIRONMENT VARIABLES
+
+### Frontend (.env)
+```env
+VITE_API_URL=http://localhost:5000/api/v1
+VITE_RAZORPAY_KEY_ID=rzp_test_your_key
+VITE_ALGOLIA_APP_ID=your_app_id
+VITE_ALGOLIA_SEARCH_KEY=your_search_key
+VITE_CLOUDINARY_CLOUD_NAME=your_cloud
+VITE_SENTRY_DSN=your_dsn
+```
+
+### Backend (.env)
+```env
+PORT=5000
+NODE_ENV=development
+
+# MongoDB
+MONGO_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/furniqo?retryWrites=true&w=majority
+
+# JWT
+JWT_SECRET=your_jwt_secret_key
+JWT_REFRESH_SECRET=your_refresh_secret
+JWT_EXPIRE=15m
+JWT_REFRESH_EXPIRE=7d
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=your_cloud
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+
+# Razorpay
+RAZORPAY_KEY_ID=rzp_test_key
+RAZORPAY_KEY_SECRET=rzp_test_secret
+RAZORPAY_WEBHOOK_SECRET=webhook_secret
+
+# Algolia
+ALGOLIA_APP_ID=your_app_id
+ALGOLIA_ADMIN_KEY=your_admin_key
+ALGOLIA_INDEX_NAME=furniqo_products
+
+# Sentry
+SENTRY_DSN=your_sentry_dsn
+
+# SMTP (for emails)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email
+SMTP_PASS=your_password
+
+# Frontend URL (for CORS)
+FRONTEND_URL=http://localhost:3000
+```
+
+---
+
+## 🔄 FALLBACK SYSTEM
+
+The frontend has a built-in fallback system. When the backend is unavailable:
+
+1. `apiWrapper.js` checks backend health at startup
+2. If backend is down, it uses `data.js` for all data
+3. Cart, wishlist, orders are stored in `localStorage`
+4. Auth works in mock mode with localStorage tokens
+
+### Health Check Endpoint (Required)
+```
+GET /api/v1/health
+Response: { status: "ok", timestamp: "2024-01-01T00:00:00Z" }
+```
+
+---
+
+## 🚀 DEPLOYMENT
+
+### Frontend (Vercel)
+- Build command: `npm run build`
+- Output directory: `dist`
+- Environment variables set in Vercel dashboard
+
+### Backend (Render/Railway)
+- Start command: `npm start` or `node server.js`
+- Health check path: `/api/v1/health`
+- Environment variables in dashboard
+
+---
+
+## 📦 NPM SCRIPTS
+
+```json
+{
+  "dev": "vite",           // Start dev server
+  "build": "vite build",   // Production build
+  "preview": "vite preview", // Preview production build
+  "lint": "eslint . --ext js,jsx"
+}
+```
+
+---
+
+This documentation provides everything you need to build a fully compatible backend. Start with the **Health Check** endpoint, then implement **Auth**, then **Products**, and build out from there. The frontend gracefully handles missing endpoints by falling back to local data.

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiHeart, FiShoppingCart, FiStar, FiMinus, FiPlus, FiCheck } from 'react-icons/fi';
+import { FiX, FiHeart, FiShoppingCart, FiStar, FiMinus, FiPlus, FiCheck, FiTruck, FiShield, FiClock } from 'react-icons/fi';
 import { cn } from '../../utils/cn';
 import { useCart } from '../../store/CartContext';
+import { formatPrice } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
 // Helper function to get category name
@@ -114,12 +115,19 @@ const Modal = ({
   );
 };
 
-// QuickViewModal Component
-export const QuickViewModal = ({ product, isOpen, onClose, onAddToWishlist, isInWishlist }) => {
+// QuickViewModal Component - FIXED
+export const QuickViewModal = ({ 
+  product, 
+  isOpen, 
+  onClose, 
+  onAddToWishlist, 
+  isInWishlist // This should be a boolean, not a function
+}) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
+  const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
   const { addToCart } = useCart();
 
   useEffect(() => {
@@ -128,6 +136,7 @@ export const QuickViewModal = ({ product, isOpen, onClose, onAddToWishlist, isIn
       setSelectedImage(0);
       setIsAddingToCart(false);
       setAddedToCart(false);
+      setIsAddingToWishlist(false);
     }
   }, [isOpen]);
 
@@ -143,7 +152,7 @@ export const QuickViewModal = ({ product, isOpen, onClose, onAddToWishlist, isIn
     
     setIsAddingToCart(true);
     try {
-      await addToCart(product._id, quantity);
+      await addToCart(product, quantity);
       setAddedToCart(true);
       toast.success(`${quantity} × ${product.name} added to cart`, {
         icon: '🛒',
@@ -160,9 +169,22 @@ export const QuickViewModal = ({ product, isOpen, onClose, onAddToWishlist, isIn
     }
   };
 
-  const handleWishlistClick = () => {
-    if (onAddToWishlist && product) {
-      onAddToWishlist(product);
+  const handleWishlistClick = async () => {
+    if (!product) return;
+    
+    setIsAddingToWishlist(true);
+    try {
+      if (onAddToWishlist) {
+        await onAddToWishlist(product);
+      }
+      toast.success(
+        isInWishlist ? 'Removed from wishlist' : 'Added to wishlist',
+        { duration: 1500 }
+      );
+    } catch (error) {
+      toast.error('Failed to update wishlist');
+    } finally {
+      setIsAddingToWishlist(false);
     }
   };
 
@@ -175,8 +197,9 @@ export const QuickViewModal = ({ product, isOpen, onClose, onAddToWishlist, isIn
   const rating = product.rating || 4.5;
   const reviewCount = product.numReviews || 128;
   const categoryName = getCategoryName(product.category);
+  const isInStock = product.stock > 0;
   
-  // Generate SKU from product ID if not provided, or use product._id
+  // Generate SKU from product ID if not provided
   const displaySku = product.sku || product._id?.slice(-8).toUpperCase() || 'N/A';
 
   return (
@@ -262,32 +285,58 @@ export const QuickViewModal = ({ product, isOpen, onClose, onAddToWishlist, isIn
           <div className="mb-4">
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold text-primary-600 dark:text-primary-400">
-                ${product.price?.toLocaleString() || 0}
+                {formatPrice(product.price || 0)}
               </span>
               {product.originalPrice && product.originalPrice > product.price && (
                 <span className="text-lg text-neutral-400 dark:text-neutral-500 line-through">
-                  ${product.originalPrice.toLocaleString()}
+                  {formatPrice(product.originalPrice)}
                 </span>
               )}
             </div>
+            {product.price > 5000 && (
+              <p className="text-xs text-neutral-500 mt-1">
+                or EMI from {formatPrice(Math.floor(product.price / 6))}/month
+              </p>
+            )}
           </div>
 
           <p className="text-neutral-600 dark:text-neutral-400 mb-6 leading-relaxed">
             {product.shortDescription || product.description || 'No description available for this product.'}
           </p>
 
+          {/* Stock Status */}
           <div className="mb-6">
             <div className="flex items-center gap-2">
-              <div className={`h-2 w-2 rounded-full ${product.stock > 0 ? 'bg-green-500' : 'bg-red-500'} animate-pulse`} />
+              <div className={`h-2 w-2 rounded-full ${isInStock ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
               <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                {product.stock > 0 
+                {isInStock 
                   ? `In Stock (${product.stock} available)` 
                   : 'Out of Stock'}
               </span>
             </div>
           </div>
 
-          {product.stock > 0 && (
+          {/* Delivery Info */}
+          <div className="mb-6 p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl">
+            <div className="flex items-center gap-3 text-sm">
+              <FiTruck className="h-4 w-4 text-primary-600" />
+              <div>
+                <p className="font-medium text-neutral-900 dark:text-white">Free Delivery</p>
+                <p className="text-xs text-neutral-500">Get by {(() => {
+                  const date = new Date();
+                  date.setDate(date.getDate() + 5);
+                  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                })()}</p>
+              </div>
+              <FiShield className="h-4 w-4 text-green-600 ml-auto" />
+              <div>
+                <p className="font-medium text-neutral-900 dark:text-white">1 Year Warranty</p>
+                <p className="text-xs text-neutral-500">Manufacturer warranty</p>
+              </div>
+            </div>
+          </div>
+
+          {isInStock && (
             <div className="mb-6">
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                 Quantity
@@ -321,7 +370,7 @@ export const QuickViewModal = ({ product, isOpen, onClose, onAddToWishlist, isIn
           <div className="flex gap-3">
             <motion.button
               onClick={handleAddToCart}
-              disabled={product.stock === 0 || isAddingToCart}
+              disabled={!isInStock || isAddingToCart}
               className="flex-1 relative overflow-hidden bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white py-3 rounded-xl font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -353,24 +402,29 @@ export const QuickViewModal = ({ product, isOpen, onClose, onAddToWishlist, isIn
               ) : (
                 <div className="flex items-center justify-center gap-2">
                   <FiShoppingCart className="h-5 w-5" />
-                  Add to Cart - ${((product.price || 0) * quantity).toLocaleString()}
+                  Add to Cart - {formatPrice((product.price || 0) * quantity)}
                 </div>
               )}
             </motion.button>
 
             <motion.button
               onClick={handleWishlistClick}
-              className="p-3 rounded-xl border-2 border-neutral-300 dark:border-neutral-700 hover:border-red-500 dark:hover:border-red-500 transition-all hover:shadow-lg"
+              disabled={isAddingToWishlist}
+              className="p-3 rounded-xl border-2 border-neutral-300 dark:border-neutral-700 hover:border-red-500 dark:hover:border-red-500 transition-all hover:shadow-lg disabled:opacity-50"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <FiHeart
-                className={`h-5 w-5 transition-colors ${
-                  isInWishlist?.(product._id) 
-                    ? 'fill-red-500 text-red-500' 
-                    : 'text-neutral-600 dark:text-neutral-400'
-                }`}
-              />
+              {isAddingToWishlist ? (
+                <div className="h-5 w-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <FiHeart
+                  className={`h-5 w-5 transition-colors ${
+                    isInWishlist 
+                      ? 'fill-red-500 text-red-500' 
+                      : 'text-neutral-600 dark:text-neutral-400'
+                  }`}
+                />
+              )}
             </motion.button>
           </div>
 
