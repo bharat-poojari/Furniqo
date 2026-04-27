@@ -28,9 +28,26 @@ const BlogPost = () => {
   const fetchPost = async () => {
   try {
     const response = await apiWrapper.getBlogPost(slug);
-    setPost(response.data.data);
+    
+    // Handle different response structures
+    let postData = null;
+    if (response?.data?.success && response?.data?.data) {
+      postData = response.data.data;
+    } else if (response?.success && response?.data) {
+      postData = response.data;
+    } else if (response?.data && !response?.success) {
+      postData = response.data;
+    }
+    
+    if (postData) {
+      setPost(postData);
+      fetchRelatedPosts(postData);
+    } else {
+      setPost(null);
+    }
   } catch (error) {
     console.error('Error fetching blog post:', error);
+    setPost(null);
   } finally {
     setLoading(false);
   }

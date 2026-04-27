@@ -34,9 +34,23 @@ const Blog = () => {
   const fetchPosts = async () => {
   try {
     const response = await apiWrapper.getBlogPosts();
-    setPosts(response.data.data || []);
+    
+    // Handle different response structures
+    let postsData = [];
+    if (response?.data?.success && response?.data?.data) {
+      postsData = response.data.data;
+    } else if (response?.success && response?.data) {
+      postsData = response.data;
+    } else if (response?.data && Array.isArray(response.data)) {
+      postsData = response.data;
+    } else if (Array.isArray(response)) {
+      postsData = response;
+    }
+    
+    setPosts(postsData);
   } catch (error) {
     console.error('Error fetching blog posts:', error);
+    setPosts([]);
   } finally {
     setLoading(false);
   }

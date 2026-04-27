@@ -178,10 +178,10 @@ const Hero = () => {
         </motion.div>
       </AnimatePresence>
 
-      {/* Navigation Arrows - Responsive positioning and sizing */}
+      {/* Navigation Arrows - Hidden on mobile, visible on tablet+ */}
       <button
         onClick={prevSlide}
-        className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-md hover:bg-white/30 text-white rounded-full flex items-center justify-center transition-all border border-white/30 z-10 hover:scale-110"
+        className="hidden sm:flex absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-md hover:bg-white/30 text-white rounded-full items-center justify-center transition-all border border-white/30 z-10 hover:scale-110"
         aria-label="Previous slide"
       >
         <FiChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -189,7 +189,7 @@ const Hero = () => {
       
       <button
         onClick={nextSlide}
-        className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-md hover:bg-white/30 text-white rounded-full flex items-center justify-center transition-all border border-white/30 z-10 hover:scale-110"
+        className="hidden sm:flex absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-md hover:bg-white/30 text-white rounded-full items-center justify-center transition-all border border-white/30 z-10 hover:scale-110"
         aria-label="Next slide"
       >
         <FiChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />

@@ -30,7 +30,7 @@ const getCategoryName = (category) => {
   return null;
 };
 
-// Modal Component
+// Modal Component (keep as is)
 const Modal = ({ 
   isOpen, 
   onClose, 
@@ -131,7 +131,7 @@ const Modal = ({
   );
 };
 
-// QuickView Modal Component
+// QuickView Modal Component (keep as is)
 const QuickViewModal = ({ product, isOpen, onClose }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -419,7 +419,7 @@ const QuickViewModal = ({ product, isOpen, onClose }) => {
   );
 };
 
-// Main Trending Component
+// Main Trending Component - FIXED
 const Trending = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -431,26 +431,36 @@ const Trending = () => {
   const { addToCart } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
   const toastIdRef = useRef(null);
+  const fetchAttempted = useRef(false);
 
   useEffect(() => {
     fetchTrendingProducts();
   }, []);
 
   const fetchTrendingProducts = async () => {
-  try {
-    const response = await apiWrapper.getTrendingProducts(8);
-    if (response.data.success) {
-      setProducts(response.data.data);
+    // Prevent multiple simultaneous fetches
+    if (fetchAttempted.current) return;
+    fetchAttempted.current = true;
+    
+    try {
+      // The apiWrapper now returns local data immediately
+      const response = await apiWrapper.getTrendingProducts(8);
+      
+      if (response?.data?.success && Array.isArray(response.data.data)) {
+        setProducts(response.data.data);
+      } else if (Array.isArray(response)) {
+        setProducts(response);
+      } else {
+        console.warn('Unexpected response format:', response);
+        setProducts([]);
+      }
+    } catch (error) {
+      console.error('Error fetching trending products:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching trending products:', error);
-    // Fallback - use local data directly
-    const featured = response?.data?.data || [];
-    setProducts(featured);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleWishlistToggle = useCallback((product, e) => {
     if (e) {
@@ -554,7 +564,8 @@ const Trending = () => {
     },
   };
 
-  if (loading) {
+  // Show loading skeleton only on initial load
+  if (loading && products.length === 0) {
     return (
       <section className="py-16 bg-gradient-to-b from-neutral-50 to-white dark:from-neutral-900 dark:to-neutral-950">
         <div className="w-full px-[2%] sm:px-[3%] lg:px-[5%] max-w-[1600px] mx-auto">
@@ -578,6 +589,11 @@ const Trending = () => {
         </div>
       </section>
     );
+  }
+
+  // Don't show anything if no products after loading
+  if (!loading && products.length === 0) {
+    return null;
   }
 
   return (
@@ -728,11 +744,11 @@ const Trending = () => {
                   )}
 
                   {/* Product Name */}
-                  <Link to={`/products/${product._id}`} className="block mb-1 sm:mb-2">
-                    <h3 className="font-semibold text-neutral-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200 line-clamp-2 text-xs sm:text-sm lg:text-base">
-                      {product.name}
-                    </h3>
-                  </Link>
+<Link to={`/products/${product.slug}`} className="block mb-1 sm:mb-2">
+  <h3 className="font-semibold text-neutral-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200 line-clamp-2 text-xs sm:text-sm lg:text-base">
+    {product.name}
+  </h3>
+</Link>
 
                   {/* Rating - Responsive */}
                   {product.rating && (

@@ -34,24 +34,20 @@ const Products = () => {
 
   const debouncedFilters = useDebounce(filters, 300);
 
-  // Scroll handler
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 300);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Mobile filter toggle
   useEffect(() => {
     setShowFilters(!isMobile);
   }, [isMobile]);
 
-  // Save view mode
   useEffect(() => {
     localStorage.setItem('productViewMode', viewMode);
   }, [viewMode]);
 
-  // Parse URL params to filters
   useEffect(() => {
     const category = searchParams.get('category');
     const search = searchParams.get('search');
@@ -71,43 +67,52 @@ const Products = () => {
     setFilters(prev => ({ ...prev, ...urlFilters }));
   }, [searchParams]);
 
-  // Fetch products
   useEffect(() => {
     fetchProducts();
   }, [debouncedFilters, sort, currentPage]);
 
   const fetchProducts = async () => {
-  setLoading(true);
-  setError(null);
-  
-  try {
-    const params = {
-      ...filters,
-      sort,
-      page: currentPage,
-      limit: 12,
-    };
+    setLoading(true);
+    setError(null);
     
-    // Use getProducts instead of productAPI.getAll
-    const response = await apiWrapper.getProducts(params);
-    
-    if (response.data.success) {
-      setProducts(response.data.data);
-      setTotalPages(response.data.pagination?.pages || 1);
-      setTotalResults(response.data.pagination?.total || response.data.data.length);
-    } else {
-      setError(response.data.message || 'Failed to load products');
+    try {
+      const params = {
+        ...filters,
+        sort,
+        page: currentPage,
+        limit: 12,
+      };
+      
+      const response = await apiWrapper.getProducts(params);
+      
+      let productsData = [];
+      let paginationData = { pages: 1, total: 0 };
+      
+      if (response?.data?.success) {
+        productsData = response.data.data || [];
+        paginationData = response.data.pagination || { pages: 1, total: productsData.length };
+      } else if (response?.success && response?.data) {
+        productsData = response.data.data || [];
+        paginationData = response.data.pagination || { pages: 1, total: productsData.length };
+      } else if (Array.isArray(response)) {
+        productsData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        productsData = response.data;
+      }
+      
+      setProducts(productsData);
+      setTotalPages(paginationData.pages || 1);
+      setTotalResults(paginationData.total || productsData.length);
+      
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setError('Failed to load products. Please try again.');
+      setProducts([]);
+      setTotalResults(0);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    setError('Failed to load products. Please try again.');
-    // Set empty state
-    setProducts([]);
-    setTotalResults(0);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleRetry = () => {
     fetchProducts();
@@ -174,7 +179,6 @@ const Products = () => {
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
       <div className="w-[98%] mx-auto py-4">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -208,7 +212,6 @@ const Products = () => {
               </p>
             </div>
 
-            {/* Controls */}
             <div className="flex items-center gap-3">
               {hasActiveFilters && (
                 <button
@@ -220,7 +223,6 @@ const Products = () => {
                 </button>
               )}
 
-              {/* View Mode Toggle */}
               <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1">
                 <button
                   onClick={() => setViewMode('grid')}
@@ -236,7 +238,6 @@ const Products = () => {
                 </button>
               </div>
 
-              {/* Mobile Filter Button */}
               {isMobile && (
                 <button
                   onClick={() => setShowMobileFilters(true)}
@@ -249,9 +250,7 @@ const Products = () => {
           </div>
         </motion.div>
 
-        {/* Content Area */}
         <div className="flex gap-6">
-          {/* Filter Sidebar - Desktop */}
           {!isMobile && showFilters && (
             <div className="w-64 flex-shrink-0">
               <div className="sticky top-24">
@@ -267,9 +266,7 @@ const Products = () => {
             </div>
           )}
 
-          {/* Main Content */}
           <div ref={gridRef} className="flex-1 min-w-0">
-            {/* Desktop Filter Toggle */}
             {!isMobile && !showFilters && (
               <button
                 onClick={() => setShowFilters(true)}
@@ -279,7 +276,6 @@ const Products = () => {
               </button>
             )}
 
-            {/* Error State */}
             <AnimatePresence>
               {error && (
                 <motion.div
@@ -302,7 +298,6 @@ const Products = () => {
               )}
             </AnimatePresence>
 
-            {/* Products Grid */}
             <ProductGrid
               products={products}
               loading={loading}
@@ -323,7 +318,6 @@ const Products = () => {
               onRetry={handleRetry}
             />
 
-            {/* Pagination */}
             {totalPages > 1 && !loading && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -341,7 +335,6 @@ const Products = () => {
           </div>
         </div>
 
-        {/* Mobile Filters Overlay */}
         <AnimatePresence>
           {showMobileFilters && isMobile && (
             <motion.div
@@ -385,7 +378,6 @@ const Products = () => {
           )}
         </AnimatePresence>
 
-        {/* Scroll to Top */}
         <AnimatePresence>
           {isScrolled && (
             <motion.button

@@ -9,36 +9,72 @@ const RelatedProducts = ({ productId, category }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const abortControllerRef = useRef(null);
-
-  const fetchRelatedProducts = async () => {
-  try {
-    const response = await apiWrapper.getRelatedProducts(productId, 4);
-    if (response.data.success) {
-      setProducts(response.data.data);
-    }
-  } catch (error) {
-    console.error('Error fetching related products:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
-    fetchRelatedProducts();
-
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
+  }, []);
+
+  const fetchRelatedProducts = useCallback(async () => {
+    if (!productId) {
+      if (isMountedRef.current) setLoading(false);
+      return;
+    }
+    
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await apiWrapper.getRelatedProducts(productId, 4);
+      
+      if (!isMountedRef.current) return;
+      
+      let productsData = [];
+      if (response?.data?.success && response.data.data) {
+        productsData = response.data.data;
+      } else if (response?.data && Array.isArray(response.data)) {
+        productsData = response.data;
+      } else if (Array.isArray(response)) {
+        productsData = response;
+      }
+      
+      // Filter out current product if present
+      productsData = productsData.filter(p => p._id !== productId);
+      
+      setProducts(productsData);
+    } catch (error) {
+      if (isMountedRef.current && error.name !== 'AbortError' && error.name !== 'CanceledError') {
+        console.error('Error fetching related products:', error);
+        setError(error.message);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [productId]);
+
+  useEffect(() => {
+    fetchRelatedProducts();
   }, [fetchRelatedProducts]);
 
-  // Handle retry on error
   const handleRetry = () => {
     fetchRelatedProducts();
   };
 
-  // Loading state
   if (loading) {
     return (
       <section className="py-12" aria-label="Related products loading">
@@ -60,36 +96,14 @@ const RelatedProducts = ({ productId, category }) => {
     );
   }
 
-  // Error state
   if (error) {
-    return (
-      <section className="py-12" aria-label="Related products error">
-        <div className="w-full px-[1%] sm:px-[1.5%]">
-          <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-6">
-            You May Also Like
-          </h2>
-          <div className="text-center py-8" role="alert">
-            <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
-            <button
-              onClick={handleRetry}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </section>
-    );
+    return null; // Hide instead of showing error to avoid clutter
   }
 
-  // Empty state (returns null as before, but could show a message)
   if (products.length === 0) return null;
 
   return (
-    <section 
-      className="py-12" 
-      aria-label="Related products"
-    >
+    <section className="py-12" aria-label="Related products">
       <div className="w-full px-[1%] sm:px-[1.5%]">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

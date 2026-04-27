@@ -88,9 +88,23 @@ const RoomInspiration = () => {
   const fetchRooms = async () => {
   try {
     const response = await apiWrapper.getRooms();
-    setRooms(response.data.data || []);
+    
+    // Handle different response structures
+    let roomsData = [];
+    if (response?.data?.success && response?.data?.data) {
+      roomsData = response.data.data;
+    } else if (response?.success && response?.data) {
+      roomsData = response.data;
+    } else if (response?.data && Array.isArray(response.data)) {
+      roomsData = response.data;
+    } else if (Array.isArray(response)) {
+      roomsData = response;
+    }
+    
+    setRooms(roomsData);
   } catch (error) {
     console.error('Error fetching rooms:', error);
+    setRooms([]);
   } finally {
     setLoading(false);
   }

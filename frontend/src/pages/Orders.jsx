@@ -47,11 +47,23 @@ const Orders = () => {
   setLoading(true);
   try {
     const response = await apiWrapper.getOrders();
-    if (response.data.success) {
-      setOrders(response.data.data);
+    
+    // Handle different response structures
+    let ordersData = [];
+    if (response?.data?.success && response?.data?.data) {
+      ordersData = response.data.data;
+    } else if (response?.success && response?.data) {
+      ordersData = response.data;
+    } else if (response?.data && Array.isArray(response.data)) {
+      ordersData = response.data;
+    } else if (Array.isArray(response)) {
+      ordersData = response;
     }
+    
+    setOrders(ordersData);
   } catch (error) {
     console.error('Error fetching orders:', error);
+    setOrders([]);
   } finally {
     setLoading(false);
   }

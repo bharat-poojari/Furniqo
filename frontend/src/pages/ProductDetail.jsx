@@ -1,7 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiShoppingCart, FiHeart, FiMinus, FiPlus, FiTruck, FiShield, FiRotateCcw, FiShare2, FiCheck, FiAlertCircle, FiChevronLeft, FiTag, FiInfo, FiStar, FiPackage, FiClock, FiDollarSign } from 'react-icons/fi';
+import { 
+  FiShoppingCart, FiHeart, FiMinus, FiPlus, FiTruck, FiShield, 
+  FiRotateCcw, FiShare2, FiCheck, FiAlertCircle, FiChevronLeft, 
+  FiTag, FiInfo, FiStar, FiPackage, FiClock, FiDollarSign 
+} from 'react-icons/fi';
 import ProductImages from '../components/product/ProductImages';
 import ProductVariants from '../components/product/ProductVariants';
 import ProductReviews from '../components/product/ProductReviews';
@@ -28,8 +32,11 @@ const ProductDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const reviewSectionRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const isMountedRef = useRef(true);
   
   const [product, setProduct] = useState(null);
+  const [relatedProducts, setRelatedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [quantity, setQuantity] = useState(1);
@@ -43,106 +50,249 @@ const ProductDetail = () => {
   const { isWishlisted, toggleWishlist } = useWishlist();
   const { addToRecentlyViewed } = useRecentlyViewed();
 
+  // SCROLL TO TOP WHEN COMPONENT MOUNTS OR SLUG CHANGES
+  useEffect(() => {
+    // Immediate scroll to top
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'instant'
+    });
+    
+    // Also scroll any main container
+    const mainElement = document.querySelector('main');
+    if (mainElement) {
+      mainElement.scrollTo({
+        top: 0,
+        behavior: 'instant'
+      });
+    }
+    
+    // For smooth scrolling experience on modern browsers
+    if ('scrollBehavior' in document.documentElement.style) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [slug]); // Re-run when slug changes
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Reset state when slug changes
   useEffect(() => {
     setQuantity(1);
     setSelectedVariant(null);
     setActiveTab('description');
     setAddedToCart(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setError(null);
+    setRelatedProducts([]);
+    
+    // Cancel any ongoing requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
   }, [slug]);
+
+  // Fetch product
+  const fetchProduct = useCallback(async () => {
+    if (!slug || !isMountedRef.current) return;
+    
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await apiWrapper.getProduct(slug);
+      
+      if (!isMountedRef.current) return;
+      
+      if (response?.data?.success && response?.data?.data) {
+        const productData = response.data.data;
+        setProduct(productData);
+        
+        // Add to recently viewed
+        addToRecentlyViewed(productData);
+        
+        // Fetch related products separately
+        fetchRelatedProducts(productData._id);
+      } else if (response?.data?._id) {
+        setProduct(response.data);
+        addToRecentlyViewed(response.data);
+        fetchRelatedProducts(response.data._id);
+      } else {
+        setError('Product not found');
+        toast.error('Product not found');
+      }
+    } catch (error) {
+      if (isMountedRef.current && error.name !== 'AbortError' && error.name !== 'CanceledError') {
+        console.error('Error fetching product:', error);
+        setError('Failed to load product. Please try again.');
+        toast.error('Failed to load product');
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [slug, addToRecentlyViewed]);
+
+  const fetchRelatedProducts = useCallback(async (productId) => {
+    if (!productId) return;
+    
+    try {
+      const relatedResponse = await apiWrapper.getRelatedProducts(productId, 4);
+      
+      if (!isMountedRef.current) return;
+      
+      let relatedData = [];
+      if (relatedResponse?.data?.success && relatedResponse.data.data) {
+        relatedData = relatedResponse.data.data;
+      } else if (relatedResponse?.data && Array.isArray(relatedResponse.data)) {
+        relatedData = relatedResponse.data;
+      } else if (Array.isArray(relatedResponse)) {
+        relatedData = relatedResponse;
+      }
+      
+      setRelatedProducts(relatedData);
+    } catch (error) {
+      if (isMountedRef.current && error.name !== 'AbortError') {
+        console.error('Error fetching related products:', error);
+        setRelatedProducts([]);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetchProduct();
-  }, [slug]);
+  }, [fetchProduct]);
 
+  // Scroll handler for sticky bar
   useEffect(() => {
-    const handleScroll = () => setIsStickyVisible(window.scrollY > 600);
+    const handleScroll = () => {
+      if (isMountedRef.current) {
+        setIsStickyVisible(window.scrollY > 600);
+      }
+    };
+    
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const fetchProduct = async () => {
-  setLoading(true);
-  try {
-    // Use getProduct instead of productAPI.getOne
-    const response = await apiWrapper.getProduct(slug);
-    
-    if (response.data.success && response.data.data) {
-      const productData = response.data.data;
-      setProduct(productData);
-      addToRecentlyViewed(productData);
-      
-      // Fetch related products
-      const relatedResponse = await apiWrapper.getRelatedProducts(productData._id, 4);
-      if (relatedResponse.data.success) {
-        setRelatedProducts(relatedResponse.data.data);
-      }
-    } else {
-      toast.error('Product not found');
-      navigate('/products');
-    }
-  } catch (error) {
-    console.error('Error fetching product:', error);
-    toast.error('Failed to load product');
-  } finally {
-    setLoading(false);
-  }
-};
+  // Memoized values
+  const discount = useMemo(() => {
+    if (!product) return 0;
+    return calculateDiscount(product.price, product.originalPrice);
+  }, [product]);
+  
+  const currentPrice = useMemo(() => {
+    if (selectedVariant?.price) return selectedVariant.price;
+    if (product?.price) return product.price;
+    return 0;
+  }, [selectedVariant, product]);
+  
+  const inWishlist = useMemo(() => {
+    if (!product) return false;
+    return isWishlisted(product._id);
+  }, [product, isWishlisted]);
+  
+  const inStock = useMemo(() => {
+    if (selectedVariant) return selectedVariant.stock > 0;
+    if (product) return product.inStock || (product?.stock > 0);
+    return false;
+  }, [selectedVariant, product]);
+  
+  const maxQuantity = useMemo(() => {
+    if (selectedVariant?.stock) return selectedVariant.stock;
+    if (product?.stock) return product.stock;
+    return 10;
+  }, [selectedVariant, product]);
 
-  const discount = useMemo(() => product ? calculateDiscount(product.price, product.originalPrice) : 0, [product]);
-  const currentPrice = useMemo(() => selectedVariant?.price || product?.price || 0, [selectedVariant, product]);
-  const inWishlist = useMemo(() => product ? isWishlisted(product._id) : false, [product, isWishlisted]);
-  const inStock = useMemo(() => selectedVariant ? selectedVariant.stock > 0 : product?.inStock || false, [selectedVariant, product]);
-  const maxQuantity = useMemo(() => selectedVariant?.stock || product?.stock || 1, [selectedVariant, product]);
+  const breadcrumbItems = useMemo(() => {
+    if (!product) return [{ label: 'Products', href: '/products' }];
+    return [
+      { label: 'Products', href: '/products' },
+      ...(product.category ? [{ 
+        label: typeof product.category === 'object' ? product.category.name : product.category, 
+        href: `/products?category=${encodeURIComponent(typeof product.category === 'object' ? product.category.slug || product.category.name : product.category)}` 
+      }] : []),
+      { label: product.name || 'Product' },
+    ];
+  }, [product]);
 
-  const breadcrumbItems = useMemo(() => [
-    { label: 'Products', href: '/products' },
-    ...(product?.category ? [{ label: typeof product.category === 'object' ? product.category.name : product.category, href: `/products?category=${encodeURIComponent(typeof product.category === 'object' ? product.category.slug || product.category.name : product.category)}` }] : []),
-    { label: product?.name || 'Product' },
-  ], [product]);
-
+  // Handlers
   const handleAddToCart = useCallback(async () => {
-    if (!product?.inStock || !inStock) return;
+    if (!inStock || !product || addingToCart) {
+      if (!inStock) toast.error('Product is out of stock');
+      return;
+    }
+    
     setAddingToCart(true);
     try {
       await addToCart(product, quantity, selectedVariant);
       setAddedToCart(true);
       toast.success(`${quantity} × ${product.name} added to cart`);
-      if (window.navigator?.vibrate) window.navigator.vibrate(50);
-      setTimeout(() => setAddedToCart(false), 2000);
+      setTimeout(() => {
+        if (isMountedRef.current) setAddedToCart(false);
+      }, 2000);
     } catch (error) {
+      console.error('Add to cart error:', error);
       toast.error('Failed to add to cart');
     } finally {
-      setAddingToCart(false);
+      if (isMountedRef.current) setAddingToCart(false);
     }
-  }, [product, quantity, selectedVariant, inStock, addToCart]);
+  }, [product, quantity, selectedVariant, inStock, addToCart, addingToCart]);
 
-  const handleQuantityChange = (delta) => {
-    setQuantity(prev => Math.min(Math.max(1, prev + delta), maxQuantity));
-  };
+  const handleQuantityChange = useCallback((delta) => {
+    setQuantity(prev => {
+      const newValue = prev + delta;
+      if (newValue < 1) return 1;
+      if (newValue > maxQuantity) return maxQuantity;
+      return newValue;
+    });
+  }, [maxQuantity]);
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
+    if (!product) return;
     const url = window.location.href;
     if (navigator.share) {
       try {
         await navigator.share({ title: product.name, text: `Check out ${product.name}`, url });
       } catch (error) {
         if (error.name !== 'AbortError') {
-          await copyToClipboard(url);
-          toast.success('Link copied!');
+          const copied = await copyToClipboard(url);
+          if (copied) toast.success('Link copied!');
         }
       }
     } else {
       const copied = await copyToClipboard(url);
       if (copied) toast.success('Link copied!');
     }
-  };
+  }, [product]);
 
-  const handleBuyNow = async () => {
-    if (!product?.inStock || !inStock) return;
+  const handleBuyNow = useCallback(async () => {
+    if (!inStock || !product) return;
     await addToCart(product, quantity, selectedVariant);
     navigate('/cart');
-  };
+  }, [product, quantity, selectedVariant, inStock, addToCart, navigate]);
+
+  const handleWishlistToggle = useCallback(() => {
+    if (product) {
+      toggleWishlist(product);
+    }
+  }, [product, toggleWishlist]);
 
   const estimatedDelivery = useMemo(() => {
     const date = new Date();
@@ -150,6 +300,7 @@ const ProductDetail = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }, []);
 
+  // Loading state
   if (loading) {
     return (
       <div className="bg-white dark:bg-neutral-950 min-h-screen">
@@ -172,6 +323,7 @@ const ProductDetail = () => {
     );
   }
 
+  // Error state
   if (error || !product) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center bg-white dark:bg-neutral-950">
@@ -196,59 +348,99 @@ const ProductDetail = () => {
         <Breadcrumb items={breadcrumbItems} />
 
         <div className="grid lg:grid-cols-2 gap-8 mt-6">
-          {/* Product Images */}
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5 }}>
-            <ProductImages images={product.images || []} name={product.name} />
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }} 
+            animate={{ opacity: 1, x: 0 }} 
+            transition={{ duration: 0.5 }}
+          >
+            <ProductImages 
+              images={product.images || []} 
+              name={product.name} 
+            />
           </motion.div>
 
-          {/* Product Info */}
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="space-y-5">
-            {/* Badges */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }} 
+            animate={{ opacity: 1, x: 0 }} 
+            transition={{ duration: 0.5, delay: 0.1 }} 
+            className="space-y-5"
+          >
             <div className="flex flex-wrap gap-2">
               {product.newArrival && <Badge variant="new">New Arrival</Badge>}
               {product.bestSeller && <Badge variant="featured">Best Seller</Badge>}
               {discount > 0 && <Badge variant="sale">-{discount}% OFF</Badge>}
               {!inStock && <Badge variant="danger">Out of Stock</Badge>}
-              {product.inStock && product.stock <= 10 && <Badge variant="warning"><FiClock className="inline mr-1 h-3 w-3" />Only {product.stock} left</Badge>}
+              {inStock && product.stock <= 10 && product.stock > 0 && (
+                <Badge variant="warning">
+                  <FiClock className="inline mr-1 h-3 w-3" />
+                  Only {product.stock} left
+                </Badge>
+              )}
             </div>
 
-            {/* SKU & Category */}
             <div className="flex items-center gap-3 text-xs text-neutral-500">
               <span>SKU: {product.sku || product._id?.slice(-8).toUpperCase()}</span>
-              {product.category && <span className="flex items-center gap-1"><FiTag className="h-3 w-3" />{typeof product.category === 'object' ? product.category.name : product.category}</span>}
+              {product.category && (
+                <span className="flex items-center gap-1">
+                  <FiTag className="h-3 w-3" />
+                  {typeof product.category === 'object' ? product.category.name : product.category}
+                </span>
+              )}
             </div>
 
-            {/* Title & Rating */}
             <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-neutral-900 dark:text-white mb-2">{product.name}</h1>
+              <h1 className="text-2xl lg:text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+                {product.name}
+              </h1>
               <div className="flex items-center gap-3">
-                <Rating value={product.rating || 0} numReviews={product.numReviews || 0} size="sm" />
-                <button onClick={() => { setActiveTab('reviews'); setTimeout(() => reviewSectionRef.current?.scrollIntoView({ behavior: 'smooth' }), 100); }} className="text-xs text-primary-600 hover:text-primary-700 font-medium">
+                <Rating 
+                  value={product.rating || 0} 
+                  numReviews={product.numReviews || 0} 
+                  size="sm" 
+                />
+                <button 
+                  onClick={() => { 
+                    setActiveTab('reviews'); 
+                    setTimeout(() => reviewSectionRef.current?.scrollIntoView({ behavior: 'smooth' }), 100); 
+                  }} 
+                  className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                >
                   {product.numReviews || 0} review{(product.numReviews || 0) !== 1 ? 's' : ''}
                 </button>
               </div>
             </div>
 
-            {/* Price */}
             <div className="flex items-baseline gap-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl p-4">
-              <span className="text-3xl font-bold text-primary-600">{formatPrice(currentPrice)}</span>
+              <span className="text-3xl font-bold text-primary-600">
+                {formatPrice(currentPrice)}
+              </span>
               {product.originalPrice > currentPrice && (
                 <>
-                  <span className="text-lg text-neutral-400 line-through">{formatPrice(product.originalPrice)}</span>
-                  <span className="text-xs font-semibold text-green-600 bg-green-100 dark:bg-green-900/20 px-2 py-1 rounded-full">Save {formatPrice(product.originalPrice - currentPrice)}</span>
+                  <span className="text-lg text-neutral-400 line-through">
+                    {formatPrice(product.originalPrice)}
+                  </span>
+                  <span className="text-xs font-semibold text-green-600 bg-green-100 dark:bg-green-900/20 px-2 py-1 rounded-full">
+                    Save {formatPrice(product.originalPrice - currentPrice)}
+                  </span>
                 </>
               )}
             </div>
 
-            {/* Description */}
-            <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">{product.shortDescription || product.description?.substring(0, 120)}</p>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+              {product.shortDescription || product.description?.substring(0, 120)}
+            </p>
 
-            {/* Variants */}
             {product.variants && product.variants.length > 0 && (
-              <ProductVariants variants={product.variants} selectedVariant={selectedVariant} onSelect={(variant) => { setSelectedVariant(variant); setQuantity(1); }} />
+              <ProductVariants 
+                variants={product.variants} 
+                selectedVariant={selectedVariant} 
+                onSelect={(variant) => { 
+                  setSelectedVariant(variant); 
+                  setQuantity(1); 
+                }} 
+              />
             )}
 
-            {/* Delivery */}
             {inStock && (
               <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/10 px-3 py-2 rounded-lg">
                 <FiTruck className="h-4 w-4" />
@@ -256,29 +448,74 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* Quantity & Add to Cart */}
             {inStock ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Quantity:</label>
+                  <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                    Quantity:
+                  </label>
                   <div className="flex items-center border-2 border-neutral-200 dark:border-neutral-700 rounded-lg">
-                    <button onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1} className="p-2.5 hover:bg-neutral-50 disabled:opacity-50"> <FiMinus className="h-4 w-4" /> </button>
-                    <span className="px-6 font-semibold text-sm min-w-[60px] text-center">{quantity}</span>
-                    <button onClick={() => handleQuantityChange(1)} disabled={quantity >= maxQuantity} className="p-2.5 hover:bg-neutral-50 disabled:opacity-50"> <FiPlus className="h-4 w-4" /> </button>
+                    <button 
+                      onClick={() => handleQuantityChange(-1)} 
+                      disabled={quantity <= 1} 
+                      className="p-2.5 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label="Decrease quantity"
+                    >
+                      <FiMinus className="h-4 w-4" />
+                    </button>
+                    <span className="px-6 font-semibold text-sm min-w-[60px] text-center">
+                      {quantity}
+                    </span>
+                    <button 
+                      onClick={() => handleQuantityChange(1)} 
+                      disabled={quantity >= maxQuantity} 
+                      className="p-2.5 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label="Increase quantity"
+                    >
+                      <FiPlus className="h-4 w-4" />
+                    </button>
                   </div>
-                  {quantity > 1 && <span className="text-xs text-neutral-500">Total: {formatPrice(currentPrice * quantity)}</span>}
+                  {quantity > 1 && (
+                    <span className="text-xs text-neutral-500">
+                      Total: {formatPrice(currentPrice * quantity)}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex gap-3">
-                  <Button onClick={handleAddToCart} loading={addingToCart} icon={addedToCart ? FiCheck : FiShoppingCart} size="lg" className={cn("flex-1", addedToCart && "bg-green-500")}>
+                  <Button 
+                    onClick={handleAddToCart} 
+                    loading={addingToCart} 
+                    icon={addedToCart ? FiCheck : FiShoppingCart} 
+                    size="lg" 
+                    className={cn("flex-1", addedToCart && "bg-green-500")}
+                    disabled={addingToCart}
+                  >
                     {addedToCart ? 'Added to Cart!' : 'Add to Cart'}
                   </Button>
-                  <button onClick={() => toggleWishlist(product)} className={cn("p-3 rounded-lg border-2 transition-all", inWishlist ? "border-red-500 text-red-500 bg-red-50 dark:bg-red-900/20" : "border-neutral-200 dark:border-neutral-700 hover:border-red-300")}>
+                  <button 
+                    onClick={handleWishlistToggle} 
+                    className={cn(
+                      "p-3 rounded-lg border-2 transition-all",
+                      inWishlist 
+                        ? "border-red-500 text-red-500 bg-red-50 dark:bg-red-900/20" 
+                        : "border-neutral-200 dark:border-neutral-700 hover:border-red-300"
+                    )}
+                    aria-label={inWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                  >
                     <FiHeart className={cn("h-5 w-5", inWishlist && "fill-current")} />
                   </button>
                 </div>
 
-                <Button onClick={handleBuyNow} variant="outline" size="lg" className="w-full" icon={FiDollarSign}>Buy Now</Button>
+                <Button 
+                  onClick={handleBuyNow} 
+                  variant="outline" 
+                  size="lg" 
+                  className="w-full" 
+                  icon={FiDollarSign}
+                >
+                  Buy Now
+                </Button>
               </div>
             ) : (
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
@@ -287,18 +524,21 @@ const ProductDetail = () => {
                   <div>
                     <p className="font-semibold text-sm">Out of Stock</p>
                     <p className="text-xs mt-1 opacity-90">This item is currently unavailable.</p>
-                    <Link to="/products" className="mt-2 text-xs font-medium underline inline-block">Browse Similar Products →</Link>
+                    <Link to="/products" className="mt-2 text-xs font-medium underline inline-block">
+                      Browse Similar Products →
+                    </Link>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Share */}
-            <button onClick={handleShare} className="flex items-center gap-2 text-xs text-neutral-500 hover:text-neutral-700">
+            <button 
+              onClick={handleShare} 
+              className="flex items-center gap-2 text-xs text-neutral-500 hover:text-neutral-700 transition-colors"
+            >
               <FiShare2 className="h-3.5 w-3.5" /> Share
             </button>
 
-            {/* Info Cards */}
             <div className="grid grid-cols-3 gap-3 pt-4 border-t border-neutral-100 dark:border-neutral-800">
               {[
                 { icon: FiTruck, title: 'Free Shipping', desc: 'Orders $200+' },
@@ -315,17 +555,29 @@ const ProductDetail = () => {
           </motion.div>
         </div>
 
-        {/* Tabs Section */}
         <div ref={reviewSectionRef} className="mt-12">
           <div className="border-b border-neutral-200 dark:border-neutral-800">
             <div className="flex gap-6">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 return (
-                  <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={cn("flex items-center gap-2 pb-3 text-sm font-medium transition-all border-b-2", activeTab === tab.id ? "text-primary-600 border-primary-600" : "text-neutral-500 border-transparent hover:text-neutral-700")}>
+                  <button 
+                    key={tab.id} 
+                    onClick={() => setActiveTab(tab.id)} 
+                    className={cn(
+                      "flex items-center gap-2 pb-3 text-sm font-medium transition-all border-b-2",
+                      activeTab === tab.id 
+                        ? "text-primary-600 border-primary-600" 
+                        : "text-neutral-500 border-transparent hover:text-neutral-700"
+                    )}
+                  >
                     <Icon className="h-4 w-4" />
                     {tab.label}
-                    {tab.id === 'reviews' && product.numReviews > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100">{product.numReviews}</span>}
+                    {tab.id === 'reviews' && product.numReviews > 0 && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800">
+                        {product.numReviews}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -334,17 +586,28 @@ const ProductDetail = () => {
 
           <div className="py-6">
             <AnimatePresence mode="wait">
-              <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+              <motion.div 
+                key={activeTab} 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, y: -10 }} 
+                transition={{ duration: 0.2 }}
+              >
                 {activeTab === 'description' && (
                   <div className="max-w-3xl">
                     <div className="prose dark:prose-invert max-w-none">
-                      <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed whitespace-pre-line">{product.description || 'No description available.'}</p>
+                      <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed whitespace-pre-line">
+                        {product.description || 'No description available.'}
+                      </p>
                       {product.features && product.features.length > 0 && (
                         <>
                           <h3 className="text-lg font-semibold mt-6 mb-3">Key Features</h3>
                           <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
                             {product.features.map((feature, index) => (
-                              <li key={index} className="flex items-start gap-2"><FiCheck className="h-4 w-4 text-green-500 mt-0.5" /><span className="text-sm">{feature}</span></li>
+                              <li key={index} className="flex items-start gap-2">
+                                <FiCheck className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                                <span className="text-sm">{feature}</span>
+                              </li>
                             ))}
                           </ul>
                         </>
@@ -363,11 +626,13 @@ const ProductDetail = () => {
                         { label: 'Weight', value: product.weight },
                         { label: 'SKU', value: product.sku || product._id?.slice(-8).toUpperCase() },
                         { label: 'Category', value: typeof product.category === 'object' ? product.category.name : product.category },
-                        { label: 'Brand', value: product.brand || 'Store' },
+                        { label: 'Brand', value: product.brand || 'FurniQo' },
                       ].filter(item => item.value).map((item, index) => (
                         <div key={index} className="flex justify-between items-center p-3 bg-neutral-50 dark:bg-neutral-900 rounded-lg">
                           <span className="text-xs text-neutral-500">{item.label}</span>
-                          <span className="text-xs font-semibold text-neutral-900 dark:text-white">{item.value}</span>
+                          <span className="text-xs font-semibold text-neutral-900 dark:text-white">
+                            {item.value}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -375,26 +640,49 @@ const ProductDetail = () => {
                 )}
 
                 {activeTab === 'reviews' && (
-                  <ProductReviews productId={product._id} reviews={product.reviews || []} rating={product.rating || 0} numReviews={product.numReviews || 0} />
+                  <ProductReviews 
+                    productId={product._id} 
+                    reviews={product.reviews || []} 
+                    rating={product.rating || 0} 
+                    numReviews={product.numReviews || 0} 
+                  />
                 )}
               </motion.div>
             </AnimatePresence>
           </div>
         </div>
 
-        <RelatedProducts productId={product._id} category={product.category} />
+        {relatedProducts.length > 0 && (
+          <RelatedProducts 
+            productId={product._id} 
+            category={product.category} 
+          />
+        )}
       </div>
 
-      {/* Sticky Mobile Cart Bar */}
       <AnimatePresence>
         {isStickyVisible && inStock && (
-          <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} className="fixed bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 border-t border-neutral-200 shadow-2xl z-50 lg:hidden">
+          <motion.div 
+            initial={{ y: '100%' }} 
+            animate={{ y: 0 }} 
+            exit={{ y: '100%' }} 
+            className="fixed bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 shadow-2xl z-50 lg:hidden"
+          >
             <div className="flex items-center gap-3 px-4 py-3">
               <div className="flex-1">
                 <p className="text-sm font-semibold truncate">{product.name}</p>
-                <p className="text-lg font-bold text-primary-600">{formatPrice(currentPrice * quantity)}</p>
+                <p className="text-lg font-bold text-primary-600">
+                  {formatPrice(currentPrice * quantity)}
+                </p>
               </div>
-              <Button onClick={handleAddToCart} loading={addingToCart} icon={addedToCart ? FiCheck : FiShoppingCart} size="md" className={addedToCart ? 'bg-green-500' : ''}>
+              <Button 
+                onClick={handleAddToCart} 
+                loading={addingToCart} 
+                icon={addedToCart ? FiCheck : FiShoppingCart} 
+                size="md" 
+                className={addedToCart ? 'bg-green-500' : ''} 
+                disabled={addingToCart}
+              >
                 {addedToCart ? 'Added' : 'Add to Cart'}
               </Button>
             </div>

@@ -29,7 +29,6 @@ import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import { formatPrice } from '../utils/helpers';
 import { SHIPPING_METHODS } from '../utils/constants';
-import { validateEmail, validateName, validatePhone, validateAddress, validateZipCode } from '../utils/validators';
 import apiWrapper from '../services/apiWrapper';
 import toast from 'react-hot-toast';
 
@@ -71,15 +70,22 @@ const Checkout = () => {
 
   const [giftWrap, setGiftWrap] = useState(false);
 
+  // Redirect if cart is empty
   useEffect(() => {
-    if (isEmpty) {
-      navigate('/cart');
+    if (!isEmpty && cartItems?.length === 0) {
+      navigate('/cart', { replace: true });
     }
-  }, [isEmpty, navigate]);
+  }, [isEmpty, cartItems?.length, navigate]);
 
+  // Scroll to top on step change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [currentStep]);
+
+  // If cart is empty after check, return null (will redirect)
+  if (isEmpty || !cartItems || cartItems.length === 0) {
+    return null;
+  }
 
   const handleShippingChange = (e) => {
     const { name, value } = e.target;
@@ -102,6 +108,7 @@ const Checkout = () => {
     }
 
     setPaymentData(prev => ({ ...prev, [name]: formattedValue }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
   const validateShippingStep = () => {
@@ -129,48 +136,96 @@ const Checkout = () => {
   };
 
   const handleNextStep = () => {
-    if (currentStep === 1 && validateShippingStep()) setCurrentStep(2);
-    else if (currentStep === 2 && validatePaymentStep()) setCurrentStep(3);
+    if (currentStep === 1 && validateShippingStep()) {
+      setCurrentStep(2);
+    } else if (currentStep === 2 && validatePaymentStep()) {
+      setCurrentStep(3);
+    }
   };
 
   const handlePlaceOrder = async () => {
-  setLoading(true);
-  
-  try {
-    const orderData = {
-      shipping: shippingData,
-      shippingMethod,
-      payment: {
-        last4: paymentData.cardNumber.replace(/\s/g, '').slice(-4),
-        brand: 'Visa',
-      },
-      items: cartItems,
-      subtotal: getSubtotal(),
-      discount: getDiscount(),
-      shippingCost: getShippingCost(),
-      tax: getTax(),
-      total: getTotal(),
-      coupon: appliedCoupon?.code,
-    };
-
-    const response = await apiWrapper.createOrder(orderData);
-
-    if (response.data.success) {
-      clearCart();
-      navigate(`/order-confirmation/${response.data.data._id}`, {
-        state: { order: response.data.data },
-      });
-      toast.success('Order placed successfully!');
-    } else {
-      toast.error(response.data.message || 'Failed to place order');
+    if (!validateShippingStep() || !validatePaymentStep()) {
+      setCurrentStep(1);
+      toast.error('Please complete all required fields');
+      return;
     }
-  } catch (error) {
-    console.error('Order error:', error);
-    toast.error('Failed to place order. Please try again.');
-  } finally {
-    setLoading(false);
-  }
-};
+    
+    setLoading(true);
+    
+    try {
+      const orderData = {
+        shipping: shippingData,
+        shippingMethod,
+        payment: {
+          last4: paymentData.cardNumber.replace(/\s/g, '').slice(-4),
+          brand: 'Visa',
+        },
+        items: cartItems.map(item => ({
+          productId: item.product._id,
+          name: item.product.name,
+          quantity: item.quantity,
+          price: item.variant?.price || item.product.price,
+          image: item.product.images?.[0],
+          variant: item.variant,
+        })),
+        subtotal: getSubtotal(),
+        discount: getDiscount(),
+        shippingCost: getShippingCost(),
+        giftWrapCost: giftWrap ? 5.99 : 0,
+        tax: getTax(),
+        total: getTotal() + (giftWrap ? 5.99 : 0),
+        coupon: appliedCoupon?.code,
+        giftWrap,
+      };
+
+      const response = await apiWrapper.createOrder(orderData);
+      
+      // Handle different response structures
+      let orderSuccess = false;
+      let orderId = null;
+      let orderDataResponse = null;
+      
+      if (response?.data?.success && response?.data?.data) {
+        orderSuccess = true;
+        orderId = response.data.data._id;
+        orderDataResponse = response.data.data;
+      } else if (response?.success && response?.data) {
+        orderSuccess = true;
+        orderId = response.data._id;
+        orderDataResponse = response.data;
+      } else if (response?.success) {
+        orderSuccess = true;
+        orderId = response.orderId || response._id;
+        orderDataResponse = response;
+      }
+
+      if (orderSuccess && orderId) {
+        setOrderPlaced(true);
+        clearCart();
+        
+        // Small delay to show success animation
+        setTimeout(() => {
+          navigate(`/order-confirmation/${orderId}`, {
+            state: { order: orderDataResponse },
+            replace: true,
+          });
+        }, 1000);
+        
+        toast.success('Order placed successfully!');
+      } else {
+        const errorMessage = response?.data?.message || response?.message || 'Failed to place order';
+        toast.error(errorMessage);
+        setOrderPlaced(false);
+      }
+    } catch (error) {
+      console.error('Order error:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to place order. Please try again.';
+      toast.error(errorMessage);
+      setOrderPlaced(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStepStatus = (stepId) => {
     if (currentStep > stepId) return 'completed';
@@ -178,20 +233,33 @@ const Checkout = () => {
     return 'upcoming';
   };
 
-  if (isEmpty) return null;
-
+  // Order placed animation
   if (orderPlaced) {
     return (
       <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center px-[1%]">
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 200 }} className="text-center max-w-md">
-          <motion.div animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }} transition={{ duration: 2, repeat: Infinity }} className="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/20">
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }} 
+          animate={{ scale: 1, opacity: 1 }} 
+          transition={{ type: "spring", stiffness: 200 }} 
+          className="text-center max-w-md"
+        >
+          <motion.div 
+            animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }} 
+            transition={{ duration: 2, repeat: Infinity }} 
+            className="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/20"
+          >
             <FiCheck className="h-12 w-12 text-emerald-600 dark:text-emerald-400" />
           </motion.div>
           <h2 className="text-2xl font-bold dark:text-white mb-2">Order Placed!</h2>
           <p className="text-neutral-500 mb-4">Redirecting to order confirmation...</p>
           <div className="flex justify-center gap-2">
             {[1,2,3].map(i => (
-              <motion.div key={i} className="w-2 h-2 rounded-full bg-emerald-400" animate={{ scale: [1, 1.5, 1] }} transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }} />
+              <motion.div 
+                key={i} 
+                className="w-2 h-2 rounded-full bg-emerald-400" 
+                animate={{ scale: [1, 1.5, 1] }} 
+                transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }} 
+              />
             ))}
           </div>
         </motion.div>
@@ -201,19 +269,23 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
-      <div className="w-full px-[1%] py-[1%]">
+      <div className="w-full px-[1%] py-[1%] max-w-[1600px] mx-auto">
         
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-          <Link to="/cart" className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors mb-3 group">
+          <Link 
+            to="/cart" 
+            className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors mb-3 group"
+          >
             <FiArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
             Back to Cart
           </Link>
           <h1 className="text-xl lg:text-2xl font-bold text-neutral-900 dark:text-white tracking-tight">Checkout</h1>
+          <p className="text-sm text-neutral-500 mt-1">Complete your purchase securely</p>
         </motion.div>
 
         {/* Progress Steps */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-6">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-8">
           <div className="flex items-center justify-center max-w-lg mx-auto">
             {steps.map((step, index) => {
               const status = getStepStatus(step.id);
@@ -222,23 +294,41 @@ const Checkout = () => {
                   <div className="flex flex-col items-center flex-1 relative">
                     <motion.button
                       whileHover={status === 'completed' ? { scale: 1.1 } : {}}
-                      onClick={() => { if (status === 'completed') setCurrentStep(step.id); }}
+                      onClick={() => { 
+                        if (status === 'completed') {
+                          setCurrentStep(step.id);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                      }}
                       className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
-                        status === 'completed' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 cursor-pointer' :
-                        status === 'current' ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/20 scale-110' :
-                        'bg-neutral-200 dark:bg-neutral-800 text-neutral-400'
+                        status === 'completed' 
+                          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 cursor-pointer'
+                          : status === 'current' 
+                            ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/20 scale-110' 
+                            : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-400'
                       }`}
                     >
                       {status === 'completed' ? <FiCheck className="h-5 w-5" /> : <step.icon className="h-5 w-5" />}
                       {status === 'current' && (
-                        <motion.div className="absolute inset-0 rounded-xl bg-primary-500" animate={{ scale: [1, 1.15, 1], opacity: [0.2, 0, 0.2] }} transition={{ duration: 2, repeat: Infinity }} />
+                        <motion.div 
+                          className="absolute inset-0 rounded-xl bg-primary-500" 
+                          animate={{ scale: [1, 1.15, 1], opacity: [0.2, 0, 0.2] }} 
+                          transition={{ duration: 2, repeat: Infinity }} 
+                        />
                       )}
                     </motion.button>
-                    <span className={`text-xs font-semibold mt-2 ${status === 'current' ? 'text-neutral-900 dark:text-white' : 'text-neutral-400'}`}>{step.label}</span>
+                    <span className={`text-xs font-semibold mt-2 ${status === 'current' ? 'text-neutral-900 dark:text-white' : 'text-neutral-400'}`}>
+                      {step.label}
+                    </span>
                   </div>
                   {index < steps.length - 1 && (
                     <div className="flex-1 h-0.5 mx-2 rounded-full overflow-hidden bg-neutral-200 dark:bg-neutral-700">
-                      <motion.div className="h-full bg-emerald-500 rounded-full" initial={{ width: '0%' }} animate={{ width: currentStep > step.id ? '100%' : '0%' }} transition={{ duration: 0.5 }} />
+                      <motion.div 
+                        className="h-full bg-emerald-500 rounded-full" 
+                        initial={{ width: '0%' }} 
+                        animate={{ width: currentStep > step.id ? '100%' : '0%' }} 
+                        transition={{ duration: 0.5 }} 
+                      />
                     </div>
                   )}
                 </div>
@@ -248,13 +338,20 @@ const Checkout = () => {
         </motion.div>
 
         {/* Main Content */}
-        <div className="grid lg:grid-cols-[1fr_380px] gap-4">
+        <div className="grid lg:grid-cols-[1fr_380px] gap-6">
           
           {/* Left - Form Steps */}
           <motion.div layout>
             <AnimatePresence mode="wait">
               {currentStep === 1 && (
-                <motion.div key="s1" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }} className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800 shadow-sm overflow-hidden">
+                <motion.div 
+                  key="shipping"
+                  initial={{ opacity: 0, x: 30 }} 
+                  animate={{ opacity: 1, x: 0 }} 
+                  exit={{ opacity: 0, x: -30 }} 
+                  transition={{ duration: 0.25 }} 
+                  className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800 shadow-sm overflow-hidden"
+                >
                   <div className="p-4 lg:p-5 border-b border-neutral-100 dark:border-neutral-800 flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                       <FiMapPin className="h-4 w-4 text-primary-600 dark:text-primary-400" />
@@ -271,7 +368,13 @@ const Checkout = () => {
                         <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">First Name *</label>
                         <div className="relative">
                           <FiUser className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
-                          <input name="firstName" value={shippingData.firstName} onChange={handleShippingChange} className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.firstName ? 'border-red-400 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} placeholder="John" />
+                          <input 
+                            name="firstName" 
+                            value={shippingData.firstName} 
+                            onChange={handleShippingChange} 
+                            className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.firstName ? 'border-red-400 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} 
+                            placeholder="John" 
+                          />
                         </div>
                         {errors.firstName && <p className="text-[10px] text-red-500 mt-0.5">{errors.firstName}</p>}
                       </div>
@@ -279,7 +382,13 @@ const Checkout = () => {
                         <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">Last Name *</label>
                         <div className="relative">
                           <FiUser className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
-                          <input name="lastName" value={shippingData.lastName} onChange={handleShippingChange} className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.lastName ? 'border-red-400 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} placeholder="Doe" />
+                          <input 
+                            name="lastName" 
+                            value={shippingData.lastName} 
+                            onChange={handleShippingChange} 
+                            className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.lastName ? 'border-red-400 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} 
+                            placeholder="Doe" 
+                          />
                         </div>
                         {errors.lastName && <p className="text-[10px] text-red-500 mt-0.5">{errors.lastName}</p>}
                       </div>
@@ -287,7 +396,14 @@ const Checkout = () => {
                         <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">Email *</label>
                         <div className="relative">
                           <FiMail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
-                          <input name="email" type="email" value={shippingData.email} onChange={handleShippingChange} className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.email ? 'border-red-400 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} placeholder="john@email.com" />
+                          <input 
+                            name="email" 
+                            type="email" 
+                            value={shippingData.email} 
+                            onChange={handleShippingChange} 
+                            className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.email ? 'border-red-400 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} 
+                            placeholder="john@email.com" 
+                          />
                         </div>
                         {errors.email && <p className="text-[10px] text-red-500 mt-0.5">{errors.email}</p>}
                       </div>
@@ -295,7 +411,14 @@ const Checkout = () => {
                         <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">Phone *</label>
                         <div className="relative">
                           <FiPhone className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
-                          <input name="phone" type="tel" value={shippingData.phone} onChange={handleShippingChange} className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.phone ? 'border-red-400 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} placeholder="+1 555 000-0000" />
+                          <input 
+                            name="phone" 
+                            type="tel" 
+                            value={shippingData.phone} 
+                            onChange={handleShippingChange} 
+                            className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.phone ? 'border-red-400 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} 
+                            placeholder="+1 555 000-0000" 
+                          />
                         </div>
                         {errors.phone && <p className="text-[10px] text-red-500 mt-0.5">{errors.phone}</p>}
                       </div>
@@ -303,23 +426,47 @@ const Checkout = () => {
                         <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">Address *</label>
                         <div className="relative">
                           <FiMapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
-                          <input name="address" value={shippingData.address} onChange={handleShippingChange} className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.address ? 'border-red-400 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} placeholder="123 Main Street" />
+                          <input 
+                            name="address" 
+                            value={shippingData.address} 
+                            onChange={handleShippingChange} 
+                            className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.address ? 'border-red-400 dark:border-red-500' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} 
+                            placeholder="123 Main Street" 
+                          />
                         </div>
                         {errors.address && <p className="text-[10px] text-red-500 mt-0.5">{errors.address}</p>}
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">City *</label>
-                        <input name="city" value={shippingData.city} onChange={handleShippingChange} className={`w-full px-3 py-2 text-sm rounded-lg border ${errors.city ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} placeholder="New York" />
+                        <input 
+                          name="city" 
+                          value={shippingData.city} 
+                          onChange={handleShippingChange} 
+                          className={`w-full px-3 py-2 text-sm rounded-lg border ${errors.city ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} 
+                          placeholder="New York" 
+                        />
                         {errors.city && <p className="text-[10px] text-red-500 mt-0.5">{errors.city}</p>}
                       </div>
                       <div>
                         <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">ZIP Code *</label>
-                        <input name="zipCode" value={shippingData.zipCode} onChange={handleShippingChange} className={`w-full px-3 py-2 text-sm rounded-lg border ${errors.zipCode ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} placeholder="10001" />
+                        <input 
+                          name="zipCode" 
+                          value={shippingData.zipCode} 
+                          onChange={handleShippingChange} 
+                          className={`w-full px-3 py-2 text-sm rounded-lg border ${errors.zipCode ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} 
+                          placeholder="10001" 
+                        />
                         {errors.zipCode && <p className="text-[10px] text-red-500 mt-0.5">{errors.zipCode}</p>}
                       </div>
                       <div className="col-span-2">
                         <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">State *</label>
-                        <input name="state" value={shippingData.state} onChange={handleShippingChange} className={`w-full px-3 py-2 text-sm rounded-lg border ${errors.state ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} placeholder="NY" />
+                        <input 
+                          name="state" 
+                          value={shippingData.state} 
+                          onChange={handleShippingChange} 
+                          className={`w-full px-3 py-2 text-sm rounded-lg border ${errors.state ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} 
+                          placeholder="NY" 
+                        />
                         {errors.state && <p className="text-[10px] text-red-500 mt-0.5">{errors.state}</p>}
                       </div>
                     </div>
@@ -330,18 +477,55 @@ const Checkout = () => {
                         <FiTruck className="h-3.5 w-3.5" /> Shipping Method
                       </h3>
                       <div className="space-y-2">
-                        {SHIPPING_METHODS.map((method) => (
-                          <motion.label key={method.id} whileHover={{ scale: 1.01 }} className={`flex items-center p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                            shippingMethod === method.id ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/10' : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'
-                          }`}>
-                            <input type="radio" name="shippingMethod" value={method.id} checked={shippingMethod === method.id} onChange={(e) => setShippingMethod(e.target.value)} className="text-primary-600" />
-                            <div className="ml-3 flex-1">
-                              <p className="text-sm font-medium dark:text-white">{method.name}</p>
-                              <p className="text-xs text-neutral-500">{method.description} • {method.days}</p>
-                            </div>
-                            <span className="text-sm font-semibold dark:text-white">{method.price === 0 ? 'FREE' : formatPrice(method.price)}</span>
-                          </motion.label>
-                        ))}
+                        {SHIPPING_METHODS && SHIPPING_METHODS.length > 0 ? (
+                          SHIPPING_METHODS.map((method) => (
+                            <motion.label 
+                              key={method.id} 
+                              whileHover={{ scale: 1.01 }} 
+                              className={`flex items-center p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                                shippingMethod === method.id 
+                                  ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/10' 
+                                  : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'
+                              }`}
+                            >
+                              <input 
+                                type="radio" 
+                                name="shippingMethod" 
+                                value={method.id} 
+                                checked={shippingMethod === method.id} 
+                                onChange={(e) => setShippingMethod(e.target.value)} 
+                                className="text-primary-600" 
+                              />
+                              <div className="ml-3 flex-1">
+                                <p className="text-sm font-medium dark:text-white">{method.name}</p>
+                                <p className="text-xs text-neutral-500">{method.description} • {method.days}</p>
+                              </div>
+                              <span className="text-sm font-semibold dark:text-white">
+                                {method.price === 0 ? 'FREE' : formatPrice(method.price)}
+                              </span>
+                            </motion.label>
+                          ))
+                        ) : (
+                          // Default shipping methods if constants not available
+                          <>
+                            <label className={`flex items-center p-3 rounded-xl border-2 cursor-pointer transition-all ${shippingMethod === 'standard' ? 'border-primary-500 bg-primary-50/50' : 'border-neutral-200'}`}>
+                              <input type="radio" name="shippingMethod" value="standard" checked={shippingMethod === 'standard'} onChange={(e) => setShippingMethod(e.target.value)} className="text-primary-600" />
+                              <div className="ml-3 flex-1">
+                                <p className="text-sm font-medium">Standard Shipping</p>
+                                <p className="text-xs text-neutral-500">5-7 business days</p>
+                              </div>
+                              <span className="text-sm font-semibold">FREE</span>
+                            </label>
+                            <label className={`flex items-center p-3 rounded-xl border-2 cursor-pointer transition-all ${shippingMethod === 'express' ? 'border-primary-500 bg-primary-50/50' : 'border-neutral-200'}`}>
+                              <input type="radio" name="shippingMethod" value="express" checked={shippingMethod === 'express'} onChange={(e) => setShippingMethod(e.target.value)} className="text-primary-600" />
+                              <div className="ml-3 flex-1">
+                                <p className="text-sm font-medium">Express Shipping</p>
+                                <p className="text-xs text-neutral-500">2-3 business days</p>
+                              </div>
+                              <span className="text-sm font-semibold">$9.99</span>
+                            </label>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -357,18 +541,26 @@ const Checkout = () => {
                             <p className="text-xs text-neutral-500">Add gift wrapping for $5.99</p>
                           </div>
                         </div>
-                        <motion.button
+                        <button
                           type="button"
-                          whileTap={{ scale: 0.9 }}
                           onClick={() => setGiftWrap(!giftWrap)}
                           className={`relative w-12 h-6 rounded-full transition-colors ${giftWrap ? 'bg-emerald-500' : 'bg-neutral-300 dark:bg-neutral-600'}`}
                         >
-                          <motion.div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow" animate={{ x: giftWrap ? 24 : 0 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} />
-                        </motion.button>
+                          <motion.div 
+                            className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow" 
+                            animate={{ x: giftWrap ? 24 : 0 }} 
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }} 
+                          />
+                        </button>
                       </label>
                     </div>
 
-                    <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} onClick={handleNextStep} className="w-full mt-5 px-4 py-3 text-sm font-semibold bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                    <motion.button 
+                      whileHover={{ scale: 1.01 }} 
+                      whileTap={{ scale: 0.99 }} 
+                      onClick={handleNextStep} 
+                      className="w-full mt-5 px-4 py-3 text-sm font-semibold bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                    >
                       Continue to Payment <FiChevronRight className="h-4 w-4" />
                     </motion.button>
                   </div>
@@ -376,7 +568,14 @@ const Checkout = () => {
               )}
 
               {currentStep === 2 && (
-                <motion.div key="s2" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }} className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800 shadow-sm overflow-hidden">
+                <motion.div 
+                  key="payment"
+                  initial={{ opacity: 0, x: 30 }} 
+                  animate={{ opacity: 1, x: 0 }} 
+                  exit={{ opacity: 0, x: -30 }} 
+                  transition={{ duration: 0.25 }} 
+                  className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800 shadow-sm overflow-hidden"
+                >
                   <div className="p-4 lg:p-5 border-b border-neutral-100 dark:border-neutral-800 flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                       <FiCreditCard className="h-4 w-4 text-primary-600 dark:text-primary-400" />
@@ -393,7 +592,14 @@ const Checkout = () => {
                         <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">Card Number *</label>
                         <div className="relative">
                           <FiCreditCard className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
-                          <input name="cardNumber" value={paymentData.cardNumber} onChange={handlePaymentChange} maxLength="19" className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.cardNumber ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} placeholder="4242 4242 4242 4242" />
+                          <input 
+                            name="cardNumber" 
+                            value={paymentData.cardNumber} 
+                            onChange={handlePaymentChange} 
+                            maxLength="19" 
+                            className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.cardNumber ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} 
+                            placeholder="4242 4242 4242 4242" 
+                          />
                         </div>
                         {errors.cardNumber && <p className="text-[10px] text-red-500 mt-0.5">{errors.cardNumber}</p>}
                       </div>
@@ -401,21 +607,42 @@ const Checkout = () => {
                         <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">Name on Card *</label>
                         <div className="relative">
                           <FiUser className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
-                          <input name="cardName" value={paymentData.cardName} onChange={handlePaymentChange} className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.cardName ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} placeholder="John Doe" />
+                          <input 
+                            name="cardName" 
+                            value={paymentData.cardName} 
+                            onChange={handlePaymentChange} 
+                            className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.cardName ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} 
+                            placeholder="John Doe" 
+                          />
                         </div>
                         {errors.cardName && <p className="text-[10px] text-red-500 mt-0.5">{errors.cardName}</p>}
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">Expiry *</label>
-                          <input name="expiry" value={paymentData.expiry} onChange={handlePaymentChange} maxLength="5" className={`w-full px-3 py-2 text-sm rounded-lg border ${errors.expiry ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} placeholder="MM/YY" />
+                          <input 
+                            name="expiry" 
+                            value={paymentData.expiry} 
+                            onChange={handlePaymentChange} 
+                            maxLength="5" 
+                            className={`w-full px-3 py-2 text-sm rounded-lg border ${errors.expiry ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} 
+                            placeholder="MM/YY" 
+                          />
                           {errors.expiry && <p className="text-[10px] text-red-500 mt-0.5">{errors.expiry}</p>}
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 mb-1">CVV *</label>
                           <div className="relative">
                             <FiLock className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
-                            <input name="cvv" type="password" value={paymentData.cvv} onChange={handlePaymentChange} maxLength="4" className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.cvv ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} placeholder="123" />
+                            <input 
+                              name="cvv" 
+                              type="password" 
+                              value={paymentData.cvv} 
+                              onChange={handlePaymentChange} 
+                              maxLength="4" 
+                              className={`w-full pl-8 pr-3 py-2 text-sm rounded-lg border ${errors.cvv ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-700'} bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white transition-all`} 
+                              placeholder="123" 
+                            />
                           </div>
                           {errors.cvv && <p className="text-[10px] text-red-500 mt-0.5">{errors.cvv}</p>}
                         </div>
@@ -428,10 +655,20 @@ const Checkout = () => {
                     </div>
 
                     <div className="mt-5 flex gap-3">
-                      <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setCurrentStep(1)} className="px-4 py-3 text-sm font-semibold border border-neutral-200 dark:border-neutral-700 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors dark:text-white flex items-center gap-1.5">
+                      <motion.button 
+                        whileHover={{ scale: 1.02 }} 
+                        whileTap={{ scale: 0.98 }} 
+                        onClick={() => setCurrentStep(1)} 
+                        className="px-4 py-3 text-sm font-semibold border border-neutral-200 dark:border-neutral-700 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors dark:text-white flex items-center gap-1.5"
+                      >
                         <FiChevronLeft className="h-4 w-4" /> Back
                       </motion.button>
-                      <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} onClick={handleNextStep} className="flex-1 px-4 py-3 text-sm font-semibold bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                      <motion.button 
+                        whileHover={{ scale: 1.01 }} 
+                        whileTap={{ scale: 0.99 }} 
+                        onClick={handleNextStep} 
+                        className="flex-1 px-4 py-3 text-sm font-semibold bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                      >
                         Review Order <FiChevronRight className="h-4 w-4" />
                       </motion.button>
                     </div>
@@ -440,7 +677,14 @@ const Checkout = () => {
               )}
 
               {currentStep === 3 && (
-                <motion.div key="s3" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.25 }} className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800 shadow-sm overflow-hidden">
+                <motion.div 
+                  key="review"
+                  initial={{ opacity: 0, x: 30 }} 
+                  animate={{ opacity: 1, x: 0 }} 
+                  exit={{ opacity: 0, x: -30 }} 
+                  transition={{ duration: 0.25 }} 
+                  className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800 shadow-sm overflow-hidden"
+                >
                   <div className="p-4 lg:p-5 border-b border-neutral-100 dark:border-neutral-800 flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                       <FiCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -455,19 +699,39 @@ const Checkout = () => {
                     {/* Shipping Summary */}
                     <div className="p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xs font-semibold dark:text-white flex items-center gap-2"><FiMapPin className="h-3.5 w-3.5 text-primary-500" /> Shipping</h3>
-                        <button onClick={() => setCurrentStep(1)} className="text-xs text-primary-600 hover:underline flex items-center gap-1"><FiEdit2 className="h-3 w-3" /> Edit</button>
+                        <h3 className="text-xs font-semibold dark:text-white flex items-center gap-2">
+                          <FiMapPin className="h-3.5 w-3.5 text-primary-500" /> Shipping
+                        </h3>
+                        <button 
+                          onClick={() => setCurrentStep(1)} 
+                          className="text-xs text-primary-600 hover:underline flex items-center gap-1"
+                        >
+                          <FiEdit2 className="h-3 w-3" /> Edit
+                        </button>
                       </div>
-                      <p className="text-xs text-neutral-600 dark:text-neutral-400">{shippingData.firstName} {shippingData.lastName}</p>
-                      <p className="text-xs text-neutral-500">{shippingData.address}, {shippingData.city}, {shippingData.state} {shippingData.zipCode}</p>
-                      <p className="text-xs text-neutral-500">{shippingData.email} • {shippingData.phone}</p>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                        {shippingData.firstName} {shippingData.lastName}
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        {shippingData.address}, {shippingData.city}, {shippingData.state} {shippingData.zipCode}
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        {shippingData.email} • {shippingData.phone}
+                      </p>
                     </div>
 
                     {/* Payment Summary */}
                     <div className="p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl">
                       <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-xs font-semibold dark:text-white flex items-center gap-2"><FiCreditCard className="h-3.5 w-3.5 text-primary-500" /> Payment</h3>
-                        <button onClick={() => setCurrentStep(2)} className="text-xs text-primary-600 hover:underline flex items-center gap-1"><FiEdit2 className="h-3 w-3" /> Edit</button>
+                        <h3 className="text-xs font-semibold dark:text-white flex items-center gap-2">
+                          <FiCreditCard className="h-3.5 w-3.5 text-primary-500" /> Payment
+                        </h3>
+                        <button 
+                          onClick={() => setCurrentStep(2)} 
+                          className="text-xs text-primary-600 hover:underline flex items-center gap-1"
+                        >
+                          <FiEdit2 className="h-3 w-3" /> Edit
+                        </button>
                       </div>
                       <p className="text-xs text-neutral-600 dark:text-neutral-400 flex items-center gap-2">
                         <span className="w-8 h-5 bg-blue-600 rounded text-white text-[9px] font-bold flex items-center justify-center">VISA</span>
@@ -477,33 +741,61 @@ const Checkout = () => {
 
                     {/* Items */}
                     <div>
-                      <h3 className="text-xs font-semibold dark:text-white mb-2 flex items-center gap-2"><FiPackage className="h-3.5 w-3.5 text-primary-500" /> Items ({cartItems.length})</h3>
+                      <h3 className="text-xs font-semibold dark:text-white mb-2 flex items-center gap-2">
+                        <FiPackage className="h-3.5 w-3.5 text-primary-500" /> Items ({cartItems.length})
+                      </h3>
                       <div className="space-y-2 max-h-48 overflow-y-auto">
                         {cartItems.map((item) => (
                           <div key={item._id} className="flex gap-3 items-center p-2 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg">
-                            <img src={item.product.images[0]} alt={item.product.name} className="w-12 h-12 object-cover rounded-lg flex-shrink-0" />
+                            <img 
+                              src={item.product.images?.[0] || '/placeholder-image.jpg'} 
+                              alt={item.product.name} 
+                              className="w-12 h-12 object-cover rounded-lg flex-shrink-0" 
+                              onError={(e) => { e.target.src = '/placeholder-image.jpg'; }}
+                            />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium dark:text-white truncate">{item.product.name}</p>
                               <p className="text-[10px] text-neutral-500">Qty: {item.quantity}</p>
                             </div>
-                            <span className="text-xs font-semibold dark:text-white">{formatPrice((item.variant?.price || item.product.price) * item.quantity)}</span>
+                            <span className="text-xs font-semibold dark:text-white">
+                              {formatPrice((item.variant?.price || item.product.price) * item.quantity)}
+                            </span>
                           </div>
                         ))}
                       </div>
                     </div>
 
                     <div className="flex gap-3 pt-2">
-                      <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setCurrentStep(2)} className="px-4 py-3 text-sm font-semibold border border-neutral-200 dark:border-neutral-700 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors dark:text-white flex items-center gap-1.5">
+                      <motion.button 
+                        whileHover={{ scale: 1.02 }} 
+                        whileTap={{ scale: 0.98 }} 
+                        onClick={() => setCurrentStep(2)} 
+                        className="px-4 py-3 text-sm font-semibold border border-neutral-200 dark:border-neutral-700 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors dark:text-white flex items-center gap-1.5"
+                      >
                         <FiChevronLeft className="h-4 w-4" /> Back
                       </motion.button>
-                      <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }} onClick={handlePlaceOrder} disabled={loading} className="flex-1 px-4 py-3 text-sm font-semibold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:bg-emerald-400 transition-colors flex items-center justify-center gap-2 shadow-sm">
+                      <motion.button 
+                        whileHover={{ scale: 1.01 }} 
+                        whileTap={{ scale: 0.99 }} 
+                        onClick={handlePlaceOrder} 
+                        disabled={loading} 
+                        className="flex-1 px-4 py-3 text-sm font-semibold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:bg-emerald-400 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                      >
                         {loading ? (
-                          <motion.svg animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                          <motion.svg 
+                            animate={{ rotate: 360 }} 
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }} 
+                            className="h-4 w-4" 
+                            fill="none" 
+                            viewBox="0 0 24 24"
+                          >
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                           </motion.svg>
-                        ) : <FiShield className="h-4 w-4" />}
-                        {loading ? 'Placing Order...' : `Place Order — ${formatPrice(getTotal())}`}
+                        ) : (
+                          <FiShield className="h-4 w-4" />
+                        )}
+                        {loading ? 'Placing Order...' : `Place Order — ${formatPrice(getTotal() + (giftWrap ? 5.99 : 0))}`}
                       </motion.button>
                     </div>
                   </div>
@@ -513,7 +805,12 @@ const Checkout = () => {
           </motion.div>
 
           {/* Right - Order Summary Sidebar */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="lg:sticky lg:top-4 h-fit">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ delay: 0.2 }} 
+            className="lg:sticky lg:top-4 h-fit"
+          >
             <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800 shadow-sm p-4 lg:p-5">
               <h3 className="text-sm font-bold dark:text-white mb-4 flex items-center gap-2">
                 <FiPackage className="h-4 w-4 text-primary-500" />
@@ -532,17 +829,40 @@ const Checkout = () => {
               )}
 
               <div className="space-y-2 text-xs mb-4">
-                <div className="flex justify-between"><span className="text-neutral-500">Subtotal</span><span className="font-medium dark:text-white">{formatPrice(getSubtotal())}</span></div>
-                {getDiscount() > 0 && <div className="flex justify-between text-emerald-600"><span>Discount</span><span>-{formatPrice(getDiscount())}</span></div>}
-                <div className="flex justify-between"><span className="text-neutral-500">Shipping</span><span className="font-medium dark:text-white">{getShippingCost() === 0 ? 'FREE' : formatPrice(getShippingCost())}</span></div>
-                <div className="flex justify-between"><span className="text-neutral-500">Tax</span><span className="font-medium dark:text-white">{formatPrice(getTax())}</span></div>
-                {giftWrap && <div className="flex justify-between text-rose-500"><span>Gift Wrap</span><span>$5.99</span></div>}
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">Subtotal</span>
+                  <span className="font-medium dark:text-white">{formatPrice(getSubtotal())}</span>
+                </div>
+                {getDiscount() > 0 && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>Discount</span>
+                    <span>-{formatPrice(getDiscount())}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">Shipping</span>
+                  <span className="font-medium dark:text-white">
+                    {getShippingCost() === 0 ? 'FREE' : formatPrice(getShippingCost())}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">Tax</span>
+                  <span className="font-medium dark:text-white">{formatPrice(getTax())}</span>
+                </div>
+                {giftWrap && (
+                  <div className="flex justify-between text-rose-500">
+                    <span>Gift Wrap</span>
+                    <span>$5.99</span>
+                  </div>
+                )}
               </div>
               
               <div className="border-t dark:border-neutral-800 pt-3">
                 <div className="flex justify-between items-baseline">
                   <span className="text-sm font-bold dark:text-white">Total</span>
-                  <span className="text-lg font-bold text-primary-600">{formatPrice(getTotal() + (giftWrap ? 5.99 : 0))}</span>
+                  <span className="text-lg font-bold text-primary-600">
+                    {formatPrice(getTotal() + (giftWrap ? 5.99 : 0))}
+                  </span>
                 </div>
                 <p className="text-[10px] text-neutral-400 mt-1">Including all taxes and shipping</p>
               </div>

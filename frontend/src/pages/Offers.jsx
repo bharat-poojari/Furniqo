@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { FiPercent, FiClock, FiTag } from 'react-icons/fi';
 import ProductCard from '../components/product/ProductCard';
@@ -8,24 +8,107 @@ import apiWrapper from '../services/apiWrapper';
 const Offers = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchOnSaleProducts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Fetch products that are on sale
+      const response = await apiWrapper.getProducts({
+        onSale: true,
+        discount: true,
+        limit: 12,
+        sort: 'discount_desc'
+      });
+      
+      // Handle different response structures
+      let productsData = [];
+      if (response?.data?.success && response?.data?.data) {
+        productsData = response.data.data;
+      } else if (response?.success && response?.data) {
+        productsData = response.data;
+      } else if (response?.data && Array.isArray(response.data)) {
+        productsData = response.data;
+      } else if (Array.isArray(response)) {
+        productsData = response;
+      }
+      
+      // Filter products that actually have discount
+      const onSaleProducts = productsData.filter(product => 
+        product.discount || 
+        (product.originalPrice && product.originalPrice > product.price)
+      );
+      
+      setProducts(onSaleProducts);
+    } catch (error) {
+      console.error('Error fetching on-sale products:', error);
+      setError('Failed to load offers. Please try again.');
+      setProducts([]);
+      
+      // Fallback to mock data if API fails (optional)
+      setProducts(getMockSaleProducts());
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Mock data for fallback (remove this if not needed)
+  const getMockSaleProducts = () => {
+    return [
+      {
+        _id: '1',
+        name: 'Modern Sofa',
+        price: 49999,
+        originalPrice: 79999,
+        discount: 38,
+        images: ['/images/sofa.jpg'],
+        slug: 'modern-sofa',
+        rating: 4.5,
+        numReviews: 128,
+        inStock: true,
+        category: 'Living Room'
+      },
+      {
+        _id: '2',
+        name: 'Dining Table Set',
+        price: 29999,
+        originalPrice: 49999,
+        discount: 40,
+        images: ['/images/dining-table.jpg'],
+        slug: 'dining-table-set',
+        rating: 4.8,
+        numReviews: 95,
+        inStock: true,
+        category: 'Dining'
+      },
+    ];
+  };
 
   useEffect(() => {
     fetchOnSaleProducts();
-  }, []);
+  }, [fetchOnSaleProducts]);
 
-  const fetchOnSaleProducts = async () => {
-  try {
-    const response = await apiWrapper.getOnSaleProducts(12);
-    setProducts(response.data.data || []);
-  } catch (error) {
-    console.error('Error fetching offers:', error);
-    // Fallback
-    const onSale = response?.data?.data || [];
-    setProducts(onSale);
-  } finally {
-    setLoading(false);
-  }
-};
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05,
+        delayChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.4, ease: "easeOut" },
+    },
+  };
 
   return (
     <div className="min-h-screen py-4 bg-neutral-50 dark:bg-neutral-950">
@@ -172,37 +255,77 @@ const Offers = () => {
           </div>
         </motion.div>
 
+        {/* Error State */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-12 bg-red-50 dark:bg-red-900/20 rounded-2xl mb-6"
+          >
+            <FiTag className="h-12 w-12 text-red-500 mx-auto mb-3" />
+            <p className="text-red-600 dark:text-red-400 mb-3">{error}</p>
+            <button
+              onClick={fetchOnSaleProducts}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Try Again
+            </button>
+          </motion.div>
+        )}
+
         {/* Products Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <ProductCardSkeleton key={i} />
-            ))}
-          </div>
-        ) : products.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {products.map((product, index) => (
-              <motion.div
-                key={product._id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.05 }}
+        {!error && (
+          loading ? (
+            <motion.div 
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            >
+              {[...Array(8)].map((_, i) => (
+                <ProductCardSkeleton key={i} />
+              ))}
+            </motion.div>
+          ) : products.length > 0 ? (
+            <motion.div 
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            >
+              {products.map((product, index) => (
+                <motion.div
+                  key={product._id}
+                  variants={itemVariants}
+                >
+                  <ProductCard product={product} />
+                </motion.div>
+              ))}
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-16 bg-white dark:bg-neutral-900 rounded-2xl"
+            >
+              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                <FiTag className="h-10 w-10 text-neutral-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
+                No Active Offers
+              </h2>
+              <p className="text-neutral-500 dark:text-neutral-400 max-w-md mx-auto">
+                We don't have any active offers right now. Check back soon for amazing deals and discounts!
+              </p>
+              <button
+                onClick={fetchOnSaleProducts}
+                className="mt-6 px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors inline-flex items-center gap-2"
               >
-                <ProductCard product={product} />
-              </motion.div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-16">
-            <FiTag className="h-16 w-16 text-neutral-300 dark:text-neutral-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
-              No Active Offers
-            </h2>
-            <p className="text-neutral-500">
-              Check back soon for new deals and promotions!
-            </p>
-          </div>
+                <FiClock className="h-4 w-4" />
+                Refresh Offers
+              </button>
+            </motion.div>
+          )
         )}
       </div>
     </div>

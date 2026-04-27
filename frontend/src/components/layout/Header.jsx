@@ -126,6 +126,17 @@ const Header = () => {
     navigate(`/products?category=${encodeURIComponent(categoryName)}&subcategory=${encodeURIComponent(subcategoryName)}`);
   };
 
+  // Handle logo click with page refresh
+  const handleLogoClick = (e) => {
+    e.preventDefault();
+    if (window.location.pathname === '/') {
+      window.location.reload();
+    } else {
+      navigate('/');
+      window.scrollTo(0, 0);
+    }
+  };
+
   // Close menus on click outside
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -277,8 +288,18 @@ const Header = () => {
       >
         <div className="w-full px-[1%] sm:px-[1.5%]">
           <div className="flex items-center justify-between h-14 lg:h-16">
-            {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 group">
+            {/* Logo - Now refreshes page when clicked on home */}
+            <div 
+              onClick={handleLogoClick}
+              className="flex items-center gap-2.5 flex-shrink-0 group cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  handleLogoClick(e);
+                }
+              }}
+            >
               <div className="relative">
                 <img 
                   src="/logo.svg" 
@@ -299,15 +320,37 @@ const Header = () => {
                   Premium Furniture
                 </span>
               </div>
-            </Link>
+            </div>
 
             {/* Desktop Navigation */}
             {isDesktop && (
               <nav className="hidden lg:flex items-center gap-1">
-                <Link to="/" className="nav-link">
+                <div 
+                  onClick={() => {
+                    if (window.location.pathname === '/') {
+                      window.location.reload();
+                    } else {
+                      navigate('/');
+                      window.scrollTo(0, 0);
+                    }
+                  }}
+                  className="nav-link cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      if (window.location.pathname === '/') {
+                        window.location.reload();
+                      } else {
+                        navigate('/');
+                        window.scrollTo(0, 0);
+                      }
+                    }
+                  }}
+                >
                   <FiHome className="inline-block mr-1.5 h-3.5 w-3.5" />
                   Home
-                </Link>
+                </div>
                 <Link to="/products" className="nav-link">
                   <FiGrid className="inline-block mr-1.5 h-3.5 w-3.5" />
                   Shop
@@ -440,7 +483,7 @@ const Header = () => {
               {/* Search Toggle */}
               <button
                 onClick={() => setShowSearchModal(true)}
-                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative"
+                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative transform active:scale-95"
                 aria-label="Search"
               >
                 <FiSearch className="h-4.5 w-4.5" />
@@ -449,7 +492,7 @@ const Header = () => {
               {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
-                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors hidden sm:flex"
+                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors hidden sm:flex transform active:scale-95"
                 aria-label="Toggle theme"
               >
                 {isDark ? (
@@ -462,7 +505,7 @@ const Header = () => {
               {/* Wishlist */}
               <Link
                 to="/wishlist"
-                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative hidden sm:flex"
+                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative hidden sm:flex transform active:scale-95"
                 aria-label="Wishlist"
               >
                 <FiHeart className="h-4.5 w-4.5" />
@@ -482,7 +525,7 @@ const Header = () => {
               >
                 <button
                   onClick={handleCartClick}
-                  className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative"
+                  className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative transform active:scale-95"
                   aria-label="Cart"
                 >
                   <FiShoppingCart className="h-4.5 w-4.5" />
@@ -577,7 +620,7 @@ const Header = () => {
               {/* Notifications */}
               <button
                 onClick={() => setShowNotificationsModal(true)}
-                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative hidden sm:flex"
+                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative hidden sm:flex transform active:scale-95"
                 aria-label="Notifications"
               >
                 <FiBell className="h-4.5 w-4.5" />
@@ -594,7 +637,7 @@ const Header = () => {
                   <>
                     <button
                       onClick={() => setShowUserMenu(!showUserMenu)}
-                      className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                      className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors transform active:scale-95"
                     >
                       <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-md overflow-hidden">
                         {avatar ? (
@@ -664,7 +707,7 @@ const Header = () => {
                 ) : (
                   <Link
                     to="/login"
-                    className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                    className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors transform active:scale-95"
                   >
                     <FiUser className="h-4.5 w-4.5" />
                     <span className="text-sm font-medium hidden lg:block">Sign In</span>
@@ -675,7 +718,7 @@ const Header = () => {
               {/* Mobile Menu Toggle */}
               <button
                 onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors lg:hidden"
+                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors lg:hidden transform active:scale-95"
                 aria-label="Menu"
               >
                 {showMobileMenu ? (

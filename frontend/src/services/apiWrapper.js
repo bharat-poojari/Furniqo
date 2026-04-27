@@ -1,251 +1,551 @@
+import * as api from './api';
 import * as localData from '../data/data';
+import { toast } from 'react-hot-toast';
 
 class APIWrapper {
   constructor() {
-    // START WITH LOCAL DATA IMMEDIATELY
-    this.useLocalFallback = true;
+    this.useLocalFallback = false;
     this.backendChecked = false;
-    this.backendAvailable = false;
+    this.initializationPromise = null;
+    this.checkInProgress = false;
   }
 
-  // Non-blocking background check
   async init() {
-    // Don't wait - start check in background
-    this.checkBackendInBackground();
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    if (this.checkInProgress) {
+      await new Promise(resolve => {
+        const interval = setInterval(() => {
+          if (this.backendChecked || !this.checkInProgress) {
+            clearInterval(interval);
+            resolve();
+          }
+        }, 50);
+      });
+      return !this.useLocalFallback;
+    }
+
+    this.checkInProgress = true;
+    this.initializationPromise = this.checkBackend();
+    return this.initializationPromise;
   }
 
-  async checkBackendInBackground() {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-    
+  async checkBackend() {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
 
-      const response = await fetch(`${apiUrl}/health`, {
-        method: 'GET',
-        signal: controller.signal,
-      });
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+      
+      const response = await fetch(
+        `${apiUrl}/health`,
+        { 
+          method: 'GET',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
       
       clearTimeout(timeoutId);
-      this.backendAvailable = response.ok;
       this.useLocalFallback = !response.ok;
+      
+      if (this.useLocalFallback) {
+        console.debug('Backend health check failed, using local data fallback');
+      }
     } catch (error) {
-      this.backendAvailable = false;
+      console.debug('Backend unavailable, using local data fallback');
       this.useLocalFallback = true;
     } finally {
       this.backendChecked = true;
+      this.checkInProgress = false;
     }
+
+    if (this.useLocalFallback) {
+      toast('Running in offline mode', { 
+        icon: '📦', 
+        duration: 2000,
+        id: 'offline-toast'
+      });
+    }
+
+    return !this.useLocalFallback;
   }
 
-  // ============================================
-  // PRODUCTS - Always return local data instantly
-  // ============================================
-  
-  getProducts(params = {}) {
-    let filteredProducts = [...localData.products];
+  ensureInitialized() {
+    if (!this.backendChecked) {
+      return this.init();
+    }
+    return Promise.resolve(!this.useLocalFallback);
+  }
 
-    if (params.category) {
-      filteredProducts = filteredProducts.filter(
-        p => p.category === params.category || p.subcategory === params.category
-      );
+  getLocalDataIfNeeded(fallbackFn) {
+    if (this.useLocalFallback) {
+      return Promise.resolve(fallbackFn());
     }
-    if (params.material) {
-      filteredProducts = filteredProducts.filter(p => 
-        p.material?.toLowerCase().includes(params.material.toLowerCase())
-      );
+    if (!this.backendChecked) {
+      return Promise.resolve(fallbackFn());
     }
-    if (params.color) {
-      filteredProducts = filteredProducts.filter(p => 
-        p.color?.toLowerCase().includes(params.color.toLowerCase())
-      );
-    }
-    if (params.minPrice) {
-      filteredProducts = filteredProducts.filter(p => p.price >= Number(params.minPrice));
-    }
-    if (params.maxPrice) {
-      filteredProducts = filteredProducts.filter(p => p.price <= Number(params.maxPrice));
-    }
-    if (params.style) {
-      filteredProducts = filteredProducts.filter(p => p.style === params.style);
-    }
-    if (params.inStock === 'true' || params.inStock === true) {
-      filteredProducts = filteredProducts.filter(p => p.inStock);
-    }
-    if (params.search) {
-      const query = params.search.toLowerCase();
-      filteredProducts = filteredProducts.filter(p =>
-        p.name.toLowerCase().includes(query) ||
-        p.description?.toLowerCase().includes(query) ||
-        p.tags?.some(tag => tag.includes(query))
-      );
-    }
+    return null;
+  }
 
-    // Sort
-    const sort = params.sort || 'newest';
-    switch (sort) {
-      case 'price-low':
-        filteredProducts.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-high':
-        filteredProducts.sort((a, b) => b.price - a.price);
-        break;
-      case 'rating':
-        filteredProducts.sort((a, b) => b.rating - a.rating);
-        break;
-      case 'popular':
-        filteredProducts.sort((a, b) => b.numReviews - a.numReviews);
-        break;
-      case 'discount':
-        filteredProducts.sort((a, b) => {
-          const discA = a.originalPrice ? ((a.originalPrice - a.price) / a.originalPrice) * 100 : 0;
-          const discB = b.originalPrice ? ((b.originalPrice - b.price) / b.originalPrice) * 100 : 0;
-          return discB - discA;
-        });
-        break;
-      default:
-        filteredProducts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    }
+  async getProducts(params = {}) {
+    const getLocalProducts = () => {
+      let filteredProducts = [...localData.products];
 
-    // Paginate
-    const page = parseInt(params.page) || 1;
-    const limit = parseInt(params.limit) || 12;
-    const total = filteredProducts.length;
-    const pages = Math.ceil(total / limit);
-    const start = (page - 1) * limit;
-    const paginatedProducts = filteredProducts.slice(start, start + limit);
-
-    return Promise.resolve({
-      data: {
-        success: true,
-        data: paginatedProducts,
-        pagination: { page, limit, total, pages },
+      if (params.category) {
+        filteredProducts = filteredProducts.filter(
+          p => p.category === params.category || p.subcategory === params.category
+        );
       }
-    });
-  }
+      if (params.material) {
+        filteredProducts = filteredProducts.filter(p => 
+          p.material && p.material.toLowerCase().includes(params.material.toLowerCase())
+        );
+      }
+      if (params.color) {
+        filteredProducts = filteredProducts.filter(p => 
+          p.color && p.color.toLowerCase().includes(params.color.toLowerCase())
+        );
+      }
+      if (params.minPrice) {
+        filteredProducts = filteredProducts.filter(p => p.price >= params.minPrice);
+      }
+      if (params.maxPrice) {
+        filteredProducts = filteredProducts.filter(p => p.price <= params.maxPrice);
+      }
+      if (params.style) {
+        filteredProducts = filteredProducts.filter(p => p.style === params.style);
+      }
+      if (params.inStock !== undefined) {
+        filteredProducts = filteredProducts.filter(p => p.inStock === params.inStock);
+      }
+      if (params.search) {
+        const query = params.search.toLowerCase();
+        filteredProducts = filteredProducts.filter(p =>
+          (p.name && p.name.toLowerCase().includes(query)) ||
+          (p.description && p.description.toLowerCase().includes(query)) ||
+          (p.tags && p.tags.some(tag => tag && tag.includes(query)))
+        );
+      }
 
-  getProduct(slug) {
-    const product = localData.products.find(p => p.slug === slug);
-    return Promise.resolve({
-      data: { success: !!product, data: product || null }
-    });
-  }
+      const sort = params.sort || 'newest';
+      switch (sort) {
+        case 'price-low':
+          filteredProducts.sort((a, b) => (a.price || 0) - (b.price || 0));
+          break;
+        case 'price-high':
+          filteredProducts.sort((a, b) => (b.price || 0) - (a.price || 0));
+          break;
+        case 'rating':
+          filteredProducts.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+          break;
+        case 'popular':
+          filteredProducts.sort((a, b) => (b.numReviews || 0) - (a.numReviews || 0));
+          break;
+        case 'discount':
+          filteredProducts.sort((a, b) => {
+            const discA = ((a.originalPrice - a.price) / a.originalPrice) * 100;
+            const discB = ((b.originalPrice - b.price) / b.originalPrice) * 100;
+            return discB - discA;
+          });
+          break;
+        case 'newest':
+        default:
+          filteredProducts.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+          break;
+      }
 
-  getFeaturedProducts(limit = 8) {
-    const featured = localData.products.filter(p => p.featured).slice(0, limit);
-    return Promise.resolve({ data: { success: true, data: featured } });
-  }
+      const page = params.page || 1;
+      const limit = params.limit || 12;
+      const start = (page - 1) * limit;
+      const end = start + limit;
+      const paginatedProducts = filteredProducts.slice(start, end);
 
-  getTrendingProducts(limit = 8) {
-    const trending = localData.products.filter(p => p.trending).slice(0, limit);
-    return Promise.resolve({ data: { success: true, data: trending } });
-  }
+      return { 
+        data: { 
+          success: true, 
+          data: paginatedProducts,
+          pagination: {
+            page,
+            limit,
+            total: filteredProducts.length,
+            pages: Math.ceil(filteredProducts.length / limit),
+          }
+        } 
+      };
+    };
 
-  getBestSellers(limit = 8) {
-    const sellers = localData.products.filter(p => p.bestSeller).slice(0, limit);
-    return Promise.resolve({ data: { success: true, data: sellers } });
-  }
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalProducts);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
 
-  getNewArrivals(limit = 8) {
-    const arrivals = localData.products.filter(p => p.newArrival).slice(0, limit);
-    return Promise.resolve({ data: { success: true, data: arrivals } });
-  }
-
-  getOnSaleProducts(limit = 12) {
-    const onSale = localData.products
-      .filter(p => p.onSale && p.originalPrice > p.price)
-      .slice(0, limit);
-    return Promise.resolve({ data: { success: true, data: onSale } });
-  }
-
-  getRelatedProducts(productId, limit = 4) {
-    const current = localData.products.find(p => p._id === productId);
-    if (!current) return Promise.resolve({ data: { success: true, data: [] } });
+    await this.ensureInitialized();
     
-    const related = localData.products
-      .filter(p => p._id !== productId && (
-        p.category === current.category || p.style === current.style
-      ))
-      .slice(0, limit);
-    
-    return Promise.resolve({ data: { success: true, data: related } });
+    if (this.useLocalFallback) {
+      return getLocalProducts();
+    }
+
+    try {
+      return await api.productAPI.getAll(params);
+    } catch (error) {
+      console.warn('API call failed, using local fallback:', error);
+      return getLocalProducts();
+    }
   }
 
-  searchProducts(query, params = {}) {
-    return this.getProducts({ ...params, search: query });
+  async getProduct(slug) {
+    const getLocalProduct = () => {
+      const product = localData.products.find(p => p.slug === slug);
+      if (!product) {
+        return { data: { success: false, message: 'Product not found' } };
+      }
+      return { data: { success: true, data: product } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalProduct);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalProduct();
+    }
+
+    try {
+      return await api.productAPI.getOne(slug);
+    } catch (error) {
+      console.warn('API call failed, using local fallback:', error);
+      return getLocalProduct();
+    }
   }
 
-  // ============================================
-  // AUTH
-  // ============================================
+  async getFeaturedProducts(limit = 8) {
+    const getLocalFeatured = () => {
+      const featured = localData.products
+        .filter(p => p.featured)
+        .slice(0, limit);
+      return { data: { success: true, data: featured } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalFeatured);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalFeatured();
+    }
+
+    try {
+      return await api.productAPI.getFeatured(limit);
+    } catch (error) {
+      console.warn('API call failed, using local fallback:', error);
+      return getLocalFeatured();
+    }
+  }
+
+  async getTrendingProducts(limit = 8) {
+    const getLocalTrending = () => {
+      const trending = localData.products
+        .filter(p => p.trending)
+        .slice(0, limit);
+      return { data: { success: true, data: trending } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalTrending);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalTrending();
+    }
+
+    try {
+      return await api.productAPI.getTrending(limit);
+    } catch (error) {
+      console.warn('API call failed, using local fallback:', error);
+      return getLocalTrending();
+    }
+  }
+
+  async getBestSellers(limit = 8) {
+    const getLocalBestSellers = () => {
+      const bestSellers = localData.products
+        .filter(p => p.bestSeller)
+        .slice(0, limit);
+      return { data: { success: true, data: bestSellers } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalBestSellers);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalBestSellers();
+    }
+
+    try {
+      return await api.productAPI.getBestSellers(limit);
+    } catch (error) {
+      console.warn('API call failed, using local fallback:', error);
+      return getLocalBestSellers();
+    }
+  }
+
+  async getNewArrivals(limit = 8) {
+    const getLocalNewArrivals = () => {
+      const newArrivals = localData.products
+        .filter(p => p.newArrival)
+        .slice(0, limit);
+      return { data: { success: true, data: newArrivals } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalNewArrivals);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalNewArrivals();
+    }
+
+    try {
+      return await api.productAPI.getNewArrivals(limit);
+    } catch (error) {
+      console.warn('API call failed, using local fallback:', error);
+      return getLocalNewArrivals();
+    }
+  }
+
+  async getOnSaleProducts(limit = 12) {
+    const getLocalOnSale = () => {
+      const onSale = localData.products
+        .filter(p => p.onSale && p.originalPrice > p.price)
+        .slice(0, limit);
+      return { data: { success: true, data: onSale } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalOnSale);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalOnSale();
+    }
+
+    try {
+      return await api.productAPI.getOnSale(limit);
+    } catch (error) {
+      console.warn('API call failed, using local fallback:', error);
+      return getLocalOnSale();
+    }
+  }
+
+  async getRelatedProducts(productId, limit = 4) {
+    const getLocalRelated = () => {
+      const currentProduct = localData.products.find(p => p._id === productId);
+      if (!currentProduct) {
+        return { data: { success: true, data: [] } };
+      }
+      
+      const related = localData.products
+        .filter(p => 
+          p._id !== productId && 
+          (p.category === currentProduct.category || 
+           p.style === currentProduct.style)
+        )
+        .slice(0, limit);
+      
+      return { data: { success: true, data: related } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalRelated);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalRelated();
+    }
+
+    try {
+      return await api.productAPI.getRelated(productId, limit);
+    } catch (error) {
+      console.warn('API call failed, using local fallback:', error);
+      return getLocalRelated();
+    }
+  }
+
+  async searchProducts(query, params = {}) {
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return this.getProducts({ ...params, search: query });
+    }
+
+    try {
+      return await api.productAPI.search(query, params);
+    } catch (error) {
+      console.warn('API call failed, using local fallback:', error);
+      return this.getProducts({ ...params, search: query });
+    }
+  }
 
   async login(credentials) {
-    if (credentials.email && credentials.password) {
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      if (credentials.email && credentials.password) {
+        const mockUser = {
+          _id: 'local_user_' + Date.now(),
+          name: credentials.email.split('@')[0],
+          email: credentials.email,
+          role: 'user',
+          avatar: null,
+          createdAt: new Date().toISOString(),
+        };
+        const mockToken = 'local_jwt_token_' + Date.now();
+        
+        localStorage.setItem('furniqo_token', mockToken);
+        localStorage.setItem('furniqo_refresh_token', 'local_refresh_' + Date.now());
+        localStorage.setItem('furniqo_user', JSON.stringify(mockUser));
+        
+        return {
+          data: {
+            success: true,
+            data: {
+              user: mockUser,
+              token: mockToken,
+              refreshToken: 'local_refresh_' + Date.now(),
+            },
+            message: 'Login successful (offline mode)',
+          }
+        };
+      }
+      throw new Error('Invalid credentials');
+    }
+
+    const response = await api.authAPI.login(credentials);
+    if (response.data.success) {
+      const { token, refreshToken, user } = response.data.data;
+      localStorage.setItem('furniqo_token', token);
+      localStorage.setItem('furniqo_refresh_token', refreshToken);
+      localStorage.setItem('furniqo_user', JSON.stringify(user));
+    }
+    return response;
+  }
+
+  async signup(userData) {
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
       const mockUser = {
         _id: 'local_user_' + Date.now(),
-        name: credentials.email.split('@')[0],
-        email: credentials.email,
+        name: userData.name,
+        email: userData.email,
         role: 'user',
         avatar: null,
         createdAt: new Date().toISOString(),
       };
-      const mockToken = 'local_jwt_' + Date.now();
+      const mockToken = 'local_jwt_token_' + Date.now();
+      
       localStorage.setItem('furniqo_token', mockToken);
-      localStorage.setItem('furniqo_refresh_token', 'local_refresh');
+      localStorage.setItem('furniqo_refresh_token', 'local_refresh_' + Date.now());
       localStorage.setItem('furniqo_user', JSON.stringify(mockUser));
+      
       return {
         data: {
           success: true,
-          data: { user: mockUser, token: mockToken, refreshToken: 'local_refresh' },
-          message: 'Login successful',
+          data: {
+            user: mockUser,
+            token: mockToken,
+            refreshToken: 'local_refresh_' + Date.now(),
+          },
+          message: 'Account created (offline mode)',
         }
       };
     }
-    return { data: { success: false, message: 'Invalid credentials' } };
-  }
 
-  async signup(userData) {
-    const mockUser = {
-      _id: 'local_user_' + Date.now(),
-      name: userData.name,
-      email: userData.email,
-      role: 'user',
-      avatar: null,
-      createdAt: new Date().toISOString(),
-    };
-    const mockToken = 'local_jwt_' + Date.now();
-    localStorage.setItem('furniqo_token', mockToken);
-    localStorage.setItem('furniqo_refresh_token', 'local_refresh');
-    localStorage.setItem('furniqo_user', JSON.stringify(mockUser));
-    return {
-      data: {
-        success: true,
-        data: { user: mockUser, token: mockToken, refreshToken: 'local_refresh' },
-        message: 'Account created successfully',
-      }
-    };
+    const response = await api.authAPI.signup(userData);
+    if (response.data.success) {
+      const { token, refreshToken, user } = response.data.data;
+      localStorage.setItem('furniqo_token', token);
+      localStorage.setItem('furniqo_refresh_token', refreshToken);
+      localStorage.setItem('furniqo_user', JSON.stringify(user));
+    }
+    return response;
   }
 
   async getProfile() {
-    const user = JSON.parse(localStorage.getItem('furniqo_user') || 'null');
-    return { data: { success: true, data: user } };
-  }
+    await this.ensureInitialized();
 
-  async updateProfile(profileData) {
-    const current = JSON.parse(localStorage.getItem('furniqo_user') || '{}');
-    const updated = { ...current, ...profileData };
-    localStorage.setItem('furniqo_user', JSON.stringify(updated));
-    return { data: { success: true, data: updated } };
-  }
+    if (this.useLocalFallback) {
+      const user = JSON.parse(localStorage.getItem('furniqo_user') || 'null');
+      return { data: { success: true, data: user } };
+    }
 
-  // ============================================
-  // WISHLIST
-  // ============================================
-
-  async getWishlistItems() {
     try {
-      return JSON.parse(localStorage.getItem('furniqo_wishlist') || '[]');
+      return await api.authAPI.getProfile();
+    } catch (error) {
+      const user = JSON.parse(localStorage.getItem('furniqo_user') || 'null');
+      return { data: { success: true, data: user } };
+    }
+  }
+
+  getCartItems() {
+    try {
+      return JSON.parse(localStorage.getItem('furniqo_cart') || '[]');
     } catch {
       return [];
+    }
+  }
+
+  saveCartItems(items) {
+    localStorage.setItem('furniqo_cart', JSON.stringify(items));
+  }
+
+  async getWishlistItems() {
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      try {
+        return JSON.parse(localStorage.getItem('furniqo_wishlist') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    try {
+      const response = await api.wishlistAPI.getWishlist();
+      return response.data.data || [];
+    } catch (error) {
+      try {
+        return JSON.parse(localStorage.getItem('furniqo_wishlist') || '[]');
+      } catch {
+        return [];
+      }
     }
   }
 
@@ -253,116 +553,343 @@ class APIWrapper {
     localStorage.setItem('furniqo_wishlist', JSON.stringify(items));
   }
 
-  // ============================================
-  // COUPONS
-  // ============================================
-
   async validateCoupon(code, orderTotal) {
-    const coupon = localData.coupons.find(c => c.code === code.toUpperCase() && c.isActive);
-    
-    if (!coupon) {
-      return { data: { success: false, message: 'Invalid coupon code' } };
-    }
-    
-    if (orderTotal < coupon.minPurchase) {
-      return { data: { success: false, message: `Minimum purchase of $${coupon.minPurchase} required` } };
-    }
+    await this.ensureInitialized();
 
-    let discount = 0;
-    if (coupon.type === 'percentage') {
-      discount = (orderTotal * coupon.discount) / 100;
-      if (coupon.maxDiscount) discount = Math.min(discount, coupon.maxDiscount);
-    } else if (coupon.type === 'fixed') {
-      discount = coupon.discount;
-    }
+    if (this.useLocalFallback) {
+      const coupon = localData.coupons?.find(
+        c => c.code === code.toUpperCase() && c.isActive
+      );
 
-    return {
-      data: {
-        success: true,
-        data: { ...coupon, calculatedDiscount: discount },
-        message: 'Coupon applied successfully',
+      if (!coupon) {
+        return { data: { success: false, message: 'Invalid coupon code' } };
       }
-    };
+
+      const now = new Date();
+      const validFrom = new Date(coupon.validFrom);
+      const validUntil = new Date(coupon.validUntil);
+
+      if (now < validFrom || now > validUntil) {
+        return { data: { success: false, message: 'Coupon has expired' } };
+      }
+
+      if (orderTotal < coupon.minPurchase) {
+        return { 
+          data: { 
+            success: false, 
+            message: `Minimum purchase of $${coupon.minPurchase} required` 
+          } 
+        };
+      }
+
+      if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+        return { data: { success: false, message: 'Coupon usage limit reached' } };
+      }
+
+      let discount = 0;
+      if (coupon.type === 'percentage') {
+        discount = (orderTotal * coupon.discount) / 100;
+        if (coupon.maxDiscount) {
+          discount = Math.min(discount, coupon.maxDiscount);
+        }
+      } else if (coupon.type === 'fixed') {
+        discount = coupon.discount;
+      } else if (coupon.type === 'freeShipping') {
+        discount = -1;
+      }
+
+      return {
+        data: {
+          success: true,
+          data: {
+            ...coupon,
+            calculatedDiscount: discount,
+          },
+          message: 'Coupon applied successfully',
+        }
+      };
+    }
+
+    try {
+      return await api.couponAPI.validateCoupon(code, orderTotal);
+    } catch (error) {
+      return { data: { success: false, message: 'Coupon validation failed' } };
+    }
   }
 
-  // ============================================
-  // ORDERS
-  // ============================================
-
   async createOrder(orderData) {
-    const order = {
-      _id: 'local_order_' + Date.now(),
-      orderNumber: 'FNQ-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 7).toUpperCase(),
-      ...orderData,
-      status: 'confirmed',
-      createdAt: new Date().toISOString(),
-    };
+    await this.ensureInitialized();
 
-    const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
-    orders.unshift(order);
-    localStorage.setItem('furniqo_orders', JSON.stringify(orders));
-    localStorage.removeItem('furniqo_cart');
+    if (this.useLocalFallback) {
+      const order = {
+        _id: 'local_order_' + Date.now(),
+        orderNumber: this.generateOrderNumber(),
+        ...orderData,
+        status: 'confirmed',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-    return { data: { success: true, data: order, message: 'Order created' } };
+      const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+      orders.unshift(order);
+      localStorage.setItem('furniqo_orders', JSON.stringify(orders));
+      localStorage.removeItem('furniqo_cart');
+
+      return {
+        data: {
+          success: true,
+          data: order,
+          message: 'Order created successfully (offline mode)',
+        }
+      };
+    }
+
+    try {
+      return await api.orderAPI.createOrder(orderData);
+    } catch (error) {
+      const order = {
+        _id: 'local_order_' + Date.now(),
+        orderNumber: this.generateOrderNumber(),
+        ...orderData,
+        status: 'confirmed',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+      orders.unshift(order);
+      localStorage.setItem('furniqo_orders', JSON.stringify(orders));
+      localStorage.removeItem('furniqo_cart');
+      return {
+        data: {
+          success: true,
+          data: order,
+          message: 'Order created successfully (offline mode)',
+        }
+      };
+    }
   }
 
   async getOrders() {
-    const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
-    return { data: { success: true, data: orders } };
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+      return { data: { success: true, data: orders } };
+    }
+
+    try {
+      return await api.orderAPI.getOrders();
+    } catch (error) {
+      const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+      return { data: { success: true, data: orders } };
+    }
   }
 
-  // ============================================
-  // CONTENT - All synchronous for instant load
-  // ============================================
-
-  getCategories() {
-    return Promise.resolve({ data: { success: true, data: localData.categories } });
+  generateOrderNumber() {
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 7).toUpperCase();
+    return `FNQ-${timestamp}-${random}`;
   }
 
-  getBlogPosts(params = {}) {
-    let posts = [...localData.blogPosts];
-    if (params.featured) posts = posts.filter(p => p.featured);
-    if (params.limit) posts = posts.slice(0, params.limit);
-    return Promise.resolve({ data: { success: true, data: posts } });
+  async getCategories() {
+    const getLocalCategories = () => {
+      return { data: { success: true, data: localData.categories || [] } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalCategories);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalCategories();
+    }
+
+    try {
+      const response = await api.contentAPI.getFAQs();
+      return response;
+    } catch (error) {
+      return getLocalCategories();
+    }
   }
 
-  getBlogPost(slug) {
-    const post = localData.blogPosts.find(p => p.slug === slug);
-    return Promise.resolve({ data: { success: !!post, data: post || null } });
+  async getBlogPosts(params = {}) {
+    const getLocalBlogPosts = () => {
+      let posts = [...(localData.blogPosts || [])];
+      if (params.featured) {
+        posts = posts.filter(p => p.featured);
+      }
+      if (params.limit) {
+        posts = posts.slice(0, params.limit);
+      }
+      return { data: { success: true, data: posts } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalBlogPosts);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalBlogPosts();
+    }
+
+    try {
+      return await api.contentAPI.getBlogPosts(params);
+    } catch (error) {
+      return getLocalBlogPosts();
+    }
   }
 
-  getFAQs() {
-    return Promise.resolve({ data: { success: true, data: localData.faqs } });
+  async getBlogPost(slug) {
+    const getLocalBlogPost = () => {
+      const post = (localData.blogPosts || []).find(p => p.slug === slug);
+      return { data: { success: true, data: post || null } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalBlogPost);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalBlogPost();
+    }
+
+    try {
+      return await api.contentAPI.getBlogPost(slug);
+    } catch (error) {
+      return getLocalBlogPost();
+    }
   }
 
-  getPolicies() {
-    return Promise.resolve({ data: { success: true, data: localData.policies } });
+  async getFAQs() {
+    const getLocalFAQs = () => {
+      return { data: { success: true, data: localData.faqs || [] } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalFAQs);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalFAQs();
+    }
+
+    try {
+      return await api.contentAPI.getFAQs();
+    } catch (error) {
+      return getLocalFAQs();
+    }
   }
 
-  getTestimonials() {
-    return Promise.resolve({ data: { success: true, data: localData.testimonials } });
+  async getPolicies() {
+    const getLocalPolicies = () => {
+      return { data: { success: true, data: localData.policies || [] } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalPolicies);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalPolicies();
+    }
+
+    try {
+      return await api.contentAPI.getPolicies();
+    } catch (error) {
+      return getLocalPolicies();
+    }
   }
 
-  getRooms() {
-    return Promise.resolve({ data: { success: true, data: localData.rooms } });
+  async getTestimonials() {
+    const getLocalTestimonials = () => {
+      return { data: { success: true, data: localData.testimonials || [] } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalTestimonials);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalTestimonials();
+    }
+
+    try {
+      return await api.contentAPI.getTestimonials();
+    } catch (error) {
+      return getLocalTestimonials();
+    }
   }
 
-  getHeroSlides() {
-    return Promise.resolve({ data: { success: true, data: localData.heroSlides } });
+  async getRooms() {
+    const getLocalRooms = () => {
+      return { data: { success: true, data: localData.rooms || [] } };
+    };
+
+    const immediateLocal = this.getLocalDataIfNeeded(getLocalRooms);
+    if (immediateLocal) {
+      return immediateLocal;
+    }
+
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      return getLocalRooms();
+    }
+
+    try {
+      return await api.contentAPI.getRooms();
+    } catch (error) {
+      return getLocalRooms();
+    }
   }
 
-  // ============================================
-  // ANALYTICS - No-op
-  // ============================================
+  async getHeroSlides() {
+    return { data: { success: true, data: localData.heroSlides || [] } };
+  }
 
   async trackEvent(eventData) {
+    try {
+      await this.ensureInitialized();
+      if (!this.useLocalFallback) {
+        return api.analyticsAPI.trackEvent(eventData);
+      }
+    } catch (error) {
+      console.debug('Analytics tracking error:', error);
+    }
     return { data: { success: true } };
   }
 
   async trackPageView(page) {
+    try {
+      await this.ensureInitialized();
+      if (!this.useLocalFallback) {
+        return api.analyticsAPI.trackPageView(page);
+      }
+    } catch (error) {
+      console.debug('Page view tracking error:', error);
+    }
     return { data: { success: true } };
   }
 }
 
 const apiWrapper = new APIWrapper();
+apiWrapper.init().catch(console.error);
 export default apiWrapper;
