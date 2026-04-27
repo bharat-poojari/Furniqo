@@ -44,18 +44,18 @@ const Orders = () => {
   }, [isAuthenticated]);
 
   const fetchOrders = async () => {
-    setLoading(true);
-    try {
-      const response = await apiWrapper.getOrders();
-      if (response.data.success) {
-        setOrders(response.data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    const response = await apiWrapper.getOrders();
+    if (response.data.success) {
+      setOrders(response.data.data);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||

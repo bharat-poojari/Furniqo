@@ -26,23 +26,15 @@ const BlogPost = () => {
   }, [slug]);
 
   const fetchPost = async () => {
-    try {
-      setLoading(true);
-      const response = await apiWrapper.getBlogPost(slug);
-      const postData = response.data.data;
-      setPost(postData);
-      
-      // Fetch related posts based on category or tags
-      if (postData) {
-        await fetchRelatedPosts(postData);
-      }
-    } catch (error) {
-      console.error('Error fetching blog post:', error);
-      toast.error('Failed to load article');
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await apiWrapper.getBlogPost(slug);
+    setPost(response.data.data);
+  } catch (error) {
+    console.error('Error fetching blog post:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchRelatedPosts = async (currentPost) => {
     try {

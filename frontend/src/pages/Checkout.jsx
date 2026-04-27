@@ -134,37 +134,43 @@ const Checkout = () => {
   };
 
   const handlePlaceOrder = async () => {
-    setLoading(true);
-    try {
-      const orderData = {
-        shipping: shippingData,
-        shippingMethod,
-        payment: { last4: paymentData.cardNumber.replace(/\s/g, '').slice(-4), brand: 'Visa' },
-        items: cartItems,
-        subtotal: getSubtotal(),
-        discount: getDiscount(),
-        shippingCost: getShippingCost(),
-        tax: getTax(),
-        total: getTotal(),
-        coupon: appliedCoupon?.code,
-        giftWrap,
-      };
-      const response = await apiWrapper.createOrder(orderData);
-      if (response.data.success) {
-        setOrderPlaced(true);
-        setTimeout(() => {
-          clearCart();
-          navigate(`/order-confirmation/${response.data.data._id}`, { state: { order: response.data.data } });
-        }, 2000);
-      } else {
-        toast.error(response.data.message || 'Failed to place order');
-      }
-    } catch (error) {
-      toast.error('Failed to place order. Please try again.');
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  
+  try {
+    const orderData = {
+      shipping: shippingData,
+      shippingMethod,
+      payment: {
+        last4: paymentData.cardNumber.replace(/\s/g, '').slice(-4),
+        brand: 'Visa',
+      },
+      items: cartItems,
+      subtotal: getSubtotal(),
+      discount: getDiscount(),
+      shippingCost: getShippingCost(),
+      tax: getTax(),
+      total: getTotal(),
+      coupon: appliedCoupon?.code,
+    };
+
+    const response = await apiWrapper.createOrder(orderData);
+
+    if (response.data.success) {
+      clearCart();
+      navigate(`/order-confirmation/${response.data.data._id}`, {
+        state: { order: response.data.data },
+      });
+      toast.success('Order placed successfully!');
+    } else {
+      toast.error(response.data.message || 'Failed to place order');
     }
-  };
+  } catch (error) {
+    console.error('Order error:', error);
+    toast.error('Failed to place order. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const getStepStatus = (stepId) => {
     if (currentStep > stepId) return 'completed';

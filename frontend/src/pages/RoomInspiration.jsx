@@ -85,25 +85,16 @@ const RoomInspiration = () => {
   
   const { ref: loadMoreRef, inView } = useInView({ threshold: 0.1 });
 
-  const fetchRooms = useCallback(async () => {
-    try {
-      setError(null);
-      const response = await apiWrapper.getRooms();
-      const roomData = response.data?.data || response.data || [];
-      
-      if (!Array.isArray(roomData)) {
-        throw new Error('Invalid data format received');
-      }
-      
-      setRooms(roomData);
-    } catch (error) {
-      console.error('Error fetching rooms:', error);
-      setError(error.message || 'Failed to load room inspiration');
-      toast.error('Failed to load room inspiration');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchRooms = async () => {
+  try {
+    const response = await apiWrapper.getRooms();
+    setRooms(response.data.data || []);
+  } catch (error) {
+    console.error('Error fetching rooms:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchRooms();

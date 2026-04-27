@@ -437,22 +437,20 @@ const Trending = () => {
   }, []);
 
   const fetchTrendingProducts = async () => {
-    try {
-      setLoading(true);
-      const response = await apiWrapper.getTrendingProducts(8);
-      
-      if (response.data.success) {
-        setProducts(response.data.data);
-      } else {
-        toast.error('Failed to load trending products');
-      }
-    } catch (error) {
-      console.error('Error fetching trending products:', error);
-      toast.error('Failed to load trending products');
-    } finally {
-      setLoading(false);
+  try {
+    const response = await apiWrapper.getTrendingProducts(8);
+    if (response.data.success) {
+      setProducts(response.data.data);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching trending products:', error);
+    // Fallback - use local data directly
+    const featured = response?.data?.data || [];
+    setProducts(featured);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleWishlistToggle = useCallback((product, e) => {
     if (e) {

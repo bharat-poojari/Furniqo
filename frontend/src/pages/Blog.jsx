@@ -32,19 +32,15 @@ const Blog = () => {
   }, []);
 
   const fetchPosts = async () => {
-    try {
-      setError(null);
-      const response = await apiWrapper.getBlogPosts();
-      const postData = response.data?.data || response.data || [];
-      if (!Array.isArray(postData)) throw new Error('Invalid data format');
-      setPosts(postData);
-    } catch (error) {
-      console.error('Error fetching blog posts:', error);
-      setError(error.message || 'Failed to load blog posts');
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await apiWrapper.getBlogPosts();
+    setPosts(response.data.data || []);
+  } catch (error) {
+    console.error('Error fetching blog posts:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const categories = useMemo(() => 
     ['all', ...new Set(posts.map(p => p.category).filter(Boolean))],

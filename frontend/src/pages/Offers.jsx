@@ -14,15 +14,18 @@ const Offers = () => {
   }, []);
 
   const fetchOnSaleProducts = async () => {
-    try {
-      const response = await apiWrapper.getOnSaleProducts(12);
-      setProducts(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching offers:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const response = await apiWrapper.getOnSaleProducts(12);
+    setProducts(response.data.data || []);
+  } catch (error) {
+    console.error('Error fetching offers:', error);
+    // Fallback
+    const onSale = response?.data?.data || [];
+    setProducts(onSale);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen py-4 bg-neutral-50 dark:bg-neutral-950">

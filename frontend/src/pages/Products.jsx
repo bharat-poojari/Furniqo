@@ -77,41 +77,37 @@ const Products = () => {
   }, [debouncedFilters, sort, currentPage]);
 
   const fetchProducts = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const params = {
-        ...debouncedFilters,
-        sort,
-        page: currentPage,
-        limit: ITEMS_PER_PAGE,
-      };
-
-      Object.keys(params).forEach(key => {
-        if (params[key] === undefined || params[key] === '' || 
-            (Array.isArray(params[key]) && params[key].length === 0)) {
-          delete params[key];
-        }
-      });
-
-      const response = await apiWrapper.getProducts(params);
-
-      if (response.data.success) {
-        setProducts(response.data.data || []);
-        setTotalPages(response.data.pagination?.pages || 1);
-        setTotalResults(response.data.pagination?.total || response.data.data?.length || 0);
-      } else {
-        throw new Error(response.data.message || 'Failed to load products');
-      }
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      setError(error.message || 'Failed to load products. Please try again.');
-      toast.error('Failed to load products');
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  setError(null);
+  
+  try {
+    const params = {
+      ...filters,
+      sort,
+      page: currentPage,
+      limit: 12,
+    };
+    
+    // Use getProducts instead of productAPI.getAll
+    const response = await apiWrapper.getProducts(params);
+    
+    if (response.data.success) {
+      setProducts(response.data.data);
+      setTotalPages(response.data.pagination?.pages || 1);
+      setTotalResults(response.data.pagination?.total || response.data.data.length);
+    } else {
+      setError(response.data.message || 'Failed to load products');
     }
-  };
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    setError('Failed to load products. Please try again.');
+    // Set empty state
+    setProducts([]);
+    setTotalResults(0);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleRetry = () => {
     fetchProducts();

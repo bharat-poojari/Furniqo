@@ -62,26 +62,32 @@ const ProductDetail = () => {
   }, []);
 
   const fetchProduct = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await apiWrapper.getProduct(slug);
-      if (response.data.success && response.data.data) {
-        const productData = response.data.data;
-        setProduct(productData);
-        addToRecentlyViewed(productData);
-        document.title = `${productData.name} | Store`;
-      } else {
-        throw new Error('Product not found');
+  setLoading(true);
+  try {
+    // Use getProduct instead of productAPI.getOne
+    const response = await apiWrapper.getProduct(slug);
+    
+    if (response.data.success && response.data.data) {
+      const productData = response.data.data;
+      setProduct(productData);
+      addToRecentlyViewed(productData);
+      
+      // Fetch related products
+      const relatedResponse = await apiWrapper.getRelatedProducts(productData._id, 4);
+      if (relatedResponse.data.success) {
+        setRelatedProducts(relatedResponse.data.data);
       }
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      setError(error.message || 'Failed to load product');
-      toast.error('Failed to load product details');
-    } finally {
-      setLoading(false);
+    } else {
+      toast.error('Product not found');
+      navigate('/products');
     }
-  };
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    toast.error('Failed to load product');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const discount = useMemo(() => product ? calculateDiscount(product.price, product.originalPrice) : 0, [product]);
   const currentPrice = useMemo(() => selectedVariant?.price || product?.price || 0, [selectedVariant, product]);

@@ -10,39 +10,18 @@ const RelatedProducts = ({ productId, category }) => {
   const [error, setError] = useState(null);
   const abortControllerRef = useRef(null);
 
-  const fetchRelatedProducts = useCallback(async () => {
-    // Cancel previous request if it exists
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+  const fetchRelatedProducts = async () => {
+  try {
+    const response = await apiWrapper.getRelatedProducts(productId, 4);
+    if (response.data.success) {
+      setProducts(response.data.data);
     }
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await apiWrapper.getRelatedProducts(productId, 4, {
-        signal: controller.signal
-      });
-      
-      if (response.data.success) {
-        setProducts(response.data.data || []);
-      } else {
-        throw new Error(response.data.message || 'Failed to fetch related products');
-      }
-    } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error('Error fetching related products:', error);
-        setError(error.message || 'Failed to load related products');
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setLoading(false);
-      }
-    }
-  }, [productId]);
+  } catch (error) {
+    console.error('Error fetching related products:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchRelatedProducts();
