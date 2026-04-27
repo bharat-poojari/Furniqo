@@ -730,7 +730,7 @@ const Trending = () => {
                   )}
 
                   {/* Product Name */}
-                  <Link to={`/product/${product._id}`} className="block mb-1 sm:mb-2">
+                  <Link to={`/products/${product._id}`} className="block mb-1 sm:mb-2">
                     <h3 className="font-semibold text-neutral-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200 line-clamp-2 text-xs sm:text-sm lg:text-base">
                       {product.name}
                     </h3>
