@@ -8,20 +8,15 @@ import Testimonials from '../components/home/Testimonials';
 import PromoBanner from '../components/home/PromoBanner';
 import InstagramFeed from '../components/home/InstagramFeed';
 import Newsletter from '../components/layout/Newsletter';
-import apiWrapper from '../services/apiWrapper';
 
 const HEADER_HEIGHT = 64; // Adjust this to match your header height (h-14 = 56px, h-16 = 64px)
 
 const Home = () => {
   const [activeSection, setActiveSection] = useState('hero');
-  const containerRef = useRef(null);
   const sectionRefs = useRef({});
   
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end end"]
-  });
-  
+  // Use window scroll directly (no container ref to avoid conflict with Layout)
+  const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 100,
     damping: 30,
@@ -29,11 +24,8 @@ const Home = () => {
   });
 
   useEffect(() => {
-    // Track page view
-    apiWrapper.trackPageView('home').catch(() => {});
-    
-    // Scroll to top on mount
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Scroll to top on mount only (remove smooth behavior to avoid conflicts)
+    window.scrollTo(0, 0);
   }, []);
 
   const sections = [
@@ -80,18 +72,11 @@ const Home = () => {
 
   return (
     <motion.div
-      ref={containerRef}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
       className="relative"
     >
-      {/* Reading Progress Bar */}
-      <motion.div
-        className="fixed top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary-500 via-purple-500 to-primary-500 origin-left z-[60]"
-        style={{ scaleX }}
-      />
-
       {/* Sections */}
       {sections.map(({ component: Component, id }) => (
         <motion.div

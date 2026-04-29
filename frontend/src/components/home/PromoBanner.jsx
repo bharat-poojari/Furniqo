@@ -1,11 +1,11 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { FiArrowRight, FiClock, FiGift, FiZap, FiTag, FiShoppingBag } from 'react-icons/fi';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
 
 const PromoBanner = () => {
-  // Set target date to 28 days from now
-  const getTargetDate = () => {
+  // Get target date (28 days from now, stored in localStorage)
+  const getTargetDate = useCallback(() => {
     const savedTarget = localStorage.getItem('promoEndDate');
     if (savedTarget) {
       const savedDate = new Date(savedTarget);
@@ -20,57 +20,48 @@ const PromoBanner = () => {
     
     localStorage.setItem('promoEndDate', target.toISOString());
     return target;
-  };
+  }, []);
 
-  const [timeLeft, setTimeLeft] = useState({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-  });
-  
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [isExpired, setIsExpired] = useState(false);
+  const targetDateRef = useRef(null);
+  const timerRef = useRef(null);
 
-  useEffect(() => {
-    const targetDate = getTargetDate();
+  // Calculate time left
+  const calculateTimeLeft = useCallback(() => {
+    const now = new Date();
+    const difference = targetDateRef.current - now;
     
-    const calculateTimeLeft = () => {
-      const now = new Date();
-      const difference = targetDate - now;
-      
-      if (difference <= 0) {
-        setIsExpired(true);
-        return {
-          days: 0,
-          hours: 0,
-          minutes: 0,
-          seconds: 0,
-        };
-      }
-      
-      return {
-        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-        minutes: Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60)),
-        seconds: Math.floor((difference % (1000 * 60)) / 1000),
-      };
+    if (difference <= 0) {
+      setIsExpired(true);
+      if (timerRef.current) clearInterval(timerRef.current);
+      return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+    }
+    
+    return {
+      days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+      hours: Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+      minutes: Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60)),
+      seconds: Math.floor((difference % (1000 * 60)) / 1000),
     };
+  }, []);
+
+  // Initialize timer
+  useEffect(() => {
+    targetDateRef.current = getTargetDate();
     
-    setTimeLeft(calculateTimeLeft());
-    
-    const timer = setInterval(() => {
+    const updateTimer = () => {
       const newTimeLeft = calculateTimeLeft();
       setTimeLeft(newTimeLeft);
-      
-      if (newTimeLeft.days === 0 && newTimeLeft.hours === 0 && 
-          newTimeLeft.minutes === 0 && newTimeLeft.seconds === 0) {
-        setIsExpired(true);
-        clearInterval(timer);
-      }
-    }, 1000);
+    };
     
-    return () => clearInterval(timer);
-  }, []);
+    updateTimer();
+    timerRef.current = setInterval(updateTimer, 1000);
+    
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [getTargetDate, calculateTimeLeft]);
 
   const timeBlocks = [
     { label: 'Days', value: timeLeft.days },
@@ -79,12 +70,13 @@ const PromoBanner = () => {
     { label: 'Seconds', value: timeLeft.seconds },
   ];
 
+  // Optimized animation variants with preserved effects
   const bannerVariants = {
     hidden: { opacity: 0, y: 30 },
     visible: { 
       opacity: 1, 
       y: 0,
-      transition: { duration: 0.6, ease: "easeOut" }
+      transition: { duration: 0.5, ease: "easeOut" }
     },
   };
 
@@ -115,6 +107,7 @@ const PromoBanner = () => {
     }),
   };
 
+  // Expired offer view with animations
   if (isExpired) {
     return (
       <section className="py-6 sm:py-8 lg:py-12 bg-gradient-to-b from-neutral-50 to-white dark:from-neutral-900 dark:to-neutral-950">
@@ -123,7 +116,7 @@ const PromoBanner = () => {
             variants={bannerVariants}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: "-50px" }}
             className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-gray-600 to-gray-800 shadow-2xl"
           >
             <div className="relative z-10 p-6 sm:p-8 lg:p-12">
@@ -134,13 +127,18 @@ const PromoBanner = () => {
                 <p className="text-sm sm:text-base lg:text-lg text-gray-200 mb-6 max-w-md mx-auto">
                   Don't worry! New deals coming soon. Stay tuned for our upcoming offers.
                 </p>
-                <Link
-                  to="/products"
-                  className="group inline-flex items-center gap-2 px-6 py-3 bg-white text-gray-800 rounded-xl font-semibold hover:bg-gray-100 transition-all shadow-xl"
+                <motion.div
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                 >
-                  Browse Products
-                  <FiArrowRight className="group-hover:translate-x-1 transition-transform" />
-                </Link>
+                  <Link
+                    to="/products"
+                    className="group inline-flex items-center gap-2 px-6 py-3 bg-white text-gray-800 rounded-xl font-semibold hover:bg-gray-100 transition-all duration-200 shadow-xl"
+                  >
+                    Browse Products
+                    <FiArrowRight className="group-hover:translate-x-1 transition-transform duration-200" />
+                  </Link>
+                </motion.div>
               </div>
             </div>
           </motion.div>
@@ -156,12 +154,12 @@ const PromoBanner = () => {
           variants={bannerVariants}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true }}
+          viewport={{ once: true, margin: "-50px" }}
           className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-red-600 via-red-700 to-orange-700 shadow-2xl"
         >
-          {/* Animated Background Elements - ALL animations preserved */}
-          <div className="absolute inset-0 overflow-hidden">
-            {/* Floating Orbs */}
+          {/* Animated Background Elements - ALL animations preserved with optimized performance */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Floating Orbs - Optimized */}
             <motion.div
               animate={{ 
                 x: [0, 50, 0, -50, 0],
@@ -169,7 +167,7 @@ const PromoBanner = () => {
                 scale: [1, 1.2, 1, 1.1, 1]
               }}
               transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute top-5 left-5 sm:top-10 sm:left-10 w-16 h-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 bg-white/10 rounded-full blur-2xl sm:blur-3xl"
+              className="absolute top-5 left-5 w-16 h-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 bg-white/10 rounded-full blur-2xl sm:blur-3xl"
             />
             
             <motion.div
@@ -179,7 +177,7 @@ const PromoBanner = () => {
                 scale: [1, 1.3, 1, 1.2, 1]
               }}
               transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-              className="absolute bottom-5 right-5 sm:bottom-10 sm:right-10 w-20 h-20 sm:w-28 sm:h-28 lg:w-40 lg:h-40 bg-yellow-500/10 rounded-full blur-2xl sm:blur-3xl"
+              className="absolute bottom-5 right-5 w-20 h-20 sm:w-28 sm:h-28 lg:w-40 lg:h-40 bg-yellow-500/10 rounded-full blur-2xl sm:blur-3xl"
             />
             
             <motion.div
@@ -191,8 +189,8 @@ const PromoBanner = () => {
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] sm:w-[350px] sm:h-[350px] bg-white/5 rounded-full blur-3xl"
             />
 
-            {/* Animated Sparkles - Full set */}
-            {[...Array(12)].map((_, i) => (
+            {/* Animated Sparkles - Optimized count */}
+            {[...Array(8)].map((_, i) => (
               <motion.div
                 key={i}
                 animate={{
@@ -208,11 +206,11 @@ const PromoBanner = () => {
                   ease: "easeInOut"
                 }}
                 className="absolute bottom-0 left-1/2 w-1 h-1 bg-white/40 rounded-full"
-                style={{ left: `${10 + (i * 8)}%` }}
+                style={{ left: `${10 + (i * 10)}%` }}
               />
             ))}
 
-            {/* Rotating Rings */}
+            {/* Rotating Rings - Preserved */}
             <div className="hidden sm:block">
               <motion.div
                 animate={{ rotate: 360 }}
@@ -227,7 +225,7 @@ const PromoBanner = () => {
               />
             </div>
 
-            {/* Animated Gradient Lines */}
+            {/* Animated Gradient Lines - Preserved */}
             <div className="hidden lg:block">
               <motion.div
                 animate={{ 
@@ -248,12 +246,12 @@ const PromoBanner = () => {
               />
             </div>
 
-            {/* Particle Field - Full set */}
-            {[...Array(30)].map((_, i) => (
+            {/* Particle Field - Optimized count */}
+            {[...Array(20)].map((_, i) => (
               <motion.div
                 key={`particle-${i}`}
                 animate={{
-                  y: [-20, -typeof window !== 'undefined' && window.innerWidth < 640 ? -300 : -800],
+                  y: [-20, -800],
                   x: [0, (Math.random() - 0.5) * 100],
                   opacity: [0, 0.5, 0],
                 }}
@@ -279,7 +277,7 @@ const PromoBanner = () => {
               }} 
             />
             
-            {/* Diagonal Lines with Animation */}
+            {/* Diagonal Lines with Animation - Preserved */}
             <div className="hidden sm:block">
               <motion.div 
                 animate={{ x: [0, 100, 0] }}
@@ -291,7 +289,7 @@ const PromoBanner = () => {
               />
             </div>
 
-            {/* Floating Shapes */}
+            {/* Floating Shapes - Preserved */}
             <div className="hidden lg:block">
               <motion.div
                 animate={{ 
@@ -336,6 +334,7 @@ const PromoBanner = () => {
                 <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-4 justify-center lg:justify-start">
                   <motion.span 
                     whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
                     className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-sm rounded-full px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-medium"
                   >
                     <FiZap className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-yellow-300" />
@@ -343,6 +342,7 @@ const PromoBanner = () => {
                   </motion.span>
                   <motion.span 
                     whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
                     className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-sm rounded-full px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-medium"
                   >
                     <FiGift className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-yellow-300" />
@@ -350,6 +350,7 @@ const PromoBanner = () => {
                   </motion.span>
                   <motion.span 
                     whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
                     className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-sm rounded-full px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-medium"
                   >
                     <FiTag className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-yellow-300" />
@@ -362,7 +363,7 @@ const PromoBanner = () => {
                   <span className="relative inline-block">
                     <motion.span 
                       animate={{ scale: [1, 1.05, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                       className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500"
                     >
                       40% Off
@@ -375,7 +376,7 @@ const PromoBanner = () => {
                         strokeWidth="1.5" 
                         opacity="0.5"
                         animate={{ pathLength: [0, 1, 0] }}
-                        transition={{ duration: 3, repeat: Infinity }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                       />
                     </svg>
                   </span>
@@ -394,6 +395,7 @@ const PromoBanner = () => {
                 <div className="flex flex-wrap justify-center lg:justify-start gap-2 sm:gap-3 mb-4 sm:mb-6">
                   <motion.div 
                     whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
                     className="flex items-center gap-1.5"
                   >
                     <div className="w-6 h-6 sm:w-7 sm:h-7 bg-white/10 rounded-full flex items-center justify-center">
@@ -403,6 +405,7 @@ const PromoBanner = () => {
                   </motion.div>
                   <motion.div 
                     whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
                     className="flex items-center gap-1.5"
                   >
                     <div className="w-6 h-6 sm:w-7 sm:h-7 bg-white/10 rounded-full flex items-center justify-center">
@@ -412,6 +415,7 @@ const PromoBanner = () => {
                   </motion.div>
                   <motion.div 
                     whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
                     className="flex items-center gap-1.5"
                   >
                     <div className="w-6 h-6 sm:w-7 sm:h-7 bg-white/10 rounded-full flex items-center justify-center">
@@ -424,14 +428,15 @@ const PromoBanner = () => {
                 <motion.div
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
+                  transition={{ duration: 0.2 }}
                   className="flex justify-center lg:justify-start"
                 >
                   <Link
                     to="/offers"
-                    className="group inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 bg-white text-red-600 rounded-xl font-semibold text-sm sm:text-base hover:bg-red-50 transition-all shadow-xl"
+                    className="group inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 bg-white text-red-600 rounded-xl font-semibold text-sm sm:text-base hover:bg-red-50 transition-all duration-200 shadow-xl"
                   >
                     <span>Shop Sale</span>
-                    <FiArrowRight className="group-hover:translate-x-1 transition-transform duration-300" />
+                    <FiArrowRight className="group-hover:translate-x-1 transition-transform duration-200" />
                   </Link>
                 </motion.div>
               </motion.div>
@@ -467,18 +472,20 @@ const PromoBanner = () => {
                           {/* Glow Effect */}
                           <motion.div 
                             whileHover={{ opacity: 1 }}
-                            className="absolute inset-0 bg-white/20 rounded-lg sm:rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300" 
+                            transition={{ duration: 0.2 }}
+                            className="absolute inset-0 bg-white/20 rounded-lg sm:rounded-xl blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-200" 
                           />
                           
                           {/* Timer Box */}
                           <motion.div 
                             whileHover={{ scale: 1.05 }}
-                            className="relative w-12 sm:w-16 lg:w-20 xl:w-24 h-12 sm:h-16 lg:h-20 xl:h-24 bg-white/10 backdrop-blur-sm rounded-lg sm:rounded-xl flex flex-col items-center justify-center border border-white/20 shadow-lg transform transition-all duration-300"
+                            transition={{ duration: 0.2 }}
+                            className="relative w-12 sm:w-16 lg:w-20 xl:w-24 h-12 sm:h-16 lg:h-20 xl:h-24 bg-white/10 backdrop-blur-sm rounded-lg sm:rounded-xl flex flex-col items-center justify-center border border-white/20 shadow-lg transform transition-all duration-200"
                           >
                             <motion.span 
                               animate={{ scale: [1, 1.06, 1] }}
-                              transition={{ duration: 0.5, delay: index * 0.1 }}
-                              className="text-sm sm:text-xl lg:text-2xl xl:text-4xl font-bold text-white font-mono"
+                              transition={{ duration: 0.5, delay: index * 0.1, ease: "easeInOut" }}
+                              className="text-sm sm:text-xl lg:text-2xl xl:text-4xl font-bold text-white font-mono tabular-nums"
                             >
                               {String(block.value).padStart(2, '0')}
                             </motion.span>
@@ -497,7 +504,7 @@ const PromoBanner = () => {
                   <div className="mt-3 sm:mt-4 text-center">
                     <motion.div 
                       animate={{ scale: [1, 1.03, 1] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                       className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 bg-white/10 backdrop-blur-sm rounded-full"
                     >
                       <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-red-500 rounded-full animate-pulse" />
@@ -521,4 +528,4 @@ const PromoBanner = () => {
   );
 };
 
-export default PromoBanner;
+export default memo(PromoBanner);

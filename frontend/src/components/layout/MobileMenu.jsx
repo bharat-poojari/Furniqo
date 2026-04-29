@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiX, 
@@ -21,67 +21,63 @@ import {
   FiInfo,
   FiHelpCircle,
   FiMessageCircle,
-  FiPackage,
   FiSettings,
-  FiStar,
   FiCheck,
-  FiTrendingUp,
-  FiShield,
-  FiTruck
+  FiShield
 } from 'react-icons/fi';
 import { useAuth } from '../../store/AuthContext';
 import { useWishlist } from '../../store/WishlistContext';
 import { useCart } from '../../store/CartContext';
 import { useTheme } from '../../store/ThemeContext';
 
-// Custom SVG Icons for categories
-const SofaIcon = (props) => (
+// Custom SVG Icons for categories - memoized for performance
+const SofaIcon = memo((props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 11h16v4H4zM4 15l-1 3h18l-1-3M7 11V9a5 5 0 0110 0v2" />
   </svg>
-);
+));
 
-const BedIcon = (props) => (
+const BedIcon = memo((props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M3 10l1-4h16l1 4M3 14v6h18v-6M7 14v6M17 14v6" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M3 10l1-4h16l1-4M3 14v6h18v-6M7 14v6M17 14v6" />
   </svg>
-);
+));
 
-const TableIcon = (props) => (
+const TableIcon = memo((props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 6v12h16V6M12 6v12M4 10h16M4 14h16" />
   </svg>
-);
+));
 
-const DeskIcon = (props) => (
+const DeskIcon = memo((props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 8v8h16V8M12 8v10M8 18v3M16 18v3" />
   </svg>
-);
+));
 
-const OutdoorIcon = (props) => (
+const OutdoorIcon = memo((props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v4m0 12v4M6 12h12M4 8l4-4h8l4 4M4 16l4 4h8l4-4" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v4m0 12v4M6 12h12M4 8l4-4h8l4-4M4 16l4 4h8l4-4" />
   </svg>
-);
+));
 
-const LightIcon = (props) => (
+const LightIcon = memo((props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
   </svg>
-);
+));
 
-const DecorIcon = (props) => (
+const DecorIcon = memo((props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 7v10h16V7M8 7V4h8v3M4 12h16" />
   </svg>
-);
+));
 
-const StorageIcon = (props) => (
+const StorageIcon = memo((props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4h16v16H4zM4 9h16M12 4v16" />
   </svg>
-);
+));
 
 const MobileMenu = ({ onClose }) => {
   const { isAuthenticated, user, logout } = useAuth();
@@ -89,6 +85,7 @@ const MobileMenu = ({ onClose }) => {
   const { getCartCount } = useCart();
   const { isDark, toggleTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const [expandedSection, setExpandedSection] = useState(null);
   const [avatar, setAvatar] = useState(null);
   const [hoveredItem, setHoveredItem] = useState(null);
@@ -129,15 +126,16 @@ const MobileMenu = ({ onClose }) => {
   ];
 
   const secondaryLinks = [
-  { label: 'About Us', href: '/about', icon: FiInfo },
-  { label: 'Contact', href: '/contact', icon: FiMessageCircle },
-  { label: 'FAQ', href: '/faq', icon: FiHelpCircle },
-  { label: 'Privacy Policy', href: '/policies/privacy', icon: FiShield },
-];
+    { label: 'About Us', href: '/about', icon: FiInfo },
+    { label: 'Contact', href: '/contact', icon: FiMessageCircle },
+    { label: 'FAQ', href: '/faq', icon: FiHelpCircle },
+    { label: 'Privacy Policy', href: '/policies/privacy', icon: FiShield },
+  ];
 
   const handleLogout = () => {
     logout();
     onClose();
+    navigate('/');
   };
 
   const toggleSection = (section) => {
@@ -147,53 +145,52 @@ const MobileMenu = ({ onClose }) => {
   const handleItemClick = (href, e) => {
     // Set clicked item for visual feedback
     setClickedItem(href);
-    setTimeout(() => setClickedItem(null), 300);
+    setTimeout(() => setClickedItem(null), 200);
     
     // Close menu after navigation with a slight delay for animation
     setTimeout(() => {
       onClose();
-    }, 150);
+      navigate(href);
+    }, 80); // Reduced from 150ms to 80ms for faster response
   };
 
-  // Animation variants
+  // Optimized animation variants for faster mobile performance
   const menuVariants = {
     hidden: { x: '100%' },
     visible: { 
       x: 0,
       transition: { 
-        type: 'spring', 
-        damping: 30, 
-        stiffness: 300,
-        when: 'beforeChildren',
-        staggerChildren: 0.03
+        type: 'tween', // Changed from spring to tween for faster performance
+        duration: 0.2, // Reduced from 0.3
+        ease: [0.25, 0.1, 0.25, 1],
+        staggerChildren: 0.01 // Reduced from 0.03
       }
     },
     exit: { 
       x: '100%',
-      transition: { type: 'spring', damping: 30, stiffness: 300 }
+      transition: { type: 'tween', duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }
     }
   };
 
   const itemVariants = {
     hidden: { opacity: 0, x: 20 },
-    visible: { opacity: 1, x: 0 }
+    visible: { opacity: 1, x: 0, transition: { duration: 0.1 } } // Reduced from 0.3
   };
 
   const overlayVariants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1 },
-    exit: { opacity: 0 }
+    visible: { opacity: 1, transition: { duration: 0.1 } }, // Reduced from 0.2
+    exit: { opacity: 0, transition: { duration: 0.1 } }
   };
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="popLayout">
       <motion.div
         key="mobile-menu"
         initial="hidden"
         animate="visible"
         exit="exit"
         variants={overlayVariants}
-        transition={{ duration: 0.2 }}
         className="fixed inset-0 z-50 lg:hidden"
       >
         {/* Overlay */}
@@ -201,8 +198,9 @@ const MobileMenu = ({ onClose }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.1 }}
           onClick={onClose}
-          className="absolute inset-0 bg-black/50 backdrop-blur-md"
+          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         />
         
         {/* Menu Panel */}
@@ -210,7 +208,8 @@ const MobileMenu = ({ onClose }) => {
           variants={menuVariants}
           className="absolute right-0 top-0 bottom-0 w-[85%] max-w-sm bg-white dark:bg-neutral-950 shadow-2xl flex flex-col"
           style={{ 
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            willChange: 'transform'
           }}
         >
           {/* Header */}
@@ -218,13 +217,12 @@ const MobileMenu = ({ onClose }) => {
             variants={itemVariants}
             className="flex items-center justify-between p-4 border-b border-neutral-100 dark:border-neutral-800 flex-shrink-0"
           >
-            <Link to="/" onClick={(e) => handleItemClick('/', e)} className="flex items-center gap-2.5 group">
-              <motion.img 
+            <Link to="/" onClick={(e) => handleItemClick('/', e)} className="flex items-center gap-2.5 group active:opacity-70 transition-opacity">
+              <img 
                 src="/logo.svg" 
                 alt="Furniqo" 
                 className="h-8 w-8 object-contain"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                loading="eager"
                 onError={(e) => { e.target.style.display = 'none'; }}
               />
               <span className="text-lg font-display font-bold bg-gradient-to-r from-primary-600 to-primary-800 dark:from-primary-400 dark:to-primary-600 bg-clip-text text-transparent">
@@ -232,28 +230,20 @@ const MobileMenu = ({ onClose }) => {
               </span>
             </Link>
             <div className="flex items-center gap-1">
-              <motion.button
-                whileTap={{ scale: 0.95 }}
+              <button
                 onClick={toggleTheme}
-                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors relative overflow-hidden"
+                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-100 active:scale-95"
                 aria-label="Toggle theme"
               >
-                <motion.div
-                  initial={{ rotate: 0 }}
-                  animate={{ rotate: isDark ? 180 : 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  {isDark ? <FiSun className="h-4.5 w-4.5" /> : <FiMoon className="h-4.5 w-4.5" />}
-                </motion.div>
-              </motion.button>
-              <motion.button
-                whileTap={{ scale: 0.95 }}
+                {isDark ? <FiSun className="h-4.5 w-4.5" /> : <FiMoon className="h-4.5 w-4.5" />}
+              </button>
+              <button
                 onClick={onClose}
-                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-100 active:scale-95"
                 aria-label="Close menu"
               >
                 <FiX className="h-5 w-5" />
-              </motion.button>
+              </button>
             </div>
           </motion.div>
 
@@ -261,55 +251,36 @@ const MobileMenu = ({ onClose }) => {
           <motion.div variants={itemVariants} className="flex-shrink-0">
             {isAuthenticated ? (
               <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-900/50 dark:to-neutral-900/30">
-                <Link to="/profile" onClick={(e) => handleItemClick('/profile', e)} className="flex items-center gap-3 group">
-                  <motion.div 
-                    className="relative"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
+                <Link to="/profile" onClick={(e) => handleItemClick('/profile', e)} className="flex items-center gap-3 group active:opacity-70 transition-opacity">
+                  <div className="relative">
                     <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md flex-shrink-0 overflow-hidden">
                       {avatar ? (
-                        <img src={avatar} alt="" className="w-full h-full object-cover" />
+                        <img src={avatar} alt="" className="w-full h-full object-cover" loading="lazy" />
                       ) : (
                         <span className="text-base">{user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
                       )}
                     </div>
-                    <motion.div 
-                      className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white dark:border-neutral-900 flex items-center justify-center"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: 'spring', stiffness: 500, damping: 10 }}
-                    >
+                    <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white dark:border-neutral-900 flex items-center justify-center">
                       <FiCheck className="h-2 w-2 text-white" />
-                    </motion.div>
-                  </motion.div>
+                    </div>
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{user?.name}</p>
+                    <p className="font-semibold text-sm truncate dark:text-white">{user?.name}</p>
                     <p className="text-xs text-neutral-500 truncate">{user?.email}</p>
                   </div>
-                  <motion.div
-                    animate={{ x: [0, 5, 0] }}
-                    transition={{ repeat: Infinity, repeatDelay: 2, duration: 0.5 }}
-                  >
-                    <FiChevronRight className="h-4 w-4 text-neutral-400 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                  </motion.div>
+                  <FiChevronRight className="h-4 w-4 text-neutral-400 flex-shrink-0" />
                 </Link>
               </div>
             ) : (
               <div className="p-4 border-b border-neutral-100 dark:border-neutral-800">
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                <Link
+                  to="/login"
+                  onClick={(e) => handleItemClick('/login', e)}
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-semibold text-sm hover:shadow-lg transition-all duration-100 active:scale-98"
                 >
-                  <Link
-                    to="/login"
-                    onClick={(e) => handleItemClick('/login', e)}
-                    className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-xl font-semibold text-sm hover:shadow-lg transition-all duration-300"
-                  >
-                    <FiUser className="h-4.5 w-4.5" />
-                    Sign In / Sign Up
-                  </Link>
-                </motion.div>
+                  <FiUser className="h-4.5 w-4.5" />
+                  Sign In / Sign Up
+                </Link>
               </div>
             )}
           </motion.div>
@@ -326,24 +297,20 @@ const MobileMenu = ({ onClose }) => {
             ].map((item) => (
               <motion.div
                 key={item.label}
-                whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.05 }}
               >
                 {item.external ? (
                   <a
                     href={item.to}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all duration-300 relative group"
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all duration-100 relative group"
                   >
                     <div className="relative">
-                      <item.icon className={`h-5 w-5 transition-all duration-300 ${item.color}`} />
+                      <item.icon className={`h-5 w-5 transition-all duration-100 ${item.color}`} />
                       {item.count > 0 && (
-                        <motion.span
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] w-4.5 h-4.5 rounded-full flex items-center justify-center font-bold"
-                        >
+                        <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] w-4.5 h-4.5 rounded-full flex items-center justify-center font-bold">
                           {item.count > 9 ? '9+' : item.count}
-                        </motion.span>
+                        </span>
                       )}
                     </div>
                     <span className="text-[10px] font-medium">{item.label}</span>
@@ -352,24 +319,20 @@ const MobileMenu = ({ onClose }) => {
                   <Link
                     to={item.to}
                     onClick={(e) => handleItemClick(item.to, e)}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all duration-300 relative group ${
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all duration-100 relative group ${
                       isActiveLink(item.to)
                         ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
                         : 'bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800'
                     }`}
                   >
                     <div className="relative">
-                      <item.icon className={`h-5 w-5 transition-all duration-300 ${item.color} ${
+                      <item.icon className={`h-5 w-5 transition-all duration-100 ${item.color} ${
                         isActiveLink(item.to) ? 'text-primary-600 dark:text-primary-400' : ''
                       }`} />
                       {item.count > 0 && (
-                        <motion.span
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] w-4.5 h-4.5 rounded-full flex items-center justify-center font-bold"
-                        >
+                        <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] w-4.5 h-4.5 rounded-full flex items-center justify-center font-bold">
                           {item.count > 9 ? '9+' : item.count}
-                        </motion.span>
+                        </span>
                       )}
                     </div>
                     <span className="text-[10px] font-medium">{item.label}</span>
@@ -380,7 +343,7 @@ const MobileMenu = ({ onClose }) => {
           </motion.div>
 
           {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
             {/* Main Navigation */}
             <motion.nav variants={itemVariants} className="p-3 border-b border-neutral-100 dark:border-neutral-800">
               {mainLinks.map((link) => {
@@ -390,15 +353,14 @@ const MobileMenu = ({ onClose }) => {
                 return (
                   <motion.div
                     key={link.href}
-                    whileHover={{ x: 4 }}
-                    onHoverStart={() => setHoveredItem(link.href)}
-                    onHoverEnd={() => setHoveredItem(null)}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.05 }}
                     className="relative overflow-hidden"
                   >
                     <Link
                       to={link.href}
                       onClick={(e) => handleItemClick(link.href, e)}
-                      className={`flex items-center gap-3 py-2.5 px-3 rounded-lg mb-0.5 transition-all duration-300 relative z-10 ${
+                      className={`flex items-center gap-3 py-2.5 px-3 rounded-lg mb-0.5 transition-all duration-100 relative z-10 ${
                         link.highlight && isActive
                           ? 'bg-gradient-to-r from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/30 text-red-600 dark:text-red-400 font-semibold'
                           : link.highlight && !isActive
@@ -415,12 +377,7 @@ const MobileMenu = ({ onClose }) => {
                     >
                       <link.icon className="h-4.5 w-4.5 flex-shrink-0" />
                       <span className="text-sm flex-1">{link.label}</span>
-                      <motion.div
-                        animate={{ x: hoveredItem === link.href ? 5 : 0 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <FiChevronRight className="h-4 w-4 text-neutral-400 flex-shrink-0" />
-                      </motion.div>
+                      <FiChevronRight className="h-4 w-4 text-neutral-400 flex-shrink-0" />
                     </Link>
                     
                     {/* Active indicator bar */}
@@ -430,7 +387,7 @@ const MobileMenu = ({ onClose }) => {
                         className="absolute left-0 top-1/2 transform -translate-y-1/2 w-0.5 h-6 bg-primary-500 rounded-full"
                         initial={{ scaleY: 0 }}
                         animate={{ scaleY: 1 }}
-                        transition={{ duration: 0.2 }}
+                        transition={{ duration: 0.1 }}
                       />
                     )}
                   </motion.div>
@@ -440,10 +397,9 @@ const MobileMenu = ({ onClose }) => {
 
             {/* Categories Accordion */}
             <motion.div variants={itemVariants} className="border-b border-neutral-100 dark:border-neutral-800">
-              <motion.button
-                whileTap={{ scale: 0.98 }}
+              <button
                 onClick={() => toggleSection('categories')}
-                className="flex items-center justify-between w-full p-3 font-semibold text-sm dark:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+                className="flex items-center justify-between w-full p-3 font-semibold text-sm dark:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors duration-100 active:scale-98"
               >
                 <span className="flex items-center gap-2">
                   <FiGrid className="h-4 w-4 text-primary-500" />
@@ -451,18 +407,18 @@ const MobileMenu = ({ onClose }) => {
                 </span>
                 <motion.div 
                   animate={{ rotate: expandedSection === 'categories' ? 180 : 0 }} 
-                  transition={{ duration: 0.3 }}
+                  transition={{ duration: 0.15 }}
                 >
                   <FiChevronDown className="h-4 w-4 text-neutral-400" />
                 </motion.div>
-              </motion.button>
-              <AnimatePresence>
+              </button>
+              <AnimatePresence mode="popLayout">
                 {expandedSection === 'categories' && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    transition={{ duration: 0.2, ease: 'easeInOut' }}
                     className="overflow-hidden"
                   >
                     <div className="grid grid-cols-2 gap-2 p-3 pt-0">
@@ -476,20 +432,19 @@ const MobileMenu = ({ onClose }) => {
                             key={cat.name}
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.03 }}
-                            whileHover={{ scale: 1.02, x: 2 }}
+                            transition={{ delay: index * 0.01, duration: 0.1 }}
                             whileTap={{ scale: 0.98 }}
                           >
                             <Link
                               to={cat.href}
                               onClick={(e) => handleItemClick(cat.href, e)}
-                              className={`flex items-center gap-2.5 p-2.5 rounded-lg transition-all duration-300 group ${
+                              className={`flex items-center gap-2.5 p-2.5 rounded-lg transition-all duration-100 group ${
                                 isCategoryActive
                                   ? `${cat.bgColor} shadow-md ring-1 ring-primary-500/30`
                                   : cat.bgColor
                               } hover:shadow-md`}
                             >
-                              <div className={`w-8 h-8 rounded-lg bg-white dark:bg-neutral-800 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm ${
+                              <div className={`w-8 h-8 rounded-lg bg-white dark:bg-neutral-800 flex items-center justify-center transition-transform duration-100 shadow-sm ${
                                 isCategoryActive ? 'ring-1 ring-primary-500' : ''
                               }`}>
                                 <IconComponent className={`h-4 w-4 ${cat.color} ${
@@ -520,13 +475,14 @@ const MobileMenu = ({ onClose }) => {
                 return (
                   <motion.div
                     key={link.href}
-                    whileHover={{ x: 4 }}
-                    whileTap={{ scale: 0.99 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.05 }}
+                    className="relative"
                   >
                     <Link
                       to={link.href}
                       onClick={(e) => handleItemClick(link.href, e)}
-                      className={`flex items-center gap-3 py-2.5 px-3 rounded-lg mb-0.5 transition-all duration-300 ${
+                      className={`flex items-center gap-3 py-2.5 px-3 rounded-lg mb-0.5 transition-all duration-100 ${
                         isActive
                           ? 'bg-primary-50 dark:bg-primary-950/20 text-primary-600 dark:text-primary-400 font-semibold'
                           : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800'
@@ -539,12 +495,7 @@ const MobileMenu = ({ onClose }) => {
                     >
                       <link.icon className="h-4.5 w-4.5 flex-shrink-0" />
                       <span className="text-sm flex-1">{link.label}</span>
-                      <motion.div
-                        animate={{ x: hoveredItem === link.href ? 5 : 0 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <FiChevronRight className="h-4 w-4 text-neutral-400 flex-shrink-0" />
-                      </motion.div>
+                      <FiChevronRight className="h-4 w-4 text-neutral-400 flex-shrink-0" />
                     </Link>
                     
                     {/* Active indicator bar for secondary links */}
@@ -554,7 +505,7 @@ const MobileMenu = ({ onClose }) => {
                         className="absolute left-0 top-1/2 transform -translate-y-1/2 w-0.5 h-6 bg-primary-500 rounded-full"
                         initial={{ scaleY: 0 }}
                         animate={{ scaleY: 1 }}
-                        transition={{ duration: 0.2 }}
+                        transition={{ duration: 0.1 }}
                       />
                     )}
                   </motion.div>
@@ -563,14 +514,11 @@ const MobileMenu = ({ onClose }) => {
 
               {/* Settings for logged-in users */}
               {isAuthenticated && (
-                <motion.div
-                  whileHover={{ x: 4 }}
-                  whileTap={{ scale: 0.99 }}
-                >
+                <motion.div whileTap={{ scale: 0.98 }} transition={{ duration: 0.05 }}>
                   <Link
                     to="/profile"
                     onClick={(e) => handleItemClick('/profile', e)}
-                    className={`flex items-center gap-3 py-2.5 px-3 rounded-lg mb-0.5 transition-all duration-300 ${
+                    className={`flex items-center gap-3 py-2.5 px-3 rounded-lg mb-0.5 transition-all duration-100 ${
                       isActiveLink('/profile')
                         ? 'bg-primary-50 dark:bg-primary-950/20 text-primary-600 dark:text-primary-400 font-semibold'
                         : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800'
@@ -591,50 +539,39 @@ const MobileMenu = ({ onClose }) => {
             className="flex-shrink-0 p-4 border-t border-neutral-100 dark:border-neutral-800 bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-900/50 dark:to-neutral-900/30"
           >
             {isAuthenticated ? (
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+              <button
                 onClick={handleLogout}
-                className="flex items-center justify-center gap-2 w-full py-3 px-4 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-300 text-sm font-semibold"
+                className="flex items-center justify-center gap-2 w-full py-3 px-4 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-100 text-sm font-semibold active:scale-98"
               >
                 <FiLogOut className="h-4.5 w-4.5" />
                 Sign Out
-              </motion.button>
+              </button>
             ) : (
               <div className="flex gap-2">
-                <motion.div className="flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Link
-                    to="/login"
-                    onClick={(e) => handleItemClick('/login', e)}
-                    className="text-center block py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all duration-300"
-                  >
-                    Sign In
-                  </Link>
-                </motion.div>
-                <motion.div className="flex-1" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Link
-                    to="/signup"
-                    onClick={(e) => handleItemClick('/signup', e)}
-                    className="text-center block py-2.5 border-2 border-neutral-200 dark:border-neutral-700 rounded-lg text-sm font-semibold hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all duration-300 dark:text-white"
-                  >
-                    Sign Up
-                  </Link>
-                </motion.div>
+                <Link
+                  to="/login"
+                  onClick={(e) => handleItemClick('/login', e)}
+                  className="flex-1 text-center py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition-all duration-100 active:scale-98"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/signup"
+                  onClick={(e) => handleItemClick('/signup', e)}
+                  className="flex-1 text-center py-2.5 border-2 border-neutral-200 dark:border-neutral-700 rounded-lg text-sm font-semibold hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all duration-100 dark:text-white active:scale-98"
+                >
+                  Sign Up
+                </Link>
               </div>
             )}
-            <motion.p 
-              className="text-center text-[10px] text-neutral-400 mt-3"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-            >
+            <p className="text-center text-[10px] text-neutral-400 mt-3">
               © {new Date().getFullYear()} Furniqo. All rights reserved.
-            </motion.p>
+            </p>
           </motion.div>
         </motion.div>
       </motion.div>
 
-      <style jsx>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
         }
@@ -668,9 +605,21 @@ const MobileMenu = ({ onClose }) => {
         .scale-98 {
           transform: scale(0.98);
         }
+        
+        .active\\:scale-98:active {
+          transform: scale(0.98);
+        }
+        
+        .h-4\\.5 {
+          height: 1.125rem;
+        }
+        
+        .w-4\\.5 {
+          width: 1.125rem;
+        }
       `}</style>
     </AnimatePresence>
   );
 };
 
-export default MobileMenu;
+export default memo(MobileMenu);

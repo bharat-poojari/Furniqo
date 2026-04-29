@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';
 import { cn } from '../../utils/cn';
 
@@ -112,12 +112,6 @@ const Pagination = ({
     tap: { scale: 0.95, transition: { duration: 0.1 } },
   };
 
-  const pageVariants = {
-    initial: { opacity: 0, scale: 0.8 },
-    animate: { opacity: 1, scale: 1 },
-    exit: { opacity: 0, scale: 0.8 },
-  };
-
   return (
     <nav className={cn('flex items-center justify-center gap-1.5', className)} aria-label="Pagination">
       {/* First Page Button */}
@@ -158,43 +152,41 @@ const Pagination = ({
         <FiChevronLeft className={currentSize.icon} />
       </motion.button>
 
-      {/* Page Numbers with Animation */}
+      {/* Page Numbers - No AnimatePresence to avoid conflicts */}
       <div className="flex items-center gap-1">
-        <AnimatePresence mode="wait">
-          {pageNumbers.map((page, index) => {
-            const isEllipsis = page === '...';
-            const isActive = page === currentPage;
-            
-            return (
-              <motion.button
-                key={`${page}-${index}`}
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={{ duration: 0.15, delay: index * 0.03 }}
-                onClick={() => !isEllipsis && handlePageChange(page)}
-                disabled={isEllipsis}
-                className={cn(
-                  currentSize.button,
-                  'rounded-lg font-medium transition-all duration-200',
-                  isEllipsis
-                    ? 'cursor-default text-neutral-400 dark:text-neutral-600'
-                    : cn(
-                        currentVariant.button,
-                        isActive && currentVariant.active,
-                        !isActive && 'hover:scale-105',
-                        variant === 'rounded' && isActive && 'rounded-full',
-                        variant === 'rounded' && !isActive && 'rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800'
-                      )
-                )}
-                aria-current={isActive ? 'page' : undefined}
-              >
-                {page}
-              </motion.button>
-            );
-          })}
-        </AnimatePresence>
+        {pageNumbers.map((page, index) => {
+          const isEllipsis = page === '...';
+          const isActive = page === currentPage;
+          
+          return (
+            <motion.button
+              key={`${page}-${index}`}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.15, delay: index * 0.03 }}
+              onClick={() => !isEllipsis && handlePageChange(page)}
+              disabled={isEllipsis}
+              whileHover={!isEllipsis ? { scale: 1.05 } : {}}
+              whileTap={!isEllipsis ? { scale: 0.95 } : {}}
+              className={cn(
+                currentSize.button,
+                'rounded-lg font-medium transition-all duration-200',
+                isEllipsis
+                  ? 'cursor-default text-neutral-400 dark:text-neutral-600'
+                  : cn(
+                      currentVariant.button,
+                      isActive && currentVariant.active,
+                      !isActive && 'hover:scale-105',
+                      variant === 'rounded' && isActive && 'rounded-full',
+                      variant === 'rounded' && !isActive && 'rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                    )
+              )}
+              aria-current={isActive ? 'page' : undefined}
+            >
+              {page}
+            </motion.button>
+          );
+        })}
       </div>
 
       {/* Next Page Button */}

@@ -242,47 +242,6 @@ const Categories = () => {
           </div>
         </div>
       </div>
-
-      {/* Smooth gradient overlay for better edge transition on mobile */}
-      <style jsx>{`
-        @media (max-width: 640px) {
-          .grid-cols-2 {
-            gap: 0.75rem;
-          }
-        }
-        
-        /* Smooth transitions for mobile */
-        .will-change-transform {
-          will-change: transform;
-        }
-        
-        /* Better touch feedback on mobile */
-        @media (hover: none) and (pointer: coarse) {
-          .group:active img {
-            transform: scale(1.05);
-          }
-          
-          .group:active .rounded-lg {
-            background: linear-gradient(to right, #ea580c, #c2410c);
-          }
-        }
-        
-        /* Smooth scroll reveal animations */
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .animate-fade-in-up {
-          animation: fadeInUp 0.5s ease-out forwards;
-        }
-      `}</style>
     </section>
   );
 };

@@ -19,7 +19,7 @@ import {
   FiChevronUp,
 } from 'react-icons/fi';
 import { FaPinterest, FaLinkedin } from 'react-icons/fa';
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import toast from 'react-hot-toast';
 
 const Footer = () => {
@@ -27,14 +27,14 @@ const Footer = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openSections, setOpenSections] = useState({});
 
-  const toggleSection = (section) => {
+  const toggleSection = useCallback((section) => {
     setOpenSections(prev => ({
       ...prev,
       [section]: !prev[section]
     }));
-  };
+  }, []);
 
-  const handleNewsletterSubmit = async (e) => {
+  const handleNewsletterSubmit = useCallback(async (e) => {
     e.preventDefault();
     if (!email) return;
     
@@ -44,7 +44,7 @@ const Footer = () => {
       setEmail('');
       setIsSubmitting(false);
     }, 500);
-  };
+  }, [email]);
 
   const footerLinks = {
     shop: [
@@ -88,10 +88,10 @@ const Footer = () => {
   };
 
   const features = [
-    { icon: FiTruck, title: 'Free Shipping', description: 'On orders over $200' },
-    { icon: FiRotateCcw, title: '30-Day Returns', description: 'Hassle-free returns' },
-    { icon: FiShield, title: '2-Year Warranty', description: 'On all products' },
-    { icon: FiAward, title: 'Premium Quality', description: 'Best materials used' },
+    { icon: FiTruck, title: 'Free Shipping', description: 'Over $200' },
+    { icon: FiRotateCcw, title: '30-Day Returns', description: 'Hassle-free' },
+    { icon: FiShield, title: '2-Year Warranty', description: 'All products' },
+    { icon: FiAward, title: 'Premium Quality', description: 'Best materials' },
   ];
 
   const socialLinks = [
@@ -110,12 +110,12 @@ const Footer = () => {
     { name: 'Amex', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/American_Express_logo_%282018%29.svg/1280px-American_Express_logo_28201829.svg.png' },
   ];
 
-  // Mobile accordion component for footer links
-  const MobileAccordion = ({ title, links, section }) => (
+  // Mobile accordion component memoized
+  const MobileAccordion = memo(({ title, links, section }) => (
     <div className="border-b border-neutral-800 last:border-0">
       <button
         onClick={() => toggleSection(section)}
-        className="w-full flex items-center justify-between py-3 text-left"
+        className="w-full flex items-center justify-between py-3 text-left active:opacity-70 transition-opacity"
       >
         <h4 className="font-semibold text-white text-sm">{title}</h4>
         {openSections[section] ? (
@@ -124,7 +124,7 @@ const Footer = () => {
           <FiChevronDown className="h-4 w-4 text-neutral-400" />
         )}
       </button>
-      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+      <div className={`overflow-hidden transition-all duration-200 ease-in-out ${
         openSections[section] ? 'max-h-96 opacity-100 mb-3' : 'max-h-0 opacity-0'
       }`}>
         <ul className="space-y-2 pb-2">
@@ -132,7 +132,7 @@ const Footer = () => {
             <li key={index}>
               <Link
                 to={link.href}
-                className="text-xs text-neutral-400 hover:text-white transition-colors hover:translate-x-1 inline-block duration-200"
+                className="text-xs text-neutral-400 hover:text-white transition-colors hover:translate-x-1 inline-block duration-150"
               >
                 {link.label}
               </Link>
@@ -141,22 +141,24 @@ const Footer = () => {
         </ul>
       </div>
     </div>
-  );
+  ));
+
+  MobileAccordion.displayName = 'MobileAccordion';
 
   return (
     <footer className="bg-neutral-900 text-neutral-300">
-      {/* Features Bar - remains same on desktop, stacks on mobile */}
+      {/* Features Bar - Compact for mobile, fits in one row */}
       <div className="border-b border-neutral-800">
         <div className="w-full px-[1%] sm:px-[1.5%]">
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 py-5">
+          <div className="grid grid-cols-4 gap-1 sm:gap-2 py-2 sm:py-3">
             {features.map((feature, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-primary-600/10 flex items-center justify-center flex-shrink-0">
-                  <feature.icon className="h-4 w-4 text-primary-400" />
+              <div key={index} className="flex flex-col items-center text-center px-1">
+                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-primary-600/10 flex items-center justify-center flex-shrink-0 mb-1">
+                  <feature.icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary-400" />
                 </div>
                 <div>
-                  <p className="font-semibold text-white text-xs">{feature.title}</p>
-                  <p className="text-[10px] text-neutral-400">{feature.description}</p>
+                  <p className="font-semibold text-white text-[10px] sm:text-xs">{feature.title}</p>
+                  <p className="text-[8px] sm:text-[10px] text-neutral-400">{feature.description}</p>
                 </div>
               </div>
             ))}
@@ -165,7 +167,7 @@ const Footer = () => {
       </div>
 
       {/* Main Footer */}
-      <div className="w-full px-[1%] sm:px-[1.5%] py-8">
+      <div className="w-full px-[1%] sm:px-[1.5%] py-6 sm:py-8">
         {/* Desktop Layout (lg and above) */}
         <div className="hidden lg:grid lg:grid-cols-6 gap-6">
           {/* Brand Column */}
@@ -175,9 +177,9 @@ const Footer = () => {
                 src="/logo.svg" 
                 alt="Furniqo" 
                 className="h-8 w-8 object-contain"
+                loading="eager"
                 onError={(e) => {
                   e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
                 }}
               />
               <span className="text-xl font-bold text-white">Furniqo</span>
@@ -216,7 +218,7 @@ const Footer = () => {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={social.label}
-                  className="w-7 h-7 rounded-lg bg-neutral-800 hover:bg-primary-600 flex items-center justify-center transition-all duration-200 hover:scale-105"
+                  className="w-7 h-7 rounded-lg bg-neutral-800 hover:bg-primary-600 flex items-center justify-center transition-all duration-150 hover:scale-105"
                 >
                   <social.icon className="h-3.5 w-3.5" />
                 </a>
@@ -232,7 +234,7 @@ const Footer = () => {
                 <li key={index}>
                   <Link
                     to={link.href}
-                    className="text-xs text-neutral-400 hover:text-white transition-colors hover:translate-x-1 inline-block duration-200"
+                    className="text-xs text-neutral-400 hover:text-white transition-colors hover:translate-x-1 inline-block duration-150"
                   >
                     {link.label}
                   </Link>
@@ -249,7 +251,7 @@ const Footer = () => {
                 <li key={index}>
                   <Link
                     to={link.href}
-                    className="text-xs text-neutral-400 hover:text-white transition-colors hover:translate-x-1 inline-block duration-200"
+                    className="text-xs text-neutral-400 hover:text-white transition-colors hover:translate-x-1 inline-block duration-150"
                   >
                     {link.label}
                   </Link>
@@ -266,7 +268,7 @@ const Footer = () => {
                 <li key={index}>
                   <Link
                     to={link.href}
-                    className="text-xs text-neutral-400 hover:text-white transition-colors hover:translate-x-1 inline-block duration-200"
+                    className="text-xs text-neutral-400 hover:text-white transition-colors hover:translate-x-1 inline-block duration-150"
                   >
                     {link.label}
                   </Link>
@@ -283,7 +285,7 @@ const Footer = () => {
                 <li key={index}>
                   <Link
                     to={link.href}
-                    className="text-xs text-neutral-400 hover:text-white transition-colors hover:translate-x-1 inline-block duration-200"
+                    className="text-xs text-neutral-400 hover:text-white transition-colors hover:translate-x-1 inline-block duration-150"
                   >
                     {link.label}
                   </Link>
@@ -302,9 +304,9 @@ const Footer = () => {
                 src="/logo.svg" 
                 alt="Furniqo" 
                 className="h-8 w-8 object-contain"
+                loading="eager"
                 onError={(e) => {
                   e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
                 }}
               />
               <span className="text-xl font-bold text-white">Furniqo</span>
@@ -343,7 +345,7 @@ const Footer = () => {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={social.label}
-                  className="w-8 h-8 rounded-lg bg-neutral-800 hover:bg-primary-600 flex items-center justify-center transition-all duration-200 hover:scale-105"
+                  className="w-8 h-8 rounded-lg bg-neutral-800 hover:bg-primary-600 flex items-center justify-center transition-all duration-150 hover:scale-105"
                 >
                   <social.icon className="h-4 w-4" />
                 </a>
@@ -358,9 +360,9 @@ const Footer = () => {
           <MobileAccordion title="Company" links={footerLinks.company} section="company" />
         </div>
 
-        {/* Newsletter Section - Responsive */}
+        {/* Newsletter Section - Centered with reduced width */}
         <div className="border-t border-neutral-800 mt-6 pt-5">
-          <div className="max-w-md mx-auto text-center">
+          <div className="flex flex-col items-center justify-center text-center">
             <div className="flex items-center justify-center gap-2 mb-2">
               <FiHeart className="h-3.5 w-3.5 text-primary-400" />
               <FiStar className="h-3.5 w-3.5 text-yellow-500" />
@@ -371,24 +373,26 @@ const Footer = () => {
             <p className="text-xs text-neutral-400 mb-3">
               Get 10% off your first order and exclusive deals
             </p>
-            <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                required
-                className="flex-1 px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-primary-500 transition-colors"
-              />
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-1"
-              >
-                {isSubmitting ? '...' : 'Subscribe'}
-                {!isSubmitting && <FiArrowRight className="h-3 w-3" />}
-              </button>
-            </form>
+            <div className="w-full max-w-[280px] sm:max-w-[320px] mx-auto">
+              <form onSubmit={handleNewsletterSubmit} className="flex flex-row gap-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email address"
+                  required
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-primary-500 transition-colors"
+                />
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-1 whitespace-nowrap"
+                >
+                  {isSubmitting ? '...' : 'Subscribe'}
+                  {!isSubmitting && <FiArrowRight className="h-3 w-3" />}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
 
@@ -421,7 +425,8 @@ const Footer = () => {
                 key={index}
                 src={method.url}
                 alt={method.name}
-                className="h-4 opacity-50 hover:opacity-100 transition-opacity"
+                className="h-3.5 opacity-50 hover:opacity-100 transition-opacity"
+                loading="lazy"
               />
             ))}
           </div>

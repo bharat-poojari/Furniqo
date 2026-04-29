@@ -65,7 +65,6 @@ const ProductCardList = ({ product, className, isHovered }) => {
     e.stopPropagation();
     setIsQuickViewOpen(true);
     
-    // Track analytics if needed
     if (window.gtag) {
       window.gtag('event', 'quick_view', {
         event_category: 'engagement',
@@ -96,13 +95,14 @@ const ProductCardList = ({ product, className, isHovered }) => {
           className
         )}
       >
-        <Link to={`/products/${product.slug}`} className="block">
+        {/* Single Link wrapper - NO NESTED LINKS */}
+        <Link to={`/products/${product.slug}`} className="block cursor-pointer">
           <div className="flex flex-col sm:flex-row gap-4 p-4">
             {/* Image Section */}
             <div className="relative flex-shrink-0 sm:w-48 md:w-56">
               <div className="relative aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-neutral-100 to-neutral-200 dark:from-neutral-800 dark:to-neutral-900">
                 <motion.img
-                  src={product.images[0]}
+                  src={product.images?.[0] || '/placeholder-image.jpg'}
                   alt={product.name}
                   className="w-full h-full object-cover"
                   loading="lazy"
@@ -131,13 +131,13 @@ const ProductCardList = ({ product, className, isHovered }) => {
                   )}
                 </div>
 
-                {/* Quick Actions */}
+                {/* Quick Actions - These are not links, so they're safe */}
                 <div className="absolute top-2 right-2 flex flex-col gap-2">
-                  {/* Wishlist Button */}
+                  {/* Wishlist Button - Not a link */}
                   <motion.button
                     onClick={handleToggleWishlist}
                     className={cn(
-                      'w-8 h-8 rounded-lg flex items-center justify-center backdrop-blur-sm transition-all',
+                      'w-8 h-8 rounded-lg flex items-center justify-center backdrop-blur-sm transition-all cursor-pointer',
                       inWishlist
                         ? 'bg-red-500 text-white shadow-lg'
                         : 'bg-white/90 text-neutral-700 hover:bg-white hover:shadow-lg'
@@ -149,10 +149,10 @@ const ProductCardList = ({ product, className, isHovered }) => {
                     <FiHeart className={cn('h-4 w-4', inWishlist && 'fill-current')} />
                   </motion.button>
 
-                  {/* Quick View Button */}
+                  {/* Quick View Button - Not a link */}
                   <motion.button
                     onClick={handleQuickView}
-                    className="w-8 h-8 rounded-lg bg-white/90 text-neutral-700 hover:bg-white flex items-center justify-center backdrop-blur-sm transition-all hover:shadow-lg"
+                    className="w-8 h-8 rounded-lg bg-white/90 text-neutral-700 hover:bg-white flex items-center justify-center backdrop-blur-sm transition-all hover:shadow-lg cursor-pointer"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onMouseEnter={() => showTooltipMessage('Quick View')}
@@ -167,7 +167,7 @@ const ProductCardList = ({ product, className, isHovered }) => {
             <div className="flex-1 flex flex-col">
               {/* Category */}
               <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 uppercase tracking-wider">
-                {product.category}
+                {typeof product.category === 'object' ? product.category.name : product.category}
               </p>
 
               {/* Title */}
@@ -178,8 +178,8 @@ const ProductCardList = ({ product, className, isHovered }) => {
               {/* Rating */}
               <div className="mb-2">
                 <Rating 
-                  value={product.rating} 
-                  numReviews={product.numReviews} 
+                  value={product.rating || 0} 
+                  numReviews={product.numReviews || 0} 
                   size="sm" 
                   showCount={true}
                 />
@@ -236,11 +236,12 @@ const ProductCardList = ({ product, className, isHovered }) => {
 
               {/* Action Buttons */}
               <div className="flex items-center gap-3 mt-auto pt-3">
+                {/* Add to Cart Button - Not a link */}
                 <motion.button
                   onClick={handleAddToCart}
                   disabled={outOfStock || isAddingToCart}
                   className={cn(
-                    'flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2',
+                    'flex-1 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer',
                     addedToCart
                       ? 'bg-green-500 text-white'
                       : outOfStock
@@ -273,13 +274,11 @@ const ProductCardList = ({ product, className, isHovered }) => {
                   </AnimatePresence>
                 </motion.button>
 
-                <Link
-                  to={`/products/${product.slug}`}
-                  className="flex items-center gap-1 text-sm text-neutral-500 hover:text-primary-600 transition-colors group"
-                >
+                {/* View Details Link - This is the only link inside, but it's not nested anymore */}
+                <span className="flex items-center gap-1 text-sm text-neutral-500 hover:text-primary-600 transition-colors group/arrow">
                   View Details
-                  <FiChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
+                  <FiChevronRight className="h-4 w-4 group-hover/arrow:translate-x-1 transition-transform" />
+                </span>
               </div>
             </div>
           </div>

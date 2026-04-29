@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import ErrorBoundary from '../common/ErrorBoundary';
 import TopBar from './TopBar';
@@ -9,6 +9,7 @@ import ScrollToTop from '../common/ScrollToTop';
 import { LoadingScreen } from '../common/Spinner';
 
 const Layout = () => {
+  const location = useLocation();
   // Reading progress bar for page scroll
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
@@ -18,7 +19,7 @@ const Layout = () => {
   });
 
   return (
-    <div className="min-h-screen flex flex-col bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
+    <div className="min-h-screen flex flex-col bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 relative">
       {/* Reading Progress Bar - Smooth like Home page */}
       <motion.div
         className="fixed top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary-500 via-purple-500 to-primary-500 origin-left z-[60]"
@@ -32,8 +33,10 @@ const Layout = () => {
         <ErrorBoundary>
           <Suspense fallback={<LoadingScreen />}>
             <motion.div
+              key={location.pathname}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
             >
               <Outlet />

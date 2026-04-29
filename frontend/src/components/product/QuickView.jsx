@@ -36,23 +36,21 @@ const QuickView = ({ product, isOpen, onClose }) => {
     setImageError({});
   }, [product?._id]);
 
-  if (!product) return null;
-
-  const discount = calculateDiscount(product.price, product.originalPrice);
-  const currentPrice = selectedVariant?.price || product.price;
-  const inStock = selectedVariant?.inStock !== false && product.inStock;
-  const maxQuantity = selectedVariant?.stock || product.stock || 99;
-  const isWishlistedProduct = isWishlisted(product._id);
+  // Calculate values - moved before conditional return
+  const discount = product ? calculateDiscount(product.price, product.originalPrice) : 0;
+  const currentPrice = product ? (selectedVariant?.price || product.price) : 0;
+  const inStock = product ? (selectedVariant?.inStock !== false && product.inStock) : false;
+  const maxQuantity = product ? (selectedVariant?.stock || product.stock || 99) : 99;
+  const isWishlistedProduct = product ? isWishlisted(product._id) : false;
 
   const handleAddToCart = useCallback(async () => {
-    if (isAddingToCart) return;
+    if (!product || isAddingToCart) return;
     
     setIsAddingToCart(true);
     try {
       await addToCart(product, quantity, selectedVariant);
       setAddedToCart(true);
       
-      // Auto close after successful add
       setTimeout(() => {
         onClose();
         setAddedToCart(false);
@@ -65,13 +63,14 @@ const QuickView = ({ product, isOpen, onClose }) => {
   }, [product, quantity, selectedVariant, addToCart, onClose, isAddingToCart]);
 
   const handleImageNavigation = useCallback((direction) => {
+    if (!product) return;
     setSelectedImage(prev => {
       if (direction === 'next') {
         return (prev + 1) % product.images.length;
       }
       return prev === 0 ? product.images.length - 1 : prev - 1;
     });
-  }, [product.images.length]);
+  }, [product]);
 
   const handleTouchStart = (e) => {
     touchStartX.current = e.touches[0].clientX;
@@ -101,11 +100,13 @@ const QuickView = ({ product, isOpen, onClose }) => {
     { icon: FiRotateCcw, text: '30-Day Returns' },
   ];
 
-  // Keyboard navigation
   const handleKeyDown = (e) => {
     if (e.key === 'ArrowLeft') handleImageNavigation('prev');
     if (e.key === 'ArrowRight') handleImageNavigation('next');
   };
+
+  // Conditional return after all hooks
+  if (!product) return null;
 
   return (
     <Modal 
@@ -133,7 +134,7 @@ const QuickView = ({ product, isOpen, onClose }) => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
-              src={imageError[selectedImage] ? '/placeholder-image.jpg' : product.images[selectedImage]}
+              src={imageError[selectedImage] ? '/placeholder-image.jpg' : product.images?.[selectedImage]}
               alt={product.name}
               className="w-full h-full object-cover"
               onError={() => handleImageError(selectedImage)}
@@ -143,7 +144,7 @@ const QuickView = ({ product, isOpen, onClose }) => {
             />
             
             {/* Image Navigation Arrows */}
-            {product.images.length > 1 && (
+            {product.images?.length > 1 && (
               <>
                 <button
                   onClick={() => handleImageNavigation('prev')}
@@ -163,13 +164,15 @@ const QuickView = ({ product, isOpen, onClose }) => {
             )}
 
             {/* Image Counter */}
-            <div className="absolute bottom-2 right-2 px-3 py-1 rounded-full bg-black/50 backdrop-blur-sm text-white text-sm">
-              {selectedImage + 1} / {product.images.length}
-            </div>
+            {product.images?.length > 1 && (
+              <div className="absolute bottom-2 right-2 px-3 py-1 rounded-full bg-black/50 backdrop-blur-sm text-white text-sm">
+                {selectedImage + 1} / {product.images.length}
+              </div>
+            )}
           </div>
 
           {/* Thumbnail Gallery */}
-          {product.images.length > 1 && (
+          {product.images?.length > 1 && (
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
               {product.images.map((image, index) => (
                 <motion.button
@@ -212,8 +215,8 @@ const QuickView = ({ product, isOpen, onClose }) => {
             
             <div className="flex items-center gap-3 mt-2">
               <Rating 
-                value={product.rating} 
-                numReviews={product.numReviews} 
+                value={product.rating || 4.5} 
+                numReviews={product.numReviews || 0} 
                 size="sm"
                 showCount={true}
               />
@@ -234,7 +237,7 @@ const QuickView = ({ product, isOpen, onClose }) => {
             <span className="text-3xl font-bold text-primary-600">
               {formatPrice(currentPrice)}
             </span>
-            {product.originalPrice > currentPrice && (
+            {product.originalPrice && product.originalPrice > currentPrice && (
               <>
                 <span className="text-lg text-neutral-400 line-through">
                   {formatPrice(product.originalPrice)}
@@ -248,7 +251,7 @@ const QuickView = ({ product, isOpen, onClose }) => {
 
           {/* Description */}
           <p className="text-neutral-600 dark:text-neutral-400 line-clamp-3">
-            {product.description}
+            {product.description || product.shortDescription || 'No description available.'}
           </p>
 
           {/* Variants */}

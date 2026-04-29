@@ -1,590 +1,1115 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
-  FiSend, FiEdit3, FiDroplet, FiUpload, FiX, FiCheck, FiClock, 
-  FiDollarSign, FiInfo, FiChevronDown, FiSave, FiArrowRight, FiAlertCircle,
+  FiSend, FiEdit3, FiUpload, FiX, FiCheck, FiClock, 
+  FiDollarSign, FiInfo, FiChevronDown, FiArrowRight, FiAlertCircle,
   FiUser, FiMail, FiPhone, FiLink, FiFileText, FiBox, FiTruck, FiPenTool,
   FiLayers, FiTrash2, FiChevronLeft, FiChevronRight, FiCheckCircle,
-  FiShield, FiAward, FiZap, FiStar
+  FiShield, FiAward, FiZap, FiStar, FiHeart, FiSmile,
+  FiCompass, FiCalendar, FiMaximize2, FiGrid, FiImage,
+  FiMonitor, FiHome, FiCoffee, FiBookOpen, FiTool, FiRotateCw,
+  FiZoomIn, FiEye, FiThumbsUp, FiGift, FiPlus, FiMinus, FiShoppingCart
 } from 'react-icons/fi';
+import { MdOutlineDesignServices, MdProductionQuantityLimits, MdLocalShipping, MdPalette } from 'react-icons/md';
 
-// Custom Icons
-const SearchIcon = (props) => (
-  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-);
-
-// Compact Custom Dropdown
-const CustomDropdown = ({ value, onChange, options, placeholder, icon: Icon, name, error }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const dropdownRef = useRef(null);
-  const inputRef = useRef(null);
-  const selectedOption = options.find(opt => opt.value === value);
-  const filteredOptions = options.filter(opt => opt.label.toLowerCase().includes(searchTerm.toLowerCase()));
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-        setSearchTerm('');
-      }
+// ============================================================
+// UPGRADED FURNITURE MODEL WITH ALL IMPROVEMENTS
+// ============================================================
+const FurnitureModel = ({ config, focus, step, onMouseMove, rotation, tilt }) => {
+  const [isHovering, setIsHovering] = useState(false);
+  
+  // Get colors based on selected options
+  const getColors = () => {
+    const materialColors = {
+      oak: { primary: '#D4A056', secondary: '#B8860B', accent: '#8B6914', light: '#E8C08A', dark: '#A07030' },
+      walnut: { primary: '#5C4033', secondary: '#4A3728', accent: '#3B2A1E', light: '#7A5A4A', dark: '#3A2010' },
+      maple: { primary: '#D4A373', secondary: '#C4905E', accent: '#B07D4A', light: '#E8C8A0', dark: '#B08050' },
+      leather: { primary: '#8B4513', secondary: '#6B3410', accent: '#4A2208', light: '#A06030', dark: '#5A2000' },
+      velvet: { primary: '#6B3FA0', secondary: '#582C8A', accent: '#3E1A6B', light: '#8860C0', dark: '#4A2080' },
+      metal: { primary: '#808080', secondary: '#6B6B6B', accent: '#4A4A4A', light: '#A0A0A0', dark: '#505050' },
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    if (isOpen && inputRef.current) setTimeout(() => inputRef.current?.focus(), 100);
-  }, [isOpen]);
-
-  const handleSelect = (optionValue) => {
-    onChange({ target: { name, value: optionValue } });
-    setIsOpen(false);
-    setSearchTerm('');
+    return materialColors[config.material?.value] || materialColors.oak;
   };
-
+  
+  const colors = getColors();
+  
+  // Style-based morphing parameters
+  const getStyleParams = () => {
+    const styleMap = {
+      modern: { borderRadius: 2, scaleY: 1, edgeSharpness: 0, shadowIntensity: 0.3 },
+      scandinavian: { borderRadius: 6, scaleY: 1.02, edgeSharpness: 2, shadowIntensity: 0.2 },
+      industrial: { borderRadius: 1, scaleY: 0.98, edgeSharpness: 0, shadowIntensity: 0.4 },
+      'mid-century': { borderRadius: 4, scaleY: 1, edgeSharpness: 1, shadowIntensity: 0.25 },
+      bohemian: { borderRadius: 12, scaleY: 1.03, edgeSharpness: 3, shadowIntensity: 0.15 },
+      rustic: { borderRadius: 8, scaleY: 1.01, edgeSharpness: 2, shadowIntensity: 0.2 }
+    };
+    return styleMap[config.style?.value] || { borderRadius: 4, scaleY: 1, edgeSharpness: 1, shadowIntensity: 0.25 };
+  };
+  
+  const styleParams = getStyleParams();
+  
+  // Focus mode scaling
+  const getFocusTransform = () => {
+    if (!focus) return { scale: 1, y: 0 };
+    switch(focus) {
+      case 'material': return { scale: 1.15, y: -12 };
+      case 'style': return { scale: 1.1, y: -8 };
+      case 'color': return { scale: 1.05, y: -4 };
+      default: return { scale: 1, y: 0 };
+    }
+  };
+  
+  const focusTransform = getFocusTransform();
+  
+  // Determine visible parts based on step (Progressive Build)
+  const visibleParts = {
+    showBase: step >= 1,
+    showStructure: step >= 2,
+    showDetails: step >= 3
+  };
+  
+  // Furniture shape configurations
+  const furnitureShapes = {
+    sofa: {
+      base: { width: 80, height: 40, depth: 60 },
+      arms: { left: { x: -30, y: -15, width: 15, height: 30 }, right: { x: 30, y: -15, width: 15, height: 30 } },
+      back: { width: 80, height: 25, y: -25 },
+    },
+    bed: {
+      base: { width: 90, height: 20, depth: 70 },
+      headboard: { width: 92, height: 35, y: -25 },
+      mattress: { width: 85, height: 15, y: -10 }
+    },
+    table: {
+      top: { width: 70, height: 5, y: 0 },
+      legs: [
+        { x: -30, y: -15, width: 4, height: 20 },
+        { x: 30, y: -15, width: 4, height: 20 },
+      ]
+    },
+    chair: {
+      seat: { width: 40, height: 8, y: -5 },
+      backrest: { width: 40, height: 25, y: -20 },
+      legs: [
+        { x: -18, y: -20, width: 3, height: 15 },
+        { x: 18, y: -20, width: 3, height: 15 },
+      ]
+    },
+    cabinet: {
+      body: { width: 60, height: 55, depth: 35 },
+      doors: [
+        { x: -18, width: 25, height: 45, y: 5 },
+        { x: 8, width: 25, height: 45, y: 5 }
+      ]
+    },
+    desk: {
+      top: { width: 80, height: 5, y: 0 },
+      legs: [
+        { x: -35, y: -15, width: 4, height: 20 },
+        { x: 35, y: -15, width: 4, height: 20 }
+      ],
+      drawer: { width: 50, height: 10, y: -8 }
+    }
+  };
+  
+  const shape = furnitureShapes[config.type?.value] || furnitureShapes.sofa;
+  
   return (
-    <div ref={dropdownRef} className="relative">
+    <div 
+      className="relative w-full h-[300px] md:h-[400px] flex items-center justify-center perspective-1000"
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+      onMouseMove={onMouseMove}
+    >
       <motion.div
-        whileTap={{ scale: 0.99 }}
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full rounded-lg border cursor-pointer transition-all duration-200 ${
-          error ? 'border-red-400 dark:border-red-500' 
-          : isOpen ? 'border-primary-400 dark:border-primary-500 shadow-sm' 
-          : 'border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-500'
-        }`}
+        animate={{ 
+          rotateY: rotation,
+          rotateX: tilt,
+          scale: focusTransform.scale,
+          y: focusTransform.y
+        }}
+        transition={{ type: "spring", stiffness: 260, damping: 20 }}
+        style={{ transformStyle: 'preserve-3d' }}
+        className="relative"
       >
-        <div className="flex items-center px-3 py-2">
-          {Icon && <Icon className={`h-3.5 w-3.5 mr-2 transition-colors ${isOpen ? 'text-primary-500' : 'text-neutral-400'}`} />}
-          <span className={`flex-1 text-xs truncate ${selectedOption ? 'text-neutral-900 dark:text-white font-medium' : 'text-neutral-400'}`}>
-            {selectedOption ? selectedOption.label : placeholder}
-          </span>
-          <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
-            <FiChevronDown className={`h-3.5 w-3.5 ${isOpen ? 'text-primary-500' : 'text-neutral-400'}`} />
-          </motion.div>
-        </div>
-      </motion.div>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -8, scaleY: 0.95 }}
-            animate={{ opacity: 1, y: 0, scaleY: 1 }}
-            exit={{ opacity: 0, y: -8, scaleY: 0.95 }}
-            transition={{ duration: 0.15 }}
-            className="absolute z-50 w-full mt-1 bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-xl overflow-hidden"
-          >
-            <div className="p-2 border-b border-neutral-100 dark:border-neutral-700">
-              <div className="relative">
-                <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-neutral-400" />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search..."
-                  className="w-full rounded-md border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-700/50 pl-7 pr-6 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-white placeholder-neutral-400"
-                  onClick={(e) => e.stopPropagation()}
-                />
-                {searchTerm && (
-                  <button onClick={(e) => { e.stopPropagation(); setSearchTerm(''); }} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 hover:bg-neutral-200 dark:hover:bg-neutral-600 rounded">
-                    <FiX className="h-3 w-3 text-neutral-400" />
-                  </button>
+        <svg 
+          width="320" 
+          height="280" 
+          viewBox="-120 -120 240 240" 
+          className="furniture-svg transition-all duration-300"
+          style={{ 
+            filter: step === 3 ? 'drop-shadow(0 0 20px rgba(99,102,241,0.5))' : 'none',
+            transition: 'filter 0.5s ease'
+          }}
+        >
+          <defs>
+            {/* Wood gradient for material layer */}
+            <linearGradient id="materialGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={colors.primary} />
+              <stop offset="50%" stopColor={colors.secondary} />
+              <stop offset="100%" stopColor={colors.accent} />
+            </linearGradient>
+            
+            {/* Lighting overlay gradient */}
+            <linearGradient id="lightingOverlay" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="rgba(255,255,255,0.25)" />
+              <stop offset="40%" stopColor="rgba(255,255,255,0.05)" />
+              <stop offset="100%" stopColor="rgba(0,0,0,0.2)" />
+            </linearGradient>
+            
+            {/* Second light source from bottom */}
+            <linearGradient id="rimLighting" x1="0%" y1="100%" x2="0%" y2="0%">
+              <stop offset="0%" stopColor="rgba(255,200,100,0.15)" />
+              <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+            </linearGradient>
+            
+            <filter id="shadowFilter">
+              <feDropShadow dx="3" dy="5" stdDeviation="5" floodOpacity="0.35"/>
+            </filter>
+            
+            <filter id="glowFilter">
+              <feGaussianBlur stdDeviation="4" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          
+          <g transform={`translate(0, ${isHovering ? -5 : 0})`}>
+            {/* Ground shadow */}
+            <ellipse cx="0" cy="65" rx="60" ry="12" fill="rgba(0,0,0,0.25)">
+              <animate attributeName="rx" values="60;65;60" dur="2s" repeatCount="indefinite" />
+            </ellipse>
+            
+            {/* ===== LAYER 1: BASE GEOMETRY ===== */}
+            {visibleParts.showBase && shape.base && (
+              <motion.rect
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ 
+                  scale: 1, 
+                  opacity: 1,
+                  rx: styleParams.borderRadius,
+                }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                x={-shape.base.width / 2}
+                y={-30}
+                width={shape.base.width}
+                height={shape.base.height}
+                fill="url(#materialGradient)"
+                stroke={colors.dark}
+                strokeWidth="1.5"
+                filter="url(#shadowFilter)"
+              />
+            )}
+            
+            {/* ===== LAYER 2: STRUCTURE (Arms, Backrest, Headboard) ===== */}
+            {visibleParts.showStructure && (
+              <>
+                {/* Sofa Arms */}
+                {shape.arms && (
+                  <>
+                    <motion.rect 
+                      initial={{ opacity: 0, x: -30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.15, type: "spring" }}
+                      x={-48} y={-45} width={14} height={32} rx={styleParams.borderRadius} 
+                      fill={colors.primary} stroke={colors.dark} strokeWidth="1" 
+                    />
+                    <motion.rect 
+                      initial={{ opacity: 0, x: 30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.15, type: "spring" }}
+                      x={34} y={-45} width={14} height={32} rx={styleParams.borderRadius} 
+                      fill={colors.primary} stroke={colors.dark} strokeWidth="1" 
+                    />
+                  </>
                 )}
-              </div>
-            </div>
-            <div className="max-h-40 overflow-y-auto custom-scrollbar py-1">
-              {filteredOptions.length > 0 ? (
-                filteredOptions.map((option, index) => (
-                  <motion.div
-                    key={option.value}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.02 }}
-                    onClick={() => handleSelect(option.value)}
-                    className={`px-3 py-1.5 cursor-pointer transition-colors flex items-center justify-between text-xs ${
-                      option.value === value ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300' 
-                      : 'hover:bg-neutral-50 dark:hover:bg-neutral-700/50 text-neutral-700 dark:text-neutral-300'
-                    }`}
-                  >
-                    <span className="truncate">{option.label}</span>
-                    {option.value === value && (
-                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500 }}>
-                        <div className="w-4 h-4 rounded-full bg-primary-500 flex items-center justify-center ml-2">
-                          <FiCheck className="h-2.5 w-2.5 text-white" />
-                        </div>
-                      </motion.div>
-                    )}
-                  </motion.div>
-                ))
-              ) : (
-                <div className="px-3 py-6 text-center">
-                  <p className="text-xs text-neutral-400">No options found</p>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                
+                {/* Backrest */}
+                {shape.back && (
+                  <motion.rect
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    x={-shape.back.width / 2} y={-52} 
+                    width={shape.back.width} height={shape.back.height} 
+                    rx={styleParams.borderRadius} fill={colors.accent} 
+                  />
+                )}
+                
+                {/* Headboard */}
+                {shape.headboard && (
+                  <motion.rect
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    x={-46} y={-58} width={92} height={32} rx={styleParams.borderRadius} 
+                    fill={colors.secondary}
+                  />
+                )}
+                
+                {/* Mattress */}
+                {shape.mattress && (
+                  <motion.rect
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    x={-42.5} y={-22} width={85} height={14} rx={styleParams.borderRadius} 
+                    fill={colors.primary}
+                  />
+                )}
+                
+                {/* Table top */}
+                {shape.top && (
+                  <rect x={-35} y={-5} width={70} height={5} rx={styleParams.borderRadius} fill={colors.primary} />
+                )}
+                
+                {/* Legs */}
+                {shape.legs && shape.legs.map((leg, i) => (
+                  <motion.rect 
+                    key={i} 
+                    initial={{ scaleY: 0 }}
+                    animate={{ scaleY: 1 }}
+                    transition={{ delay: 0.1 + i * 0.08 }}
+                    x={leg.x - leg.width/2} y={leg.y} 
+                    width={leg.width} height={leg.height} 
+                    rx={Math.max(1, styleParams.borderRadius - 2)} 
+                    fill={colors.secondary}
+                    style={{ transformOrigin: `${leg.x}px ${leg.y + leg.height}px` }}
+                  />
+                ))}
+              </>
+            )}
+            
+            {/* ===== LAYER 3: DETAILS (Cushions, Drawers, Hardware) ===== */}
+            {visibleParts.showDetails && (
+              <>
+                {/* Cushions */}
+                {shape.cushions && shape.cushions.map((cushion, i) => (
+                  <motion.rect 
+                    key={i} 
+                    initial={{ scale: 0, y: 20 }}
+                    animate={{ scale: 1, y: 0 }}
+                    transition={{ delay: 0.25 + i * 0.1, type: "spring" }}
+                    x={cushion.x} y={cushion.y} 
+                    width={cushion.width} height={cushion.height} 
+                    rx={styleParams.borderRadius + 6} 
+                    fill={colors.accent}
+                    filter="url(#shadowFilter)"
+                  />
+                ))}
+                
+                {/* Doors */}
+                {shape.doors && shape.doors.map((door, i) => (
+                  <motion.rect 
+                    key={i} 
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: 1 }}
+                    x={door.x} y={door.y} width={door.width} height={door.height} 
+                    rx={styleParams.borderRadius} fill={colors.primary} stroke={colors.dark} strokeWidth="1" 
+                  />
+                ))}
+                
+                {/* Drawer */}
+                {shape.drawer && (
+                  <motion.rect
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    x={-25} y={-13} width={50} height={10} rx={styleParams.borderRadius} 
+                    fill={colors.secondary}
+                  />
+                )}
+              </>
+            )}
+            
+            {/* ===== LIGHTING OVERLAY (Always on top of visible parts) ===== */}
+            {visibleParts.showStructure && (
+              <rect
+                x={-shape.base.width / 2}
+                y={-30}
+                width={shape.base.width}
+                height={shape.base.height}
+                fill="url(#lightingOverlay)"
+                style={{ mixBlendMode: 'overlay', pointerEvents: 'none' }}
+                rx={styleParams.borderRadius}
+              />
+            )}
+            
+            {/* Rim lighting for premium look */}
+            {visibleParts.showStructure && (
+              <rect
+                x={-shape.base.width / 2}
+                y={-30}
+                width={shape.base.width}
+                height={shape.base.height}
+                fill="url(#rimLighting)"
+                style={{ mixBlendMode: 'screen', pointerEvents: 'none' }}
+                rx={styleParams.borderRadius}
+              />
+            )}
+            
+            {/* Highlight reflection on hover */}
+            {isHovering && visibleParts.showBase && (
+              <motion.rect 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                x={-shape.base.width / 2} 
+                y={-30} 
+                width={shape.base.width} 
+                height={8} 
+                rx={styleParams.borderRadius} 
+                fill="rgba(255,255,255,0.2)"
+                style={{ pointerEvents: 'none' }}
+              />
+            )}
+          </g>
+        </svg>
+        
+        {/* Floating Live Labels */}
+        <AnimatePresence>
+          {(config.material || config.style) && (
+            <motion.div
+              initial={{ opacity: 0, y: 15, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.9 }}
+              className="absolute -top-14 left-1/2 transform -translate-x-1/2 bg-black/85 backdrop-blur-md rounded-full px-4 py-1.5 text-white text-[11px] whitespace-nowrap z-10"
+              style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}
+            >
+              <span className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colors.primary }} />
+                {config.material?.label || 'Select Material'} 
+                {config.style?.label && ` • ${config.style.label}`}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 };
 
-// Compact Tilt Card
-const TiltCard = ({ children, className = '' }) => {
-  const cardRef = useRef(null);
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const rotateX = useTransform(y, [-0.5, 0.5], [3, -3]);
-  const rotateY = useTransform(x, [-0.5, 0.5], [-3, 3]);
-
-  const handleMouseMove = (e) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    x.set(mouseX / rect.width - 0.5);
-    y.set(mouseY / rect.height - 0.5);
-  };
-
+// ============================================================
+// STEP INDICATOR WITH PROGRESS ANIMATION
+// ============================================================
+const StepIndicator = ({ step }) => {
+  const steps = [
+    { number: 1, title: "Choose Type", icon: FiBox, description: "Select furniture type" },
+    { number: 2, title: "Style & Material", icon: MdPalette, description: "Customize look" },
+    { number: 3, title: "Finalize", icon: FiCheckCircle, description: "Review & request" }
+  ];
+  
   return (
-    <motion.div ref={cardRef} onMouseMove={handleMouseMove} onMouseLeave={() => { x.set(0); y.set(0); }} style={{ rotateX, rotateY }} className={`transform-gpu ${className}`}>
-      {children}
+    <div className="mb-8">
+      <div className="flex items-center justify-between">
+        {steps.map((s, idx) => (
+          <div key={s.number} className="flex-1 relative">
+            {/* Progress line */}
+            <div className={`absolute top-5 left-0 right-0 h-0.5 transition-all duration-500 ${
+              idx < step - 1 ? 'bg-primary-500' : 'bg-neutral-200 dark:bg-neutral-700'
+            }`} />
+            
+            <div className="relative flex flex-col items-center">
+              <motion.div
+                animate={{
+                  scale: step === s.number ? 1.1 : 1,
+                  backgroundColor: step >= s.number ? '#6366f1' : '#e5e7eb'
+                }}
+                transition={{ type: "spring", stiffness: 300 }}
+                className={`w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-colors ${
+                  step >= s.number ? 'bg-primary-500 text-white' : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-500'
+                }`}
+              >
+                {step > s.number ? <FiCheck className="w-5 h-5" /> : <s.icon className="w-5 h-5" />}
+              </motion.div>
+              
+              <p className={`text-xs font-semibold mt-2 hidden md:block ${
+                step >= s.number ? 'text-neutral-900 dark:text-white' : 'text-neutral-400'
+              }`}>
+                {s.title}
+              </p>
+              <p className={`text-[10px] hidden md:block ${
+                step >= s.number ? 'text-neutral-500' : 'text-neutral-400'
+              }`}>
+                {s.description}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// ENHANCED OPTION CARDS WITH RIPPLE EFFECT
+// ============================================================
+const VisualOptionCard = ({ option, isSelected, onClick, icon: Icon }) => {
+  const [ripple, setRipple] = useState(false);
+  
+  const handleClick = (e) => {
+    setRipple(true);
+    setTimeout(() => setRipple(false), 300);
+    onClick();
+  };
+  
+  return (
+    <motion.div
+      whileHover={{ y: -4, scale: 1.02 }}
+      whileTap={{ scale: 0.96 }}
+      onClick={handleClick}
+      className={`relative cursor-pointer rounded-xl p-3 transition-all overflow-hidden ${
+        isSelected
+          ? 'bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-lg ring-2 ring-primary-300'
+          : 'bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:border-primary-300 hover:shadow-md'
+      }`}
+    >
+      {ripple && (
+        <motion.div
+          initial={{ scale: 0, opacity: 0.5 }}
+          animate={{ scale: 4, opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          className="absolute inset-0 bg-white rounded-full"
+        />
+      )}
+      <Icon className={`h-6 w-6 mx-auto mb-2 relative z-10 ${isSelected ? 'text-white' : 'text-primary-500'}`} />
+      <p className={`text-xs font-semibold text-center relative z-10 ${isSelected ? 'text-white' : 'text-neutral-700 dark:text-neutral-300'}`}>
+        {option.label}
+      </p>
     </motion.div>
   );
 };
 
-// Compact Animated Counter
-const AnimatedCounter = ({ value, duration = 1 }) => {
-  const [displayValue, setDisplayValue] = useState(0);
-  useEffect(() => {
-    let startTime = null;
-    const animate = (timestamp) => {
-      if (!startTime) startTime = timestamp;
-      const progress = Math.min((timestamp - startTime) / (duration * 1000), 1);
-      setDisplayValue(Math.floor(value * (1 - Math.pow(1 - progress, 3))));
-      if (progress < 1) requestAnimationFrame(animate);
-    };
-    requestAnimationFrame(animate);
-  }, [value, duration]);
-  return <span>{displayValue}</span>;
-};
-
-// Toast
-const toast = {
-  success: (msg) => {
-    const el = document.createElement('div');
-    el.className = 'fixed top-3 right-3 bg-emerald-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] animate-slide-down text-xs font-medium flex items-center gap-2';
-    el.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg><span>${msg}</span>`;
-    document.body.appendChild(el);
-    setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 2500);
-  },
-  error: (msg) => {
-    const el = document.createElement('div');
-    el.className = 'fixed top-3 right-3 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] animate-slide-down text-xs font-medium flex items-center gap-2';
-    el.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${msg}</span>`;
-    document.body.appendChild(el);
-    setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 2500);
-  }
-};
-
-// Data
-const furnitureTypes = [
-  { value: 'sofa', label: 'Sofa / Sectional' },
-  { value: 'bed', label: 'Bed Frame' },
-  { value: 'table', label: 'Dining Table' },
-  { value: 'chair', label: 'Accent Chair' },
-  { value: 'cabinet', label: 'Cabinet / Storage' },
-  { value: 'shelving', label: 'Shelving Unit' },
-  { value: 'desk', label: 'Desk / Workstation' },
-  { value: 'custom', label: 'Custom Project' },
-];
-
-const materialOptions = [
-  { value: 'oak', label: 'Oak' }, { value: 'walnut', label: 'Walnut' },
-  { value: 'maple', label: 'Maple' }, { value: 'cherry', label: 'Cherry' },
-  { value: 'mahogany', label: 'Mahogany' }, { value: 'teak', label: 'Teak' },
-  { value: 'leather', label: 'Leather' }, { value: 'velvet', label: 'Velvet' },
-  { value: 'metal', label: 'Metal' }, { value: 'marble', label: 'Marble' },
-];
-
-const budgetRanges = [
-  { value: '500-1000', label: '$500 - $1,000' }, { value: '1000-3000', label: '$1,000 - $3,000' },
-  { value: '3000-5000', label: '$3,000 - $5,000' }, { value: '5000-10000', label: '$5,000 - $10,000' },
-  { value: '10000+', label: '$10,000+' },
-];
-
-const timelineOptions = [
-  { value: 'asap', label: 'ASAP (1-2 wks)' }, { value: '2-4-weeks', label: '2-4 Weeks' },
-  { value: '4-6-weeks', label: '4-6 Weeks' }, { value: '6-8-weeks', label: '6-8 Weeks' },
-  { value: 'flexible', label: 'Flexible' },
-];
-
-const initialFormData = {
-  furnitureType: 'sofa', dimensions: '', material: '', color: '',
-  budget: '', timeline: '', description: '', name: '', email: '', phone: '',
-  images: [], inspirationLinks: '', specialRequirements: '',
-};
-
-const CustomFurniture = () => {
-  const [formData, setFormData] = useState(initialFormData);
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
-  const [currentStep, setCurrentStep] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
-  const fileInputRef = useRef(null);
-  const formRef = useRef(null);
-  const totalSteps = 3;
-
-  useEffect(() => {
-    if (formRef.current) formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [currentStep]);
-
-  const handleChange = useCallback((e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
-  }, [errors]);
-
-  const handleDrag = useCallback((e) => {
-    e.preventDefault(); e.stopPropagation();
-    setDragActive(e.type === 'dragenter' || e.type === 'dragover');
-  }, []);
-
-  const handleDrop = useCallback((e) => {
-    e.preventDefault(); e.stopPropagation(); setDragActive(false);
-    const files = Array.from(e.dataTransfer.files).filter(f => ['image/jpeg','image/png','image/webp'].includes(f.type) && f.size <= 10*1024*1024);
-    if (files.length) {
-      setFormData(prev => ({ ...prev, images: [...prev.images, ...files].slice(0, 5) }));
-      toast.success(`${files.length} image(s) added`);
-    }
-  }, []);
-
-  const handleImageUpload = useCallback((e) => {
-    const files = Array.from(e.target.files).filter(f => ['image/jpeg','image/png','image/webp'].includes(f.type) && f.size <= 10*1024*1024);
-    if (files.length) setFormData(prev => ({ ...prev, images: [...prev.images, ...files].slice(0, 5) }));
-  }, []);
-
-  const removeImage = useCallback((index) => {
-    setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
-  }, []);
-
-  const validateStep = useCallback((step) => {
-    const newErrors = {};
-    if (step === 2 && (!formData.description.trim() || formData.description.length < 10)) newErrors.description = 'Min 10 characters required';
-    if (step === 3) {
-      if (!formData.name.trim()) newErrors.name = 'Required';
-      if (!formData.email.trim()) newErrors.email = 'Required';
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Invalid email';
-      if (formData.phone && !/^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/.test(formData.phone.replace(/\s/g, ''))) newErrors.phone = 'Invalid';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [formData]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateStep(3)) { toast.error('Fix errors first'); return; }
-    setIsSubmitting(true); setLoading(true);
-    try {
-      await new Promise(r => setTimeout(r, 1500));
-      setSubmitSuccess(true);
-      toast.success('Submitted! We\'ll contact you soon.');
-      setTimeout(() => { setFormData(initialFormData); setErrors({}); setCurrentStep(1); setSubmitSuccess(false); window.scrollTo({ top: 0 }); }, 2000);
-    } catch { toast.error('Failed. Try again.'); }
-    finally { setIsSubmitting(false); setLoading(false); }
+// ============================================================
+// MATERIAL CARD WITH TEXTURE PREVIEW
+// ============================================================
+const MaterialVisualCard = ({ material, isSelected, onClick }) => {
+  const materialColors = {
+    oak: 'from-amber-600 to-amber-400',
+    walnut: 'from-amber-800 to-amber-600',
+    maple: 'from-amber-500 to-amber-300',
+    leather: 'from-red-800 to-red-600',
+    velvet: 'from-purple-700 to-purple-500',
+    metal: 'from-gray-500 to-gray-400'
   };
+  
+  const materialPatterns = {
+    oak: "repeating-linear-gradient(45deg, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 2px, transparent 2px, transparent 8px)",
+    walnut: "repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 6px)",
+    maple: "repeating-linear-gradient(90deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 3px, transparent 3px, transparent 9px)",
+    leather: "radial-gradient(circle at 30% 40%, rgba(0,0,0,0.05) 1px, transparent 1px)",
+    velvet: "repeating-linear-gradient(135deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 4px, transparent 4px, transparent 12px)",
+    metal: "repeating-linear-gradient(0deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 1px, transparent 1px, transparent 5px)"
+  };
+  
+  return (
+    <motion.div
+      whileHover={{ y: -4, scale: 1.02 }}
+      whileTap={{ scale: 0.96 }}
+      onClick={onClick}
+      className={`cursor-pointer rounded-xl p-3 transition-all ${
+        isSelected
+          ? 'bg-primary-500 text-white shadow-lg ring-2 ring-primary-300'
+          : 'bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:shadow-md'
+      }`}
+    >
+      <div 
+        className={`w-12 h-12 mx-auto mb-2 rounded-full bg-gradient-to-br ${materialColors[material.value]} shadow-lg`}
+        style={{ backgroundImage: materialPatterns[material.value] }}
+      />
+      <p className={`text-xs font-semibold text-center ${isSelected ? 'text-white' : 'text-neutral-700 dark:text-neutral-300'}`}>
+        {material.label}
+      </p>
+      <p className={`text-[10px] text-center ${isSelected ? 'text-white/80' : 'text-neutral-400'}`}>
+        {material.texture}
+      </p>
+    </motion.div>
+  );
+};
 
-  if (submitSuccess) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-[1%]">
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 200 }} className="text-center max-w-sm">
-          <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 2, repeat: Infinity }} className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <FiCheckCircle className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
-          </motion.div>
-          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">Submitted!</h2>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">We'll contact you within 24 hours.</p>
-        </motion.div>
-      </div>
-    );
-  }
+// ============================================================
+// STYLE CARD WITH MORPH PREVIEW
+// ============================================================
+const StyleVisualCard = ({ style, isSelected, onClick }) => {
+  const styleIcons = {
+    modern: FiMonitor,
+    scandinavian: FiHome,
+    industrial: FiTool,
+    'mid-century': FiGrid,
+    bohemian: FiImage,
+    rustic: FiHome
+  };
+  
+  const Icon = styleIcons[style.value] || FiStar;
+  
+  return (
+    <motion.div
+      whileHover={{ y: -4, scale: 1.02 }}
+      whileTap={{ scale: 0.96 }}
+      onClick={onClick}
+      className={`cursor-pointer rounded-xl p-3 transition-all ${
+        isSelected
+          ? 'bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-lg ring-2 ring-primary-300'
+          : 'bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:shadow-md'
+      }`}
+    >
+      <Icon className={`h-6 w-6 mx-auto mb-2 ${isSelected ? 'text-white' : 'text-primary-500'}`} />
+      <p className={`text-xs font-semibold text-center ${isSelected ? 'text-white' : 'text-neutral-700 dark:text-neutral-300'}`}>
+        {style.label}
+      </p>
+      <p className={`text-[10px] text-center ${isSelected ? 'text-white/80' : 'text-neutral-400'}`}>
+        {style.description}
+      </p>
+    </motion.div>
+  );
+};
 
+// ============================================================
+// MAIN COMPONENT - SINGLE SOURCE OF TRUTH
+// ============================================================
+const CustomFurniture = () => {
+  const navigate = useNavigate();
+  const modelContainerRef = useRef(null);
+  
+  // SINGLE CONFIG STATE - replaces all separate states
+  const [config, setConfig] = useState({
+    type: null,
+    style: null,
+    material: null,
+    color: null,
+    dimensions: '',
+    step: 1
+  });
+  
+  const [focus, setFocus] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [rotation, setRotation] = useState(0);
+  const [tilt, setTilt] = useState(0);
+  const [completionAnimation, setCompletionAnimation] = useState(false);
+  
+  // Furniture options
+  const furnitureOptions = [
+    { value: 'sofa', label: 'Sofa', icon: FiHome },
+    { value: 'bed', label: 'Bed', icon: FiHome },
+    { value: 'table', label: 'Table', icon: FiCoffee },
+    { value: 'chair', label: 'Chair', icon: FiGrid },
+    { value: 'cabinet', label: 'Cabinet', icon: FiBox },
+    { value: 'desk', label: 'Desk', icon: FiMonitor }
+  ];
+  
+  const styleOptions = [
+    { value: 'modern', label: 'Modern', icon: FiMonitor, description: 'Clean & Minimal' },
+    { value: 'scandinavian', label: 'Nordic', icon: FiHome, description: 'Warm & Functional' },
+    { value: 'industrial', label: 'Industrial', icon: FiTool, description: 'Raw & Urban' },
+    { value: 'mid-century', label: 'Mid-Century', icon: FiGrid, description: 'Retro & Geometric' },
+    { value: 'bohemian', label: 'Bohemian', icon: FiImage, description: 'Eclectic & Artistic' },
+    { value: 'rustic', label: 'Rustic', icon: FiHome, description: 'Natural & Earthy' }
+  ];
+  
+  const materialOptions = [
+    { value: 'oak', label: 'Oak', texture: 'Classic Grain' },
+    { value: 'walnut', label: 'Walnut', texture: 'Rich Dark' },
+    { value: 'maple', label: 'Maple', texture: 'Smooth Fine' },
+    { value: 'leather', label: 'Leather', texture: 'Luxury Soft' },
+    { value: 'velvet', label: 'Velvet', texture: 'Plush Deep' },
+    { value: 'metal', label: 'Metal', texture: 'Industrial Matte' }
+  ];
+  
+  const colorOptions = ['Natural', 'Walnut', 'Black', 'White', 'Gray', 'Blue'];
+  
+  // Progressive build handlers
+  const handleSelectFurniture = (furniture) => {
+    setConfig(prev => ({ ...prev, type: furniture }));
+    setTimeout(() => {
+      setConfig(prev => ({ ...prev, step: 2 }));
+    }, 400);
+  };
+  
+  const handleSelectStyle = (style) => {
+    setConfig(prev => ({ ...prev, style }));
+    setFocus('style');
+    setTimeout(() => setFocus(null), 800);
+  };
+  
+  const handleSelectMaterial = (material) => {
+    setConfig(prev => ({ ...prev, material }));
+    setFocus('material');
+    setTimeout(() => setFocus(null), 800);
+  };
+  
+  const handleSelectColor = (color) => {
+    setConfig(prev => ({ ...prev, color }));
+    setFocus('color');
+    setTimeout(() => setFocus(null), 800);
+  };
+  
+  const handleComplete = () => {
+    if (config.style && config.material) {
+      setConfig(prev => ({ ...prev, step: 3 }));
+      setCompletionAnimation(true);
+      
+      // Trigger rotation animation
+      let rot = 0;
+      const interval = setInterval(() => {
+        rot += 3;
+        setRotation(rot);
+        if (rot >= 360) {
+          clearInterval(interval);
+          setCompletionAnimation(false);
+        }
+      }, 20);
+      
+      setTimeout(() => setShowDetails(true), 1000);
+    }
+  };
+  
+  const handleReset = () => {
+    setConfig({
+      type: null,
+      style: null,
+      material: null,
+      color: null,
+      dimensions: '',
+      step: 1
+    });
+    setShowDetails(false);
+    setRotation(0);
+    setTilt(0);
+  };
+  
+  // Mouse move for pseudo-3D parallax
+  const handleModelMouseMove = (e) => {
+    if (!modelContainerRef.current) return;
+    const rect = modelContainerRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setTilt(x * 8);
+  };
+  
+  // Memoized model for performance
+  const memoizedModel = useMemo(() => (
+    <FurnitureModel 
+      config={config}
+      focus={focus}
+      step={config.step}
+      onMouseMove={handleModelMouseMove}
+      rotation={rotation}
+      tilt={tilt}
+    />
+  ), [config, focus, rotation, tilt]);
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-      <div className="w-full px-[1%] py-[1%]">
-        <div className="max-w-4xl mx-auto">
-          {/* Compact Header */}
-          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="text-center mb-6">
-            <motion.div whileHover={{ scale: 1.03 }} className="inline-flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-neutral-800 rounded-full text-primary-600 dark:text-primary-400 text-[11px] font-semibold tracking-wide uppercase mb-3 shadow-sm border border-primary-100 dark:border-primary-900/30">
-              <FiStar className="h-3 w-3" />
-              <span>Custom Furniture Studio</span>
-            </motion.div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-neutral-900 dark:text-white mb-1">Craft Your Vision</h1>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 max-w-lg mx-auto">Bespoke furniture crafted by master artisans</p>
+      {/* Hero Section - Simplified with live preview CTA */}
+      <div className="relative bg-gradient-to-r from-primary-600 to-primary-800 dark:from-primary-900 dark:to-primary-700 overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1600')] bg-cover bg-center opacity-10" />
+        <div className="relative py-16 md:py-20 flex flex-col items-center justify-center text-center text-white px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-2xl mx-auto"
+          >
+            <motion.h1 
+              className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4"
+              animate={{ scale: config.step === 1 ? 1 : 0.98 }}
+            >
+              Design Your Dream Furniture
+            </motion.h1>
+            <motion.p className="text-white/80 text-base mb-8 max-w-xl mx-auto">
+              Build your piece step by step with our interactive 3D configurator
+            </motion.p>
+            
+            {config.step === 1 && !config.type && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => document.getElementById('type-selector')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                className="px-8 py-3 bg-white text-primary-600 rounded-full font-semibold text-sm shadow-lg hover:shadow-xl transition-all flex items-center gap-2 mx-auto"
+              >
+                Start Building <FiArrowRight className="h-4 w-4" />
+              </motion.button>
+            )}
           </motion.div>
-
-          {/* Compact Trust Badges */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="grid grid-cols-3 gap-3 mb-6">
-            {[
-              { icon: FiShield, title: 'Quality', stat: 10, suffix: 'yr warranty' },
-              { icon: FiAward, title: 'Artisans', stat: 25, suffix: 'yrs exp.' },
-              { icon: FiZap, title: 'Quick', stat: 2, suffix: 'wks min' },
-            ].map((badge, i) => (
-              <motion.div key={i} whileHover={{ y: -2 }} className="bg-white dark:bg-neutral-800/50 backdrop-blur-sm rounded-xl p-3 text-center border border-neutral-100 dark:border-neutral-700/50 shadow-sm">
-                <badge.icon className="h-5 w-5 text-primary-500 mx-auto mb-1" />
-                <p className="text-xs font-semibold text-neutral-900 dark:text-white">{badge.title}</p>
-                <div className="flex items-baseline justify-center gap-0.5">
-                  <span className="text-lg font-bold text-primary-600 dark:text-primary-400"><AnimatedCounter value={badge.stat} /></span>
-                  <span className="text-[10px] text-neutral-400">{badge.suffix}</span>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-
-          {/* Compact Process Steps */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="bg-white dark:bg-neutral-800/50 backdrop-blur-sm rounded-xl p-4 mb-6 border border-neutral-100 dark:border-neutral-700/50 shadow-sm">
-            <div className="relative flex items-center justify-between">
-              <div className="absolute top-4 left-0 right-0 h-0.5 bg-neutral-100 dark:bg-neutral-700 rounded-full">
-                <motion.div className="h-full bg-primary-500 rounded-full" initial={{ width: '0%' }} animate={{ width: `${((currentStep - 1) / 2) * 100}%` }} transition={{ duration: 0.3 }} />
-              </div>
-              {[
-                { step: 1, icon: FiEdit3, title: 'Describe' },
-                { step: 2, icon: FiDroplet, title: 'Design' },
-                { step: 3, icon: FiTruck, title: 'Deliver' },
-              ].map((item) => (
-                <div key={item.step} className="flex flex-col items-center relative z-10">
-                  <motion.button
-                    onClick={() => setCurrentStep(item.step)}
-                    whileHover={{ scale: 1.08 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all text-sm ${
-                      currentStep > item.step ? 'bg-emerald-500 text-white shadow-sm' :
-                      currentStep === item.step ? 'bg-primary-500 text-white shadow-md scale-110' :
-                      'bg-white dark:bg-neutral-700 text-neutral-400 border border-neutral-200 dark:border-neutral-600'
-                    }`}
-                  >
-                    {currentStep > item.step ? <FiCheck className="h-4 w-4" /> : <item.icon className="h-4 w-4" />}
-                    {currentStep === item.step && <motion.div className="absolute inset-0 rounded-xl bg-primary-500" animate={{ scale: [1, 1.15, 1], opacity: [0.2, 0, 0.2] }} transition={{ duration: 1.5, repeat: Infinity }} />}
-                  </motion.button>
-                  <p className={`text-xs font-semibold mt-2 ${currentStep >= item.step ? 'text-neutral-900 dark:text-white' : 'text-neutral-400'}`}>{item.title}</p>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Compact Form */}
-          <TiltCard>
-            <motion.form ref={formRef} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} onSubmit={handleSubmit}
-              className="bg-white dark:bg-neutral-800/90 backdrop-blur-sm rounded-xl border border-neutral-100 dark:border-neutral-700/50 shadow-md overflow-hidden">
-              
-              <AnimatePresence mode="wait">
-                {currentStep === 1 && (
-                  <motion.div key="s1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }} className="p-5">
-                    <div className="flex items-center gap-2 mb-5">
-                      <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-                        <FiEdit3 className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-bold text-neutral-900 dark:text-white">Design Details</h2>
-                        <p className="text-xs text-neutral-400">Bring your vision to life</p>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1.5 uppercase tracking-wider">Type</label>
-                        <CustomDropdown name="furnitureType" value={formData.furnitureType} onChange={handleChange} options={furnitureTypes} placeholder="Select" icon={FiBox} />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1.5 uppercase tracking-wider">Dimensions</label>
-                        <input name="dimensions" value={formData.dimensions} onChange={handleChange} placeholder='72"×36"×30"' className="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:text-white placeholder-neutral-400 transition-colors" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1.5 uppercase tracking-wider">Material</label>
-                        <CustomDropdown name="material" value={formData.material} onChange={handleChange} options={materialOptions} placeholder="Select" icon={FiLayers} />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1.5 uppercase tracking-wider">Color</label>
-                        <input name="color" value={formData.color} onChange={handleChange} placeholder="Natural, Black..." className="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:text-white placeholder-neutral-400 transition-colors" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1.5 uppercase tracking-wider">Budget</label>
-                        <CustomDropdown name="budget" value={formData.budget} onChange={handleChange} options={budgetRanges} placeholder="Select" icon={FiDollarSign} />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1.5 uppercase tracking-wider">Timeline</label>
-                        <CustomDropdown name="timeline" value={formData.timeline} onChange={handleChange} options={timelineOptions} placeholder="Select" icon={FiClock} />
-                      </div>
-                    </div>
-
-                    {/* Compact Image Upload */}
-                    <div className="mt-5">
-                      <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1.5 uppercase tracking-wider">Images <span className="text-neutral-400 font-normal normal-case">(max 5)</span></label>
-                      <motion.div 
-                        onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
-                        animate={{ scale: dragActive ? 1.01 : 1, borderColor: dragActive ? '#6366f1' : '#d1d5db' }}
-                        onClick={() => fileInputRef.current?.click()}
-                        className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${dragActive ? 'border-primary-400 bg-primary-50/50' : 'border-neutral-200 dark:border-neutral-600 hover:border-neutral-300'}`}
-                      >
-                        <FiUpload className="h-6 w-6 mx-auto text-neutral-400 mb-2" />
-                        <p className="text-xs text-neutral-500">{dragActive ? 'Drop here' : 'Drop images or click'}</p>
-                        <p className="text-[10px] text-neutral-300 mt-1">PNG, JPG • 10MB max</p>
-                        <input ref={fileInputRef} type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
-                      </motion.div>
-                      
-                      <AnimatePresence>
-                        {formData.images.length > 0 && (
-                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="grid grid-cols-5 gap-2 mt-3">
-                            {formData.images.map((image, index) => (
-                              <motion.div key={index} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ scale: 1.05 }} className="relative group rounded-lg overflow-hidden bg-neutral-100 dark:bg-neutral-700 aspect-square">
-                                <img src={URL.createObjectURL(image)} alt="" className="w-full h-full object-cover" />
-                                <motion.div initial={{ opacity: 0 }} whileHover={{ opacity: 1 }} className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                  <button type="button" onClick={() => removeImage(index)} className="p-1 bg-white rounded-full text-red-500"><FiX className="h-3 w-3" /></button>
-                                </motion.div>
-                              </motion.div>
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  </motion.div>
-                )}
-
-                {currentStep === 2 && (
-                  <motion.div key="s2" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }} className="p-5">
-                    <div className="flex items-center gap-2 mb-5">
-                      <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                        <FiInfo className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-bold text-neutral-900 dark:text-white">Project Details</h2>
-                        <p className="text-xs text-neutral-400">Tell us about your needs</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1.5 uppercase tracking-wider">Description</label>
-                        <textarea name="description" value={formData.description} onChange={handleChange} rows="4"
-                          className={`w-full rounded-lg border ${errors.description ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-600'} bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none dark:text-white placeholder-neutral-400 transition-colors`}
-                          placeholder="Describe your vision: style, features, intended use..." />
-                        <div className="flex justify-between mt-1">
-                          {errors.description && <p className="text-xs text-red-500"><FiAlertCircle className="inline h-3 w-3 mr-0.5" />{errors.description}</p>}
-                          <p className={`text-xs font-medium ml-auto ${formData.description.length < 10 ? 'text-red-400' : 'text-emerald-500'}`}>{formData.description.length} chars</p>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1.5 uppercase tracking-wider">Inspiration Links</label>
-                        <div className="relative">
-                          <FiLink className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
-                          <input name="inspirationLinks" value={formData.inspirationLinks} onChange={handleChange} placeholder="Pinterest, Instagram URLs..." className="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:text-white placeholder-neutral-400 transition-colors" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1.5 uppercase tracking-wider">Special Requirements</label>
-                        <textarea name="specialRequirements" value={formData.specialRequirements} onChange={handleChange} rows="3"
-                          className="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none dark:text-white placeholder-neutral-400 transition-colors"
-                          placeholder="Eco-friendly, lighting, compartments..." />
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {currentStep === 3 && (
-                  <motion.div key="s3" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }} className="p-5">
-                    <div className="flex items-center gap-2 mb-5">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                        <FiSend className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-bold text-neutral-900 dark:text-white">Contact Info</h2>
-                        <p className="text-xs text-neutral-400">How to reach you</p>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 mb-5">
-                      {[
-                        { name: 'name', label: 'Name', icon: FiUser, type: 'text', placeholder: 'John Doe' },
-                        { name: 'email', label: 'Email', icon: FiMail, type: 'email', placeholder: 'john@example.com' },
-                        { name: 'phone', label: 'Phone', icon: FiPhone, type: 'tel', placeholder: '+1 555 000-0000' },
-                      ].map((field) => (
-                        <div key={field.name} className={field.name === 'phone' ? 'col-span-2' : ''}>
-                          <label className="block text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-1.5 uppercase tracking-wider">{field.label}</label>
-                          <div className="relative">
-                            <field.icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
-                            <input name={field.name} type={field.type} value={formData[field.name]} onChange={handleChange}
-                              className={`w-full rounded-lg border ${errors[field.name] ? 'border-red-400' : 'border-neutral-200 dark:border-neutral-600'} bg-white dark:bg-neutral-800 pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:text-white placeholder-neutral-400 transition-colors`}
-                              placeholder={field.placeholder} />
-                          </div>
-                          {errors[field.name] && <p className="mt-1 text-xs text-red-500"><FiAlertCircle className="inline h-3 w-3 mr-0.5" />{errors[field.name]}</p>}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-xl p-4 text-sm">
-                      <p className="text-xs font-semibold text-neutral-900 dark:text-white mb-3 flex items-center gap-1.5"><FiFileText className="h-3.5 w-3.5 text-primary-500" />Summary</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div><p className="text-[10px] text-neutral-400">Type</p><p className="font-medium text-neutral-900 dark:text-white text-sm">{furnitureTypes.find(t => t.value === formData.furnitureType)?.label || 'N/A'}</p></div>
-                        {formData.material && <div><p className="text-[10px] text-neutral-400">Material</p><p className="font-medium text-neutral-900 dark:text-white text-sm">{materialOptions.find(m => m.value === formData.material)?.label}</p></div>}
-                        {formData.budget && <div><p className="text-[10px] text-neutral-400">Budget</p><p className="font-medium text-neutral-900 dark:text-white text-sm">{budgetRanges.find(b => b.value === formData.budget)?.label}</p></div>}
-                        {formData.images.length > 0 && <div><p className="text-[10px] text-neutral-400">Images</p><p className="font-medium text-neutral-900 dark:text-white text-sm">{formData.images.length} attached</p></div>}
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Compact Footer */}
-              <div className="flex items-center justify-between px-5 py-4 bg-neutral-50/80 dark:bg-neutral-800/30 border-t border-neutral-100 dark:border-neutral-700/50">
-                <div>
-                  {currentStep > 1 && (
-                    <motion.button whileHover={{ x: -2 }} whileTap={{ scale: 0.97 }} type="button" onClick={() => setCurrentStep(prev => Math.max(prev - 1, 1))}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-neutral-600 dark:text-neutral-300 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-600 rounded-lg hover:shadow-sm transition-all">
-                      <FiChevronLeft className="h-3.5 w-3.5" /> Back
-                    </motion.button>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  {currentStep < totalSteps ? (
-                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} type="button" onClick={() => { if (validateStep(currentStep)) setCurrentStep(prev => Math.min(prev + 1, totalSteps)); }}
-                      className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg shadow-sm transition-all">
-                      Next <FiArrowRight className="h-3.5 w-3.5" />
-                    </motion.button>
-                  ) : (
-                    <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} type="submit" disabled={isSubmitting}
-                      className="inline-flex items-center gap-1.5 px-6 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-neutral-400 rounded-lg shadow-sm transition-all">
-                      {isSubmitting ? (
-                        <><motion.svg animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></motion.svg> Sending...</>
-                      ) : (
-                        <><FiSend className="h-3.5 w-3.5" /> Submit Request</>
-                      )}
-                    </motion.button>
-                  )}
-                </div>
-              </div>
-            </motion.form>
-          </TiltCard>
         </div>
       </div>
-
-      <style>{`
-        @keyframes slide-down { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .animate-slide-down { animation: slide-down 0.25s ease-out; }
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
-        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; }
-        textarea::-webkit-scrollbar { width: 3px; }
-        textarea::-webkit-scrollbar-track { background: transparent; }
-        textarea::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
-      `}</style>
+      
+      {/* Main Configurator - STICKY LAYOUT */}
+      <div className="w-[96%] mx-auto px-[2%] py-8 md:py-10">
+        <div className="max-w-7xl mx-auto">
+          <StepIndicator step={config.step} />
+          
+          {/* Two Column Layout */}
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* LEFT COLUMN - Controls (35%) */}
+            <div className="lg:w-[35%] space-y-4">
+              <div className="bg-white dark:bg-neutral-800/50 rounded-2xl p-5 border border-neutral-200 dark:border-neutral-700 shadow-lg">
+                <AnimatePresence mode="wait">
+                  {config.step === 1 && (
+                    <motion.div
+                      key="step1"
+                      id="type-selector"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="space-y-4"
+                    >
+                      <div>
+                        <h3 className="text-base font-semibold text-neutral-900 dark:text-white mb-3 flex items-center gap-2">
+                          <FiBox className="h-5 w-5 text-primary-500" />
+                          Choose Your Furniture Type
+                        </h3>
+                        <div className="grid grid-cols-2 gap-2">
+                          {furnitureOptions.map((option) => (
+                            <VisualOptionCard
+                              key={option.value}
+                              option={option}
+                              isSelected={config.type?.value === option.value}
+                              onClick={() => handleSelectFurniture(option)}
+                              icon={option.icon}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="pt-2">
+                        <div className="flex items-center gap-2 text-xs text-neutral-400">
+                          <FiInfo className="h-3 w-3" />
+                          <span>Select a furniture type to continue</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                  
+                  {config.step === 2 && (
+                    <motion.div
+                      key="step2"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="space-y-5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-base font-semibold text-neutral-900 dark:text-white flex items-center gap-2">
+                          <MdPalette className="h-5 w-5 text-primary-500" />
+                          Customize Your {config.type?.label}
+                        </h3>
+                        <button 
+                          onClick={handleReset}
+                          className="text-xs text-primary-500 hover:text-primary-600 flex items-center gap-1 transition-colors"
+                        >
+                          <FiRotateCw className="h-3 w-3" />
+                          Reset
+                        </button>
+                      </div>
+                      
+                      {/* Style Selection */}
+                      <div>
+                        <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2 block">Design Style</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {styleOptions.map((style) => (
+                            <StyleVisualCard
+                              key={style.value}
+                              style={style}
+                              isSelected={config.style?.value === style.value}
+                              onClick={() => handleSelectStyle(style)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Material Selection */}
+                      <div>
+                        <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2 block">Material</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {materialOptions.map((material) => (
+                            <MaterialVisualCard
+                              key={material.value}
+                              material={material}
+                              isSelected={config.material?.value === material.value}
+                              onClick={() => handleSelectMaterial(material)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Color Selection */}
+                      <div>
+                        <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2 block">Color / Finish</label>
+                        <div className="flex flex-wrap gap-2">
+                          {colorOptions.map((color) => (
+                            <motion.button
+                              key={color}
+                              whileHover={{ scale: 1.05, y: -1 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => handleSelectColor(color)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                                config.color === color
+                                  ? 'bg-primary-500 text-white shadow-md'
+                                  : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600'
+                              }`}
+                            >
+                              {color}
+                            </motion.button>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Dimensions */}
+                      <div>
+                        <label className="text-sm font-medium text-neutral-600 dark:text-neutral-400 mb-2 block flex items-center justify-between">
+                          <span>Dimensions (L×W×H)</span>
+                          <button 
+                            type="button"
+                            className="text-[10px] text-primary-500 hover:text-primary-600 flex items-center gap-0.5"
+                          >
+                            
+                            Size Guide
+                          </button>
+                        </label>
+                        <input
+                          type="text"
+                          value={config.dimensions}
+                          onChange={(e) => setConfig(prev => ({ ...prev, dimensions: e.target.value }))}
+                          placeholder='e.g., 72" × 36" × 30"'
+                          className="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow"
+                        />
+                      </div>
+                      
+                      {/* Progress indicator */}
+                      <div className="pt-2">
+                        <div className="flex items-center justify-between text-[10px] text-neutral-400 mb-1">
+                          <span>Style {config.style ? '✓' : '⬚'}</span>
+                          <span>Material {config.material ? '✓' : '⬚'}</span>
+                          <span>Color {config.color ? '✓' : '⬚'}</span>
+                        </div>
+                        <div className="h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+                          <motion.div 
+                            className="h-full bg-primary-500 rounded-full"
+                            animate={{ width: `${(Object.values(config).filter(v => v !== null && v !== '' && v !== 1 && v !== 2).length / 4) * 100}%` }}
+                            transition={{ duration: 0.3 }}
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Complete Button */}
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleComplete}
+                        disabled={!config.style || !config.material}
+                        className={`w-full py-3 rounded-lg font-semibold text-sm transition-all ${
+                          !config.style || !config.material
+                            ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-primary-600 to-primary-500 text-white hover:shadow-lg'
+                        }`}
+                      >
+                        Complete My Design
+                      </motion.button>
+                    </motion.div>
+                  )}
+                  
+                  {config.step === 3 && (
+                    <motion.div
+                      key="step3"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      className="space-y-4 text-center"
+                    >
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+                        className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-3"
+                      >
+                        <FiCheckCircle className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
+                      </motion.div>
+                      <h3 className="text-xl font-bold text-neutral-900 dark:text-white">Design Complete!</h3>
+                      <p className="text-sm text-neutral-500">Your custom furniture is ready to be crafted</p>
+                      
+                      <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-xl p-4 space-y-2 text-left">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-500">Type</span>
+                          <span className="font-semibold text-neutral-900 dark:text-white">{config.type?.label}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-500">Style</span>
+                          <span className="font-semibold text-neutral-900 dark:text-white">{config.style?.label}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-500">Material</span>
+                          <span className="font-semibold text-neutral-900 dark:text-white">{config.material?.label}</span>
+                        </div>
+                        {config.color && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-neutral-500">Color</span>
+                            <span className="font-semibold text-neutral-900 dark:text-white">{config.color}</span>
+                          </div>
+                        )}
+                        {config.dimensions && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-neutral-500">Dimensions</span>
+                            <span className="font-semibold text-neutral-900 dark:text-white">{config.dimensions}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleReset}
+                          className="flex-1 py-2.5 rounded-lg font-medium text-sm border border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
+                        >
+                          Start Over
+                        </button>
+                        <button
+                          onClick={() => setShowDetails(true)}
+                          className="flex-1 py-2.5 rounded-lg font-medium text-sm bg-primary-600 text-white hover:bg-primary-700 transition-colors flex items-center justify-center gap-1"
+                        >
+                          Request Quote <FiArrowRight className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+            
+            {/* RIGHT COLUMN - Sticky 3D Model (65%) */}
+            <div className="lg:w-[65%]">
+              <div 
+                ref={modelContainerRef}
+                className="sticky top-24 bg-white dark:bg-neutral-800/50 rounded-2xl p-6 border border-neutral-200 dark:border-neutral-700 shadow-lg"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">Live Preview</h3>
+                    <p className="text-[10px] text-neutral-400">Updates instantly with your choices</p>
+                  </div>
+                  {config.step === 3 && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 rounded-full"
+                    >
+                      <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                        <FiCheckCircle className="h-3 w-3" /> Complete
+                      </span>
+                    </motion.div>
+                  )}
+                </div>
+                
+                {memoizedModel}
+                
+                {/* Build progress messages */}
+                <AnimatePresence>
+                  {config.step === 2 && config.type && !config.style && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="mt-4 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-center"
+                    >
+                      <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1">
+                        <FiStar className="h-3 w-3" /> Select a style to continue
+                      </p>
+                    </motion.div>
+                  )}
+                  {config.step === 2 && config.style && !config.material && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="mt-4 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-center"
+                    >
+                      <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center justify-center gap-1">
+                        <MdPalette className="h-3 w-3" /> Choose a material to complete your design
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                
+                {/* Rotation hint for final step */}
+                {config.step === 3 && completionAnimation && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="mt-4 text-center"
+                  >
+                    <p className="text-[10px] text-primary-500 flex items-center justify-center gap-1">
+                      <FiRotateCw className="h-3 w-3 animate-spin" />
+                      Rotating for full view...
+                    </p>
+                  </motion.div>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Quote Request Modal */}
+          <AnimatePresence>
+            {showDetails && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                onClick={() => setShowDetails(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                  className="bg-white dark:bg-neutral-800 rounded-2xl max-w-md w-full p-6 shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold text-neutral-900 dark:text-white">Request a Quote</h3>
+                    <button onClick={() => setShowDetails(false)} className="text-neutral-400 hover:text-neutral-600">
+                      <FiX className="h-5 w-5" />
+                    </button>
+                  </div>
+                  
+                  <div className="mb-4 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
+                    <p className="text-xs text-primary-700 dark:text-primary-300">
+                      <strong>{config.type?.label}</strong> • {config.style?.label} • {config.material?.label}
+                      {config.color && ` • ${config.color}`}
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <input type="text" placeholder="Your Name" className="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    <input type="email" placeholder="Email Address" className="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    <input type="tel" placeholder="Phone Number" className="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    <textarea placeholder="Additional Notes" rows={3} className="w-full rounded-lg border border-neutral-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    
+                    <button className="w-full py-2.5 rounded-lg bg-gradient-to-r from-primary-600 to-primary-500 text-white font-semibold text-sm hover:shadow-lg transition-all">
+                      Submit Request
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
+          {/* Contact CTA */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mt-10 text-center"
+          >
+            <button 
+              onClick={() => navigate('/contact')}
+              className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 font-medium inline-flex items-center gap-2 group"
+            >
+              Need expert advice?
+              <span className="border-b border-primary-600">Chat with our design consultant</span>
+              <FiArrowRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
+            </button>
+          </motion.div>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default CustomFurniture;
+export default React.memo(CustomFurniture);
