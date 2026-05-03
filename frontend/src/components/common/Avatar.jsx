@@ -1,7 +1,7 @@
 // src/components/common/Avatar.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 
-const Avatar = ({
+const Avatar = memo(({
   src = null,
   name = '',
   size = 'md',
@@ -27,44 +27,33 @@ const Avatar = ({
     }
   }, [src]);
 
-  // Generate initials from name
-  const getInitials = () => {
+  // Memoized initials calculation
+  const getInitials = useCallback(() => {
     if (!name || name.trim() === '') {
       return '?';
     }
 
-    // Handle special characters and multiple spaces
     const cleanName = name.trim().replace(/\s+/g, ' ');
     const nameParts = cleanName.split(' ');
     
     if (nameParts.length === 1) {
-      // Single name - take first two characters or first character
       const firstChar = nameParts[0].charAt(0).toUpperCase();
       const secondChar = nameParts[0].length > 1 ? nameParts[0].charAt(1).toUpperCase() : '';
       return secondChar ? `${firstChar}${secondChar}` : firstChar;
     }
     
-    // Multiple names - take first character of first and last name
     const firstName = nameParts[0].charAt(0).toUpperCase();
     const lastName = nameParts[nameParts.length - 1].charAt(0).toUpperCase();
     return `${firstName}${lastName}`;
-  };
+  }, [name]);
 
-  // Generate background color based on name (consistent for same name)
-  const getBackgroundColor = () => {
+  // Memoized background color generation
+  const getBackgroundColor = useCallback(() => {
     if (src && !imageError) return 'transparent';
     
     const colors = [
-      '#F87171', // red
-      '#FBBF24', // amber
-      '#34D399', // emerald
-      '#60A5FA', // blue
-      '#A78BFA', // violet
-      '#F472B6', // pink
-      '#2DD4BF', // teal
-      '#FB923C', // orange
-      '#818CF8', // indigo
-      '#C084FC', // purple
+      '#F87171', '#FBBF24', '#34D399', '#60A5FA', '#A78BFA',
+      '#F472B6', '#2DD4BF', '#FB923C', '#818CF8', '#C084FC',
     ];
     
     if (!name) return colors[0];
@@ -76,10 +65,10 @@ const Avatar = ({
     }
     const index = Math.abs(hash) % colors.length;
     return colors[index];
-  };
+  }, [name, src, imageError]);
 
-  // Size mappings
-  const sizeMap = {
+  // Memoized size mappings
+  const sizeMap = useMemo(() => ({
     xs: {
       container: 'w-6 h-6',
       text: 'text-xs',
@@ -110,34 +99,44 @@ const Avatar = ({
       status: 'w-3.5 h-3.5',
       iconSize: 32,
     },
-  };
+  }), []);
 
-  // Status indicator styles
-  const statusStyles = {
+  // Memoized status styles
+  const statusStyles = useMemo(() => ({
     online: 'bg-green-500',
     offline: 'bg-gray-400',
     away: 'bg-yellow-500',
-  };
+  }), []);
 
-  const handleImageLoad = () => {
+  // Optimized event handlers
+  const handleImageLoad = useCallback(() => {
     setImageLoaded(true);
     setIsLoading(false);
-  };
+  }, []);
 
-  const handleImageError = () => {
+  const handleImageError = useCallback(() => {
     setImageError(true);
     setIsLoading(false);
     setImageLoaded(false);
-  };
+  }, []);
 
-  const containerClasses = `
+  const handleKeyPress = useCallback((e) => {
+    if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onClick(e);
+    }
+  }, [onClick]);
+
+  // Memoized container classes
+  const containerClasses = useMemo(() => `
     relative inline-flex
     ${sizeMap[size].container}
     ${onClick ? 'cursor-pointer' : ''}
     ${className}
-  `;
+  `.trim(), [size, onClick, className, sizeMap]);
 
-  const avatarClasses = `
+  // Memoized avatar classes
+  const avatarClasses = useMemo(() => `
     flex items-center justify-center
     w-full h-full
     rounded-full
@@ -145,9 +144,16 @@ const Avatar = ({
     ${!src || imageError ? 'bg-gradient-to-br from-gray-100 to-gray-200' : ''}
     ${onClick ? 'hover:opacity-80 transition-opacity' : ''}
     ${!src || imageError ? 'shadow-inner' : ''}
-  `;
+  `.trim(), [src, imageError, onClick]);
 
-  const getAvatarContent = () => {
+  // Memoized initials
+  const initials = useMemo(() => getInitials(), [getInitials]);
+  
+  // Memoized background color
+  const backgroundColor = useMemo(() => getBackgroundColor(), [getBackgroundColor]);
+
+  // Optimized avatar content rendering
+  const getAvatarContent = useCallback(() => {
     // Loading skeleton
     if (isLoading && src && !imageError) {
       return (
@@ -161,7 +167,7 @@ const Avatar = ({
         <img
           src={src}
           alt={alt || name || 'Avatar'}
-          className={`w-full h-full object-cover rounded-full transition-opacity duration-300 ${
+          className={`w-full h-full object-cover rounded-full transition-opacity duration-200 ${
             imageLoaded ? 'opacity-100' : 'opacity-0'
           }`}
           onLoad={handleImageLoad}
@@ -174,19 +180,19 @@ const Avatar = ({
     // Show initials as fallback
     return (
       <div
-        className="w-full h-full rounded-full flex items-center justify-center font-medium transition-all duration-300"
+        className="w-full h-full rounded-full flex items-center justify-center font-medium"
         style={{
-          backgroundColor: getBackgroundColor(),
+          backgroundColor,
           color: '#ffffff',
           textShadow: '0 1px 1px rgba(0,0,0,0.1)',
         }}
       >
         <span className={`${sizeMap[size].text} font-semibold`}>
-          {getInitials()}
+          {initials}
         </span>
       </div>
     );
-  };
+  }, [isLoading, src, imageError, imageLoaded, alt, name, sizeMap, size, initials, backgroundColor, handleImageLoad, handleImageError]);
 
   return (
     <div 
@@ -194,11 +200,7 @@ const Avatar = ({
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
-      onKeyPress={onClick ? (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          onClick(e);
-        }
-      } : undefined}
+      onKeyPress={handleKeyPress}
       {...restProps}
     >
       <div className={avatarClasses}>
@@ -226,10 +228,12 @@ const Avatar = ({
       )}
     </div>
   );
-};
+});
 
-// AvatarGroup component for displaying multiple avatars together
-export const AvatarGroup = ({ 
+Avatar.displayName = 'Avatar';
+
+// AvatarGroup component - Optimized with memo
+export const AvatarGroup = memo(({ 
   users = [], 
   max = 5, 
   size = 'md', 
@@ -238,7 +242,7 @@ export const AvatarGroup = ({
   className = '',
   ...restProps 
 }) => {
-  const visibleUsers = users.slice(0, max);
+  const visibleUsers = useMemo(() => users.slice(0, max), [users, max]);
   const remainingCount = users.length - max;
 
   if (!users || users.length === 0) return null;
@@ -248,7 +252,7 @@ export const AvatarGroup = ({
       {visibleUsers.map((user, index) => (
         <div
           key={user.id || index}
-          className="transform transition-transform hover:translate-y-[-2px] hover:z-10"
+          className="transform transition-transform duration-200 hover:translate-y-[-2px] hover:z-10"
           style={{ zIndex: users.length - index }}
         >
           <Avatar
@@ -266,7 +270,7 @@ export const AvatarGroup = ({
           <div className={`
             flex items-center justify-center rounded-full
             bg-gray-200 text-gray-600 font-medium
-            hover:bg-gray-300 transition-colors
+            hover:bg-gray-300 transition-colors duration-150
             ${size === 'xs' ? 'w-6 h-6 text-xs' : ''}
             ${size === 'sm' ? 'w-8 h-8 text-sm' : ''}
             ${size === 'md' ? 'w-10 h-10 text-base' : ''}
@@ -279,87 +283,13 @@ export const AvatarGroup = ({
       )}
     </div>
   );
-};
+});
 
-// CSS styles (alternative to Tailwind if not using Tailwind CSS)
+AvatarGroup.displayName = 'AvatarGroup';
+
+// CSS styles (optimized version)
 const styles = `
-  /* Alternative CSS styles if not using Tailwind */
-  .avatar {
-    position: relative;
-    display: inline-flex;
-    border-radius: 9999px;
-    overflow: hidden;
-  }
-
-  .avatar--clickable {
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-  }
-
-  .avatar--clickable:hover {
-    opacity: 0.8;
-  }
-
-  .avatar__container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    border-radius: 9999px;
-    overflow: hidden;
-  }
-
-  .avatar__container--fallback {
-    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
-  }
-
-  .avatar__image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 9999px;
-    transition: opacity 0.3s ease;
-  }
-
-  .avatar__initials {
-    font-weight: 600;
-    color: white;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
-  }
-
-  .avatar__status {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    display: block;
-    border-radius: 9999px;
-    background-color: white;
-    box-shadow: 0 0 0 2px white;
-  }
-
-  .avatar__status--online {
-    background-color: #10b981;
-  }
-
-  .avatar__status--offline {
-    background-color: #9ca3af;
-  }
-
-  .avatar__status--away {
-    background-color: #f59e0b;
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  .avatar__loading {
-    position: absolute;
-    inset: 0;
-    border-radius: 9999px;
-    background-color: #f3f4f6;
-    animation: pulse 1.5s ease-in-out infinite;
-  }
-
+  /* Pulse animation - Optimized */
   @keyframes pulse {
     0%, 100% {
       opacity: 1;
@@ -369,58 +299,41 @@ const styles = `
     }
   }
 
-  /* Size variations */
-  .avatar--xs {
-    width: 1.5rem;
-    height: 1.5rem;
+  .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
-  .avatar--sm {
-    width: 2rem;
-    height: 2rem;
+  /* Status indicator animations */
+  .avatar__status--away {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
-  .avatar--md {
-    width: 2.5rem;
-    height: 2.5rem;
+  /* Optimized transitions */
+  .avatar__image {
+    transition: opacity 0.2s ease;
+    will-change: opacity;
   }
 
-  .avatar--lg {
-    width: 3rem;
-    height: 3rem;
-  }
-
-  .avatar--xl {
-    width: 4rem;
-    height: 4rem;
-  }
-
-  /* Group styles */
-  .avatar-group {
-    display: flex;
-  }
-
-  .avatar-group > * {
-    margin-left: -0.5rem;
-  }
-
-  .avatar-group > *:first-child {
-    margin-left: 0;
-  }
-
+  /* Group hover effects */
   .avatar-group .avatar:hover {
     transform: translateY(-2px);
-    z-index: 10;
+    transition: transform 0.2s ease;
   }
 
-  .avatar-group__count {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #e5e7eb;
-    color: #4b5563;
-    font-weight: 500;
-    border-radius: 9999px;
+  /* Reduced motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-pulse,
+    .avatar__status--away {
+      animation: none;
+    }
+    
+    .avatar-group .avatar:hover {
+      transform: none;
+    }
+    
+    .avatar__image {
+      transition: none;
+    }
   }
 `;
 

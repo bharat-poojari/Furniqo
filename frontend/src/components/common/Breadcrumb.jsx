@@ -7,9 +7,167 @@ import {
   FiSlash 
 } from 'react-icons/fi';
 import { cn } from '../../utils/cn';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo, useCallback } from 'react';
 
-const Breadcrumb = ({ 
+// Memoized Separator component
+const Separator = memo(({ separator, CustomSeparator, variantClasses }) => {
+  const getSeparator = useCallback(() => {
+    if (CustomSeparator) return <CustomSeparator className="h-4 w-4" />;
+    
+    switch (separator) {
+      case 'chevron':
+        return <FiChevronRight className="h-4 w-4" />;
+      case 'arrow':
+        return <span className="text-neutral-400 dark:text-neutral-500">→</span>;
+      case 'slash':
+        return <FiSlash className="h-4 w-4" />;
+      case 'dot':
+        return <span className="text-neutral-400 dark:text-neutral-500">•</span>;
+      case 'dash':
+        return <span className="text-neutral-400 dark:text-neutral-500">-</span>;
+      default:
+        return <FiChevronRight className="h-4 w-4" />;
+    }
+  }, [separator, CustomSeparator]);
+
+  return (
+    <span className={variantClasses.separator}>
+      {getSeparator()}
+    </span>
+  );
+});
+
+Separator.displayName = 'Separator';
+
+// Memoized Breadcrumb Item component
+const BreadcrumbItem = memo(({ 
+  item, 
+  index, 
+  isLast, 
+  isCollapsed,
+  currentVariant,
+  separator,
+  CustomSeparator,
+  capitalize,
+  truncateLength,
+  showHome,
+  hasHome
+}) => {
+  const truncateLabel = useCallback((label) => {
+    if (!truncateLength || label.length <= truncateLength) return label;
+    return `${label.slice(0, truncateLength)}...`;
+  }, [truncateLength]);
+
+  const displayLabel = useMemo(() => {
+    let label = item.label;
+    if (capitalize) {
+      label = label.charAt(0).toUpperCase() + label.slice(1);
+    }
+    return truncateLabel(label);
+  }, [item.label, capitalize, truncateLabel]);
+
+  if (isCollapsed) {
+    return (
+      <li className="flex items-center gap-1.5">
+        <span className={cn('flex items-center gap-1', currentVariant.link)}>
+          <FiMoreHorizontal className="h-4 w-4" />
+          <Separator 
+            separator={separator}
+            CustomSeparator={CustomSeparator}
+            variantClasses={currentVariant}
+          />
+        </span>
+      </li>
+    );
+  }
+
+  // Don't show separator for first item if home is shown
+  const showSeparator = !(index === 0 && showHome && hasHome);
+
+  return (
+    <li className="flex items-center gap-1.5">
+      {item.href && !isLast ? (
+        <Link
+          to={item.href}
+          className={cn(
+            'transition-colors duration-150 hover:underline decoration-dotted underline-offset-4',
+            currentVariant.link
+          )}
+        >
+          {displayLabel}
+        </Link>
+      ) : (
+        <span 
+          className={cn(currentVariant.current, 'cursor-default')}
+          aria-current={isLast ? 'page' : undefined}
+        >
+          {displayLabel}
+        </span>
+      )}
+      
+      {!isLast && showSeparator && (
+        <Separator 
+          separator={separator}
+          CustomSeparator={CustomSeparator}
+          variantClasses={currentVariant}
+        />
+      )}
+    </li>
+  );
+});
+
+BreadcrumbItem.displayName = 'BreadcrumbItem';
+
+// Memoized Home Link component
+const HomeLink = memo(({ homePath, currentVariant, showLabel = true }) => (
+  <li className="flex items-center">
+    <Link
+      to={homePath}
+      className={cn(
+        'transition-colors duration-150 flex items-center gap-1',
+        currentVariant.link,
+        'hover:scale-105 transition-transform'
+      )}
+      aria-label="Home"
+    >
+      <FiHome className="h-4 w-4" />
+      {showLabel && <span className="hidden sm:inline text-sm">Home</span>}
+    </Link>
+  </li>
+));
+
+HomeLink.displayName = 'HomeLink';
+
+// Memoized Back Button component
+const BackButton = memo(({ onBack, backLabel, currentVariant }) => {
+  const handleBack = useCallback(() => {
+    if (onBack) {
+      onBack();
+    } else {
+      window.history.back();
+    }
+  }, [onBack]);
+
+  return (
+    <button
+      onClick={handleBack}
+      className={cn(
+        'inline-flex items-center gap-1.5 transition-all duration-150',
+        currentVariant.link,
+        'hover:-translate-x-0.5'
+      )}
+      aria-label={backLabel}
+    >
+      <FiChevronLeft className="h-4 w-4" />
+      <span className="text-sm">{backLabel}</span>
+    </button>
+  );
+});
+
+BackButton.displayName = 'BackButton';
+
+// Main Breadcrumb Component
+const Breadcrumb = memo(({ 
   items, 
   className,
   separator = 'chevron',
@@ -33,23 +191,21 @@ const Breadcrumb = ({
   const autoItems = useMemo(() => {
     if (!autoGenerate) return [];
     
-    // Generate breadcrumbs from current pathname
     const pathnames = location.pathname.split('/').filter(x => x);
-    const generatedItems = pathnames.map((pathname, index) => {
+    return pathnames.map((pathname, index) => {
       const href = '/' + pathnames.slice(0, index + 1).join('/');
-      // Format label: convert kebab-case to Title Case
       let label = pathname.replace(/-/g, ' ');
       label = label.charAt(0).toUpperCase() + label.slice(1);
       return { href, label };
     });
-    
-    return generatedItems;
   }, [location.pathname, autoGenerate]);
 
-  const breadcrumbItems = autoGenerate ? autoItems : (items || []);
-  
+  const breadcrumbItems = useMemo(() => 
+    autoGenerate ? autoItems : (items || []),
+  [autoGenerate, autoItems, items]);
+
   // Handle max items with collapse
-  const getDisplayedItems = () => {
+  const displayedItems = useMemo(() => {
     if (!maxItems || breadcrumbItems.length <= maxItems) {
       return breadcrumbItems;
     }
@@ -62,17 +218,15 @@ const Breadcrumb = ({
       { label: collapsedLabel, href: null, collapsed: true },
       ...endItems,
     ];
-  };
+  }, [breadcrumbItems, maxItems, collapsedLabel]);
 
-  const displayedItems = getDisplayedItems();
-
-  const sizeClasses = {
+  const sizeClasses = useMemo(() => ({
     sm: 'text-xs py-1.5',
     md: 'text-sm py-3',
     lg: 'text-base py-4',
-  };
+  }), []);
 
-  const variantClasses = {
+  const variantClasses = useMemo(() => ({
     default: {
       link: 'text-neutral-500 hover:text-primary-600 dark:text-neutral-400 dark:hover:text-primary-400',
       current: 'text-neutral-900 dark:text-white font-medium',
@@ -93,40 +247,28 @@ const Breadcrumb = ({
       current: 'text-white dark:text-neutral-100 font-medium',
       separator: 'text-neutral-500',
     },
-  };
+  }), []);
 
-  const getSeparator = () => {
-    if (CustomSeparator) return <CustomSeparator className="h-4 w-4" />;
-    
-    switch (separator) {
-      case 'chevron':
-        return <FiChevronRight className="h-4 w-4" />;
-      case 'arrow':
-        return <span className="text-neutral-400 dark:text-neutral-500">→</span>;
-      case 'slash':
-        return <FiSlash className="h-4 w-4" />;
-      case 'dot':
-        return <span className="text-neutral-400 dark:text-neutral-500">•</span>;
-      case 'dash':
-        return <span className="text-neutral-400 dark:text-neutral-500">-</span>;
-      default:
-        return <FiChevronRight className="h-4 w-4" />;
-    }
-  };
+  const currentVariant = useMemo(() => 
+    variantClasses[variant] || variantClasses.default,
+  [variant, variantClasses]);
 
-  const truncateLabel = (label) => {
-    if (!truncateLength || label.length <= truncateLength) return label;
-    return `${label.slice(0, truncateLength)}...`;
-  };
+  const currentSize = useMemo(() => 
+    sizeClasses[size] || sizeClasses.md,
+  [size, sizeClasses]);
 
-  const currentVariant = variantClasses[variant] || variantClasses.default;
+  const lastItem = useMemo(() => 
+    breadcrumbItems.length > 0 ? breadcrumbItems[breadcrumbItems.length - 1] : null,
+  [breadcrumbItems]);
+
+  const hasHome = useMemo(() => breadcrumbItems.length > 0, [breadcrumbItems.length]);
 
   return (
     <nav 
       aria-label="Breadcrumb" 
       className={cn(
         'w-full',
-        sizeClasses[size],
+        currentSize,
         variant === 'light' && 'bg-neutral-50 dark:bg-neutral-900/50',
         variant === 'dark' && 'bg-neutral-800 dark:bg-neutral-900',
         className
@@ -135,18 +277,11 @@ const Breadcrumb = ({
       <div className="flex items-center justify-between flex-wrap gap-3">
         {/* Back Button */}
         {backButton && (
-          <button
-            onClick={onBack || (() => window.history.back())}
-            className={cn(
-              'inline-flex items-center gap-1.5 transition-colors',
-              currentVariant.link,
-              'hover:-translate-x-0.5 transition-transform'
-            )}
-            aria-label={backLabel}
-          >
-            <FiChevronLeft className="h-4 w-4" />
-            <span className="text-sm">{backLabel}</span>
-          </button>
+          <BackButton
+            onBack={onBack}
+            backLabel={backLabel}
+            currentVariant={currentVariant}
+          />
         )}
 
         {/* Breadcrumb Items */}
@@ -158,23 +293,20 @@ const Breadcrumb = ({
         >
           {/* Home Link */}
           {showHome && (
-            <li className="flex items-center">
-              <Link
-                to={homePath}
-                className={cn(
-                  'transition-colors flex items-center gap-1',
-                  currentVariant.link,
-                  'hover:scale-105 transition-transform'
-                )}
-                aria-label="Home"
-              >
-                <FiHome className="h-4 w-4" />
-                <span className="hidden sm:inline text-sm">Home</span>
-              </Link>
-              {breadcrumbItems.length > 0 && (
-                <span className="ml-1.5">{getSeparator()}</span>
+            <>
+              <HomeLink
+                homePath={homePath}
+                currentVariant={currentVariant}
+                showLabel={true}
+              />
+              {hasHome && (
+                <Separator 
+                  separator={separator}
+                  CustomSeparator={CustomSeparator}
+                  variantClasses={currentVariant}
+                />
               )}
-            </li>
+            </>
           )}
 
           {/* Breadcrumb Items */}
@@ -183,74 +315,40 @@ const Breadcrumb = ({
             const isCollapsed = item.collapsed;
             
             return (
-              <li key={index} className="flex items-center gap-1.5">
-                {!isCollapsed ? (
-                  <>
-                    {item.href && !isLast ? (
-                      <Link
-                        to={item.href}
-                        className={cn(
-                          'transition-colors hover:underline decoration-dotted underline-offset-4',
-                          currentVariant.link
-                        )}
-                      >
-                        {capitalize 
-                          ? truncateLabel(item.label.charAt(0).toUpperCase() + item.label.slice(1))
-                          : truncateLabel(item.label)
-                        }
-                      </Link>
-                    ) : (
-                      <span 
-                        className={cn(
-                          currentVariant.current,
-                          'cursor-default'
-                        )}
-                        aria-current={isLast ? 'page' : undefined}
-                      >
-                        {capitalize 
-                          ? truncateLabel(item.label.charAt(0).toUpperCase() + item.label.slice(1))
-                          : truncateLabel(item.label)
-                        }
-                      </span>
-                    )}
-                    
-                    {!isLast && (
-                      <span className={currentVariant.separator}>
-                        {getSeparator()}
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  // Collapsed indicator
-                  <span className={cn(
-                    'flex items-center gap-1',
-                    currentVariant.link
-                  )}>
-                    <FiMoreHorizontal className="h-4 w-4" />
-                    <span className={currentVariant.separator}>
-                      {getSeparator()}
-                    </span>
-                  </span>
-                )}
-              </li>
+              <BreadcrumbItem
+                key={index}
+                item={item}
+                index={index}
+                isLast={isLast}
+                isCollapsed={isCollapsed}
+                currentVariant={currentVariant}
+                separator={separator}
+                CustomSeparator={CustomSeparator}
+                capitalize={capitalize}
+                truncateLength={truncateLength}
+                showHome={showHome}
+                hasHome={hasHome}
+              />
             );
           })}
         </ol>
 
         {/* Optional: Page title for mobile */}
-        {breadcrumbItems.length > 0 && (
+        {lastItem && (
           <div className="block sm:hidden text-sm font-medium text-neutral-900 dark:text-white">
-            {breadcrumbItems[breadcrumbItems.length - 1].label}
+            {lastItem.label}
           </div>
         )}
       </div>
     </nav>
   );
-};
+});
+
+Breadcrumb.displayName = 'Breadcrumb';
 
 // Helper component for structured data (JSON-LD)
-export const BreadcrumbStructuredData = ({ items }) => {
-  const structuredData = {
+export const BreadcrumbStructuredData = memo(({ items }) => {
+  const structuredData = useMemo(() => ({
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: items.map((item, index) => ({
@@ -259,37 +357,30 @@ export const BreadcrumbStructuredData = ({ items }) => {
       name: item.label,
       item: item.href ? `${window.location.origin}${item.href}` : undefined,
     })),
-  };
+  }), [items]);
 
   return (
     <script type="application/ld+json">
       {JSON.stringify(structuredData)}
     </script>
   );
-};
+});
 
-// Predefined breadcrumb presets
+BreadcrumbStructuredData.displayName = 'BreadcrumbStructuredData';
+
 export const BreadcrumbPresets = {
-  shop: [
-    { label: 'Shop', href: '/shop' },
-  ],
-  cart: [
-    { label: 'Cart', href: '/cart' },
-  ],
+  shop: [{ label: 'Shop', href: '/shop' }],
+  cart: [{ label: 'Cart', href: '/cart' }],
   checkout: [
     { label: 'Cart', href: '/cart' },
     { label: 'Checkout', href: '/checkout' },
   ],
-  account: [
-    { label: 'My Account', href: '/account' },
-  ],
+  account: [{ label: 'My Account', href: '/account' }],
   orders: [
     { label: 'My Account', href: '/account' },
     { label: 'Orders', href: '/orders' },
   ],
-  wishlist: [
-    { label: 'Wishlist', href: '/wishlist' },
-  ],
+  wishlist: [{ label: 'Wishlist', href: '/wishlist' }],
 };
 
 export default Breadcrumb;

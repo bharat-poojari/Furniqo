@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, memo, useCallback, useMemo } from 'react';
 import { FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';
 import { cn } from '../../utils/cn';
 
@@ -9,38 +8,55 @@ const Pagination = ({
   onPageChange,
   className,
   showFirstLast = true,
-  variant = 'default', // 'default', 'minimal', 'rounded'
-  size = 'md', // 'sm', 'md', 'lg'
+  variant = 'default',
+  size = 'md',
+  siblingCount = 1,
 }) => {
   const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
 
+  // Throttled resize listener
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640);
+    let timeoutId;
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < 640);
+      setIsTablet(width >= 640 && width < 1024);
     };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    
+    checkScreenSize();
+    
+    const handleResize = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(checkScreenSize, 150);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, []);
 
-  if (totalPages <= 1) return null;
-
-  const sizeClasses = {
+  const sizeClasses = useMemo(() => ({
     sm: {
-      button: 'p-1.5 min-w-[32px] h-8 text-xs',
-      icon: 'h-4 w-4',
+      button: 'p-1.5 min-w-[28px] h-7 text-xs',
+      icon: 'h-3.5 w-3.5',
+      text: 'text-xs',
     },
     md: {
-      button: 'p-2 min-w-[40px] h-10 text-sm',
-      icon: 'h-5 w-5',
+      button: 'p-2 min-w-[36px] h-9 text-sm',
+      icon: 'h-4 w-4',
+      text: 'text-sm',
     },
     lg: {
-      button: 'p-2.5 min-w-[48px] h-12 text-base',
-      icon: 'h-6 w-6',
+      button: 'p-2.5 min-w-[44px] h-11 text-base',
+      icon: 'h-5 w-5',
+      text: 'text-base',
     },
-  };
+  }), []);
 
-  const variantClasses = {
+  const variantClasses = useMemo(() => ({
     default: {
       button: 'hover:bg-neutral-100 dark:hover:bg-neutral-800',
       active: 'bg-primary-600 text-white shadow-md shadow-primary-500/25',
@@ -53,11 +69,19 @@ const Pagination = ({
       button: 'hover:bg-neutral-100 dark:hover:bg-neutral-800',
       active: 'bg-primary-600 text-white shadow-md shadow-primary-500/25 rounded-full',
     },
-  };
+  }), []);
 
-  const getPageNumbers = () => {
+  const getPageNumbers = useCallback(() => {
     const pages = [];
-    const maxVisible = isMobile ? 3 : 5;
+    let maxVisible;
+    
+    if (isMobile) {
+      maxVisible = 3;
+    } else if (isTablet) {
+      maxVisible = 5;
+    } else {
+      maxVisible = 7;
+    }
     
     if (totalPages <= maxVisible) {
       for (let i = 1; i <= totalPages; i++) {
@@ -66,14 +90,37 @@ const Pagination = ({
     } else {
       pages.push(1);
       
-      let start = Math.max(2, currentPage - 1);
-      let end = Math.min(totalPages - 1, currentPage + 1);
+      let start = Math.max(2, currentPage - siblingCount);
+      let end = Math.min(totalPages - 1, currentPage + siblingCount);
       
-      if (currentPage <= 2) {
-        end = Math.min(4, totalPages - 1);
-      }
-      if (currentPage >= totalPages - 1) {
-        start = Math.max(totalPages - 3, 2);
+      // Adjust for mobile to show fewer pages
+      if (isMobile) {
+        if (currentPage <= 2) {
+          end = Math.min(3, totalPages - 1);
+        } else if (currentPage >= totalPages - 1) {
+          start = Math.max(totalPages - 2, 2);
+        } else {
+          start = currentPage;
+          end = currentPage;
+        }
+      } else if (isTablet) {
+        if (currentPage <= 3) {
+          end = Math.min(4, totalPages - 1);
+        } else if (currentPage >= totalPages - 2) {
+          start = Math.max(totalPages - 3, 2);
+        } else {
+          start = currentPage - 1;
+          end = currentPage + 1;
+        }
+      } else {
+        if (currentPage <= 3) {
+          end = Math.min(5, totalPages - 1);
+        } else if (currentPage >= totalPages - 2) {
+          start = Math.max(totalPages - 4, 2);
+        } else {
+          start = currentPage - 2;
+          end = currentPage + 2;
+        }
       }
       
       if (start > 2) {
@@ -92,34 +139,25 @@ const Pagination = ({
     }
     
     return pages;
-  };
+  }, [currentPage, totalPages, isMobile, isTablet, siblingCount]);
 
-  const handlePageChange = (page) => {
+  const handlePageChange = useCallback((page) => {
     if (page !== currentPage && page >= 1 && page <= totalPages) {
       onPageChange(page);
-      // Smooth scroll to top when changing page
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  };
+  }, [currentPage, totalPages, onPageChange]);
 
-  const pageNumbers = getPageNumbers();
+  const pageNumbers = useMemo(() => getPageNumbers(), [getPageNumbers]);
   const currentSize = sizeClasses[size];
   const currentVariant = variantClasses[variant];
 
-  // Animation variants
-  const buttonVariants = {
-    hover: { scale: 1.05, transition: { duration: 0.2 } },
-    tap: { scale: 0.95, transition: { duration: 0.1 } },
-  };
+  if (totalPages <= 1) return null;
 
   return (
-    <nav className={cn('flex items-center justify-center gap-1.5', className)} aria-label="Pagination">
-      {/* First Page Button */}
-      {showFirstLast && (
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
+    <nav className={cn('flex items-center justify-center gap-1 sm:gap-1.5 flex-wrap', className)} aria-label="Pagination">
+      {/* First Page Button - Hide on very small screens if needed */}
+      {showFirstLast && !isMobile && (
+        <button
           onClick={() => handlePageChange(1)}
           disabled={currentPage === 1}
           className={cn(
@@ -131,14 +169,11 @@ const Pagination = ({
           aria-label="First page"
         >
           <FiChevronsLeft className={currentSize.icon} />
-        </motion.button>
+        </button>
       )}
 
       {/* Previous Page Button */}
-      <motion.button
-        variants={buttonVariants}
-        whileHover="hover"
-        whileTap="tap"
+      <button
         onClick={() => handlePageChange(currentPage - 1)}
         disabled={currentPage === 1}
         className={cn(
@@ -150,50 +185,48 @@ const Pagination = ({
         aria-label="Previous page"
       >
         <FiChevronLeft className={currentSize.icon} />
-      </motion.button>
+      </button>
 
-      {/* Page Numbers - No AnimatePresence to avoid conflicts */}
-      <div className="flex items-center gap-1">
+      {/* Page Numbers */}
+      <div className="flex items-center gap-1 sm:gap-1.5">
         {pageNumbers.map((page, index) => {
           const isEllipsis = page === '...';
           const isActive = page === currentPage;
           
+          if (isEllipsis) {
+            return (
+              <span
+                key={`ellipsis-${index}`}
+                className={cn(currentSize.button, 'cursor-default text-neutral-400 dark:text-neutral-600')}
+              >
+                ...
+              </span>
+            );
+          }
+          
           return (
-            <motion.button
-              key={`${page}-${index}`}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.15, delay: index * 0.03 }}
-              onClick={() => !isEllipsis && handlePageChange(page)}
-              disabled={isEllipsis}
-              whileHover={!isEllipsis ? { scale: 1.05 } : {}}
-              whileTap={!isEllipsis ? { scale: 0.95 } : {}}
+            <button
+              key={page}
+              onClick={() => handlePageChange(page)}
               className={cn(
                 currentSize.button,
                 'rounded-lg font-medium transition-all duration-200',
-                isEllipsis
-                  ? 'cursor-default text-neutral-400 dark:text-neutral-600'
-                  : cn(
-                      currentVariant.button,
-                      isActive && currentVariant.active,
-                      !isActive && 'hover:scale-105',
-                      variant === 'rounded' && isActive && 'rounded-full',
-                      variant === 'rounded' && !isActive && 'rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800'
-                    )
+                currentVariant.button,
+                isActive && currentVariant.active,
+                !isActive && 'hover:scale-105',
+                variant === 'rounded' && isActive && 'rounded-full',
+                variant === 'rounded' && !isActive && 'rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800'
               )}
               aria-current={isActive ? 'page' : undefined}
             >
               {page}
-            </motion.button>
+            </button>
           );
         })}
       </div>
 
       {/* Next Page Button */}
-      <motion.button
-        variants={buttonVariants}
-        whileHover="hover"
-        whileTap="tap"
+      <button
         onClick={() => handlePageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         className={cn(
@@ -205,14 +238,11 @@ const Pagination = ({
         aria-label="Next page"
       >
         <FiChevronRight className={currentSize.icon} />
-      </motion.button>
+      </button>
 
-      {/* Last Page Button */}
-      {showFirstLast && (
-        <motion.button
-          variants={buttonVariants}
-          whileHover="hover"
-          whileTap="tap"
+      {/* Last Page Button - Hide on very small screens if needed */}
+      {showFirstLast && !isMobile && (
+        <button
           onClick={() => handlePageChange(totalPages)}
           disabled={currentPage === totalPages}
           className={cn(
@@ -224,17 +254,23 @@ const Pagination = ({
           aria-label="Last page"
         >
           <FiChevronsRight className={currentSize.icon} />
-        </motion.button>
+        </button>
       )}
 
-      {/* Page Info for Mobile */}
-      {isMobile && totalPages > 5 && (
-        <span className="ml-2 text-xs text-neutral-500 dark:text-neutral-400">
-          Page {currentPage} of {totalPages}
-        </span>
-      )}
+      {/* Page Info - More responsive design */}
+      <div className={cn(
+        "ml-2 px-2 py-1 bg-neutral-100 dark:bg-neutral-800 rounded-lg",
+        currentSize.text,
+        "font-medium text-neutral-600 dark:text-neutral-400 whitespace-nowrap"
+      )}>
+        <span className="hidden xs:inline">Page </span>
+        <span className="font-bold text-primary-600 dark:text-primary-400">{currentPage}</span>
+        <span className="hidden xs:inline"> of </span>
+        <span className="hidden xs:inline">{totalPages}</span>
+        <span className="xs:hidden">/{totalPages}</span>
+      </div>
     </nav>
   );
 };
 
-export default Pagination;
+export default memo(Pagination);

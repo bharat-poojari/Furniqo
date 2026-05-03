@@ -1,5 +1,4 @@
 import { useMemo, memo } from 'react';
-import { motion } from 'framer-motion';
 import { 
   FiTruck, 
   FiShield, 
@@ -62,40 +61,33 @@ const features = [
   },
 ];
 
-// Memoized feature card component for better performance
-const FeatureCard = memo(({ feature, index }) => {
+// Optimized feature card component - Removed framer-motion
+const FeatureCard = memo(({ feature }) => {
   const IconComponent = feature.icon;
   
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.3, delay: index * 0.03 }}
-      whileHover={{ y: -4 }}
-      className="group relative bg-white dark:bg-neutral-800/50 rounded-lg sm:rounded-xl p-2.5 sm:p-3 md:p-4 shadow-md hover:shadow-xl transition-all duration-200 border border-neutral-100 dark:border-neutral-700 hover:border-primary-200 dark:hover:border-primary-800"
-    >
+    <div className="group relative bg-white dark:bg-neutral-800/50 rounded-lg sm:rounded-xl p-2.5 sm:p-3 md:p-4 shadow-md hover:shadow-xl transition-all duration-200 border border-neutral-100 dark:border-neutral-700 hover:border-primary-200 dark:hover:border-primary-800">
       {/* Icon Container */}
       <div className="relative mb-1.5 sm:mb-2 md:mb-3">
-        <div className={`relative w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-lg bg-gradient-to-br ${feature.iconBg} flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200`}>
+        <div className={`relative w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-lg bg-gradient-to-br ${feature.iconBg} flex items-center justify-center shadow-md transition-transform duration-200 group-hover:scale-110`}>
           <IconComponent className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 text-white" />
         </div>
       </div>
       
       {/* Content */}
-      <h3 className="text-xs sm:text-sm md:text-base font-semibold text-neutral-900 dark:text-white mb-0.5 sm:mb-1 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-150">
+      <h3 className="text-xs sm:text-sm md:text-base font-semibold text-neutral-900 dark:text-white mb-0.5 sm:mb-1 transition-colors duration-150 group-hover:text-primary-600 dark:group-hover:text-primary-400">
         {feature.title}
       </h3>
       <p className="text-[10px] sm:text-[11px] md:text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
         {feature.description}
       </p>
-    </motion.div>
+    </div>
   );
 });
 
 FeatureCard.displayName = 'FeatureCard';
 
-// Memoized trust badge component
+// Optimized trust badge component - Removed framer-motion
 const TrustBadge = memo(() => {
   const paymentMethods = useMemo(() => [
     { name: 'Visa', url: 'https://cdn-icons-png.flaticon.com/512/349/349221.png', class: 'h-4 sm:h-5' },
@@ -105,13 +97,7 @@ const TrustBadge = memo(() => {
   ], []);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.3 }}
-      className="mt-4 sm:mt-6"
-    >
+    <div className="mt-4 sm:mt-6">
       <div className="bg-white dark:bg-neutral-800/50 rounded-lg sm:rounded-xl shadow-md border border-neutral-200 dark:border-neutral-700 p-3 sm:p-4 md:p-5">
         <div className="flex flex-col md:flex-row gap-4 md:gap-5">
           {/* Row 1: Rating & Security */}
@@ -158,66 +144,24 @@ const TrustBadge = memo(() => {
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 });
 
 TrustBadge.displayName = 'TrustBadge';
 
 const Features = () => {
-  // Optimized container variants with faster animations
-  const containerVariants = useMemo(() => ({
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.04,
-        duration: 0.2,
-      },
-    },
-  }), []);
-
-  const headerVariants = useMemo(() => ({
-    hidden: { opacity: 0, y: 15 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
-      transition: { duration: 0.3 } 
-    },
-  }), []);
-
-  const badgeVariants = useMemo(() => ({
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: { 
-      opacity: 1, 
-      scale: 1, 
-      transition: { duration: 0.3, delay: 0.1 } 
-    },
-  }), []);
-
   return (
     <section className="py-[2%] sm:py-[1%] bg-gradient-to-b from-white to-neutral-50 dark:from-neutral-950 dark:to-neutral-900">
       <div className="w-full px-[1%] sm:px-[1.5%]">
-        {/* Header Section */}
-        <motion.div
-          variants={headerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          className="text-center mb-4 sm:mb-6"
-        >
-          <motion.div
-            variants={badgeVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1 bg-gradient-to-r from-primary-500/10 to-purple-500/10 rounded-full mb-2 sm:mb-3"
-          >
+        {/* Header Section - Removed framer-motion */}
+        <div className="text-center mb-4 sm:mb-6">
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1 bg-gradient-to-r from-primary-500/10 to-purple-500/10 rounded-full mb-2 sm:mb-3">
             <FiStar className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary-600" />
             <span className="text-[10px] sm:text-xs font-medium text-primary-600 dark:text-primary-400">
               Why Choose Us
             </span>
-          </motion.div>
+          </div>
 
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-neutral-900 dark:text-white mb-1.5 sm:mb-2 px-4 sm:px-0">
             Why Choose Furniqo?
@@ -225,20 +169,14 @@ const Features = () => {
           <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto px-4 sm:px-0">
             Premium quality furniture with exceptional service
           </p>
-        </motion.div>
+        </div>
 
-        {/* Features Grid */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-50px" }}
-          className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:gap-5"
-        >
+        {/* Features Grid - Simplified, removed stagger animations */}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:gap-5">
           {features.map((feature, index) => (
-            <FeatureCard key={index} feature={feature} index={index} />
+            <FeatureCard key={index} feature={feature} />
           ))}
-        </motion.div>
+        </div>
 
         {/* Trust Badge */}
         <TrustBadge />

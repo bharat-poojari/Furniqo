@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiSearch,
   FiHeart,
@@ -322,7 +321,7 @@ const Header = () => {
     <>
       <header
         className={cn(
-          'sticky top-0 z-50 transition-all duration-200 will-change-transform',
+          'sticky top-0 z-50 transition-all duration-200',
           isScrolled
             ? 'bg-white/95 dark:bg-neutral-950/95 backdrop-blur-md shadow-medium border-b border-neutral-200/50 dark:border-neutral-800/50'
             : 'bg-white dark:bg-neutral-950 border-b border-transparent'
@@ -366,7 +365,7 @@ const Header = () => {
               </div>
             </div>
 
-            {/* Desktop Navigation - Optimized for instant navigation */}
+            {/* Desktop Navigation - Removed framer-motion */}
             {isDesktop && (
               <nav className="hidden lg:flex items-center gap-1">
                 <button
@@ -392,7 +391,7 @@ const Header = () => {
                   Shop
                 </button>
                 
-                {/* Categories Dropdown - Opens on Click */}
+                {/* Categories Dropdown - Simplified, removed AnimatePresence */}
                 <div 
                   className="relative"
                   ref={categoryMenuRef}
@@ -412,94 +411,85 @@ const Header = () => {
                     )} />
                   </button>
                   
-                  <AnimatePresence>
-                    {isCategoryClicked && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10, scaleY: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scaleY: 1 }}
-                        exit={{ opacity: 0, y: 10, scaleY: 0.95 }}
-                        transition={{ duration: 0.15, ease: "easeOut" }}
-                        className="absolute top-full left-0 mt-1 w-[800px] bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 z-50 overflow-hidden origin-top"
-                        style={{ transformOrigin: 'top' }}
-                      >
-                        <div className="grid grid-cols-4 gap-0">
-                          {categories.map((category) => (
-                            <div key={category.name} className="group/category">
-                              <button
-                                onClick={() => handleCategoryClick(category.name)}
-                                className="block w-full text-left p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors duration-150 border-r border-b border-neutral-100 dark:border-neutral-800 cursor-pointer"
-                                type="button"
-                              >
-                                <div className="flex items-center gap-3 mb-3">
-                                  <div className={cn(
-                                    "w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg transition-transform group-hover/category:scale-105",
-                                    category.color
-                                  )}>
-                                    <category.icon className="h-5 w-5 text-white" />
-                                  </div>
-                                  <div>
-                                    <h4 className="font-semibold text-sm text-neutral-900 dark:text-white">
-                                      {category.name}
-                                    </h4>
-                                    <p className="text-xs text-neutral-500">
-                                      {category.subcategories.length} items
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="space-y-1.5">
-                                  {category.subcategories.slice(0, 3).map((sub) => (
-                                    <button
-                                      key={sub}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleSubcategoryClick(category.name, sub);
-                                      }}
-                                      className="block w-full text-left text-xs text-neutral-600 dark:text-neutral-400 hover:text-primary-600 transition-colors duration-150 cursor-pointer"
-                                      type="button"
-                                    >
-                                      {sub}
-                                    </button>
-                                  ))}
-                                  {category.subcategories.length > 3 && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleCategoryClick(category.name);
-                                      }}
-                                      className="text-xs text-primary-600 font-medium mt-1.5 flex items-center gap-1 cursor-pointer hover:text-primary-700 transition-colors duration-150"
-                                      type="button"
-                                    >
-                                      +{category.subcategories.length - 3} more
-                                      <FiChevronRight className="h-3 w-3" />
-                                    </button>
-                                  )}
-                                </div>
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                        
-                        <div className="bg-gradient-to-r from-primary-600 to-primary-800 p-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-white text-sm font-semibold">Browse All Categories</p>
-                              <p className="text-white/80 text-xs">Discover our complete collection</p>
-                            </div>
+                  {isCategoryClicked && (
+                    <div className="absolute top-full left-0 mt-1 w-[800px] bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 z-50 overflow-hidden origin-top transition-all duration-150">
+                      <div className="grid grid-cols-4 gap-0">
+                        {categories.map((category) => (
+                          <div key={category.name} className="group/category">
                             <button
-                              onClick={() => {
-                                setIsCategoryClicked(false);
-                                navigateWithOptimization('/products');
-                              }}
-                              className="px-4 py-1.5 bg-white/20 backdrop-blur-sm rounded-lg text-white text-sm font-medium hover:bg-white/30 transition-all duration-150 hover:scale-105 active:scale-95"
+                              onClick={() => handleCategoryClick(category.name)}
+                              className="block w-full text-left p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors duration-150 border-r border-b border-neutral-100 dark:border-neutral-800 cursor-pointer"
                               type="button"
                             >
-                              View All
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className={cn(
+                                  "w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg transition-transform duration-200 group-hover/category:scale-105",
+                                  category.color
+                                )}>
+                                  <category.icon className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-sm text-neutral-900 dark:text-white">
+                                    {category.name}
+                                  </h4>
+                                  <p className="text-xs text-neutral-500">
+                                    {category.subcategories.length} items
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="space-y-1.5">
+                                {category.subcategories.slice(0, 3).map((sub) => (
+                                  <button
+                                    key={sub}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSubcategoryClick(category.name, sub);
+                                    }}
+                                    className="block w-full text-left text-xs text-neutral-600 dark:text-neutral-400 hover:text-primary-600 transition-colors duration-150 cursor-pointer"
+                                    type="button"
+                                  >
+                                    {sub}
+                                  </button>
+                                ))}
+                                {category.subcategories.length > 3 && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCategoryClick(category.name);
+                                    }}
+                                    className="text-xs text-primary-600 font-medium mt-1.5 flex items-center gap-1 cursor-pointer hover:text-primary-700 transition-colors duration-150"
+                                    type="button"
+                                  >
+                                    +{category.subcategories.length - 3} more
+                                    <FiChevronRight className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </div>
                             </button>
                           </div>
+                        ))}
+                      </div>
+                      
+                      <div className="bg-gradient-to-r from-primary-600 to-primary-800 p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-white text-sm font-semibold">Browse All Categories</p>
+                            <p className="text-white/80 text-xs">Discover our complete collection</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setIsCategoryClicked(false);
+                              navigateWithOptimization('/products');
+                            }}
+                            className="px-4 py-1.5 bg-white/20 backdrop-blur-sm rounded-lg text-white text-sm font-medium hover:bg-white/30 transition-all duration-150 hover:scale-105 active:scale-95"
+                            type="button"
+                          >
+                            View All
+                          </button>
                         </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <button
@@ -578,7 +568,7 @@ const Header = () => {
                 )}
               </button>
 
-              {/* Cart - Hover shows preview, Click goes to cart page */}
+              {/* Cart - Simplified preview */}
               <div 
                 className="relative" 
                 ref={cartPreviewRef}
@@ -599,92 +589,84 @@ const Header = () => {
                   )}
                 </button>
                 
-                {/* Cart Preview Dropdown - Shows on Hover */}
-                <AnimatePresence>
-                  {showCartPreview && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-80 bg-white dark:bg-neutral-900 rounded-2xl shadow-hard border border-neutral-200 dark:border-neutral-800 z-50"
-                    >
-                      <div className="p-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="font-semibold">
-                            Cart ({cartCount} items)
-                          </h3>
-                          <button
-                            onClick={() => {
-                              setShowCartPreview(false);
-                              navigateWithOptimization('/cart');
-                            }}
-                            className="text-sm text-primary-600 hover:text-primary-700 transition-colors duration-150"
-                            type="button"
-                          >
-                            View Cart
-                          </button>
-                        </div>
-                        
-                        {!cartItems || cartItems.length === 0 ? (
-                          <p className="text-center text-neutral-500 py-4">
-                            Your cart is empty
-                          </p>
-                        ) : (
-                          <>
-                            <div className="space-y-3 max-h-64 overflow-auto mb-4">
-                              {cartItems.slice(0, 3).map((item) => (
-                                <div key={item._id || item.product?._id} className="flex gap-3">
-                                  <img
-                                    src={getProductImage(item)}
-                                    alt={getProductName(item)}
-                                    className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
-                                    loading="lazy"
-                                    onError={(e) => {
-                                      e.target.src = 'https://via.placeholder.com/64x64?text=No+Image';
-                                    }}
-                                  />
-                                  <div className="flex-grow min-w-0">
-                                    <p className="text-sm font-medium truncate">
-                                      {getProductName(item)}
-                                    </p>
-                                    <p className="text-xs text-neutral-500">
-                                      Qty: {item.quantity || 1}
-                                    </p>
-                                    <p className="text-sm font-semibold text-primary-600">
-                                      ${getProductPrice(item)}
-                                    </p>
-                                  </div>
-                                </div>
-                              ))}
-                              {cartItems.length > 3 && (
-                                <p className="text-sm text-neutral-500 text-center">
-                                  +{cartItems.length - 3} more items
-                                </p>
-                              )}
-                            </div>
-                            <div className="border-t dark:border-neutral-800 pt-3">
-                              <div className="flex justify-between mb-4">
-                                <span className="font-medium">Subtotal</span>
-                                <span className="font-bold">${subtotal.toFixed(2)}</span>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  setShowCartPreview(false);
-                                  navigateWithOptimization('/checkout');
-                                }}
-                                className="block w-full text-center bg-primary-600 text-white py-2.5 rounded-xl font-semibold hover:bg-primary-700 transition-colors duration-150 active:scale-95"
-                                type="button"
-                              >
-                                Checkout
-                              </button>
-                            </div>
-                          </>
-                        )}
+                {/* Cart Preview Dropdown - Simplified, removed framer-motion */}
+                {showCartPreview && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-neutral-900 rounded-2xl shadow-hard border border-neutral-200 dark:border-neutral-800 z-50 transition-all duration-150">
+                    <div className="p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold">
+                          Cart ({cartCount} items)
+                        </h3>
+                        <button
+                          onClick={() => {
+                            setShowCartPreview(false);
+                            navigateWithOptimization('/cart');
+                          }}
+                          className="text-sm text-primary-600 hover:text-primary-700 transition-colors duration-150"
+                          type="button"
+                        >
+                          View Cart
+                        </button>
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      
+                      {!cartItems || cartItems.length === 0 ? (
+                        <p className="text-center text-neutral-500 py-4">
+                          Your cart is empty
+                        </p>
+                      ) : (
+                        <>
+                          <div className="space-y-3 max-h-64 overflow-auto mb-4">
+                            {cartItems.slice(0, 3).map((item) => (
+                              <div key={item._id || item.product?._id} className="flex gap-3">
+                                <img
+                                  src={getProductImage(item)}
+                                  alt={getProductName(item)}
+                                  className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    e.target.src = 'https://via.placeholder.com/64x64?text=No+Image';
+                                  }}
+                                />
+                                <div className="flex-grow min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {getProductName(item)}
+                                  </p>
+                                  <p className="text-xs text-neutral-500">
+                                    Qty: {item.quantity || 1}
+                                  </p>
+                                  <p className="text-sm font-semibold text-primary-600">
+                                    ${getProductPrice(item)}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                            {cartItems.length > 3 && (
+                              <p className="text-sm text-neutral-500 text-center">
+                                +{cartItems.length - 3} more items
+                              </p>
+                            )}
+                          </div>
+                          <div className="border-t dark:border-neutral-800 pt-3">
+                            <div className="flex justify-between mb-4">
+                              <span className="font-medium">Subtotal</span>
+                              <span className="font-bold">${subtotal.toFixed(2)}</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setShowCartPreview(false);
+                                navigateWithOptimization('/checkout');
+                              }}
+                              className="block w-full text-center bg-primary-600 text-white py-2.5 rounded-xl font-semibold hover:bg-primary-700 transition-colors duration-150 active:scale-95"
+                              type="button"
+                            >
+                              Checkout
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Notifications */}
@@ -702,7 +684,7 @@ const Header = () => {
                 )}
               </button>
 
-              {/* User Menu */}
+              {/* User Menu - Simplified */}
               <div className="relative" ref={userMenuRef}>
                 {isAuthenticated ? (
                   <>
@@ -725,67 +707,59 @@ const Header = () => {
                       </span>
                     </button>
                     
-                    <AnimatePresence>
-                      {showUserMenu && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 10 }}
-                          transition={{ duration: 0.15 }}
-                          className="absolute right-0 mt-2 w-56 bg-white dark:bg-neutral-900 rounded-xl shadow-hard border border-neutral-200 dark:border-neutral-800 z-50 overflow-hidden"
-                        >
-                          <div className="p-3 border-b dark:border-neutral-800">
-                            <p className="font-semibold text-sm">{user?.name}</p>
-                            <p className="text-xs text-neutral-500 truncate">{user?.email}</p>
-                          </div>
-                          <div className="p-2">
-                            <button
-                              onClick={() => {
-                                setShowUserMenu(false);
-                                navigateWithOptimization('/profile');
-                              }}
-                              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-sm transition-colors duration-150"
-                              type="button"
-                            >
-                              <FiUser className="h-4 w-4" />
-                              My Profile
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowUserMenu(false);
-                                navigateWithOptimization('/orders');
-                              }}
-                              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-sm transition-colors duration-150"
-                              type="button"
-                            >
-                              <FiPackage className="h-4 w-4" />
-                              My Orders
-                            </button>
-                            <button
-                              onClick={() => {
-                                setShowUserMenu(false);
-                                navigateWithOptimization('/wishlist');
-                              }}
-                              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-sm transition-colors duration-150 sm:hidden"
-                              type="button"
-                            >
-                              <FiHeart className="h-4 w-4" />
-                              Wishlist
-                            </button>
-                          </div>
-                          <div className="border-t dark:border-neutral-800 p-2">
-                            <button
-                              onClick={handleLogout}
-                              className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 text-sm transition-colors duration-150"
-                              type="button"
-                            >
-                              <FiLogOut className="h-4 w-4" />
-                              Logout
-                            </button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    {showUserMenu && (
+                      <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-neutral-900 rounded-xl shadow-hard border border-neutral-200 dark:border-neutral-800 z-50 overflow-hidden transition-all duration-150">
+                        <div className="p-3 border-b dark:border-neutral-800">
+                          <p className="font-semibold text-sm">{user?.name}</p>
+                          <p className="text-xs text-neutral-500 truncate">{user?.email}</p>
+                        </div>
+                        <div className="p-2">
+                          <button
+                            onClick={() => {
+                              setShowUserMenu(false);
+                              navigateWithOptimization('/profile');
+                            }}
+                            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-sm transition-colors duration-150"
+                            type="button"
+                          >
+                            <FiUser className="h-4 w-4" />
+                            My Profile
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowUserMenu(false);
+                              navigateWithOptimization('/orders');
+                            }}
+                            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-sm transition-colors duration-150"
+                            type="button"
+                          >
+                            <FiPackage className="h-4 w-4" />
+                            My Orders
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowUserMenu(false);
+                              navigateWithOptimization('/wishlist');
+                            }}
+                            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-sm transition-colors duration-150 sm:hidden"
+                            type="button"
+                          >
+                            <FiHeart className="h-4 w-4" />
+                            Wishlist
+                          </button>
+                        </div>
+                        <div className="border-t dark:border-neutral-800 p-2">
+                          <button
+                            onClick={handleLogout}
+                            className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 text-sm transition-colors duration-150"
+                            type="button"
+                          >
+                            <FiLogOut className="h-4 w-4" />
+                            Logout
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <button
@@ -871,9 +845,6 @@ const Header = () => {
         }
         .w-4\\.5 {
           width: 1.125rem;
-        }
-        .will-change-transform {
-          will-change: transform;
         }
       `}</style>
     </>

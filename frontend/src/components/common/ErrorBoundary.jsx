@@ -1,8 +1,6 @@
 import { Component } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { FiAlertTriangle, FiRefreshCw, FiHome, FiCopy, FiCheck } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
-import Button from './Button';
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -57,56 +55,27 @@ class ErrorBoundary extends Component {
 
       return (
         <div className="min-h-[70vh] flex items-center justify-center px-[1%] py-[1%] bg-neutral-50 dark:bg-neutral-950">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="w-full max-w-lg"
-          >
+          <div className="w-full max-w-lg">
             {/* Error Icon */}
             <div className="text-center mb-6">
-              <motion.div
-                initial={{ scale: 0, rotate: -90 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
-                className="relative w-20 h-20 mx-auto mb-5"
-              >
-                <motion.div
-                  animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.1, 0.3] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className="absolute inset-0 bg-red-500/20 rounded-full"
-                />
+              <div className="relative w-20 h-20 mx-auto mb-5">
+                <div className="absolute inset-0 bg-red-500/20 rounded-full animate-pulse-slow" />
                 <div className="relative w-full h-full bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center">
                   <FiAlertTriangle className="w-10 h-10 text-red-600 dark:text-red-400" />
                 </div>
-              </motion.div>
+              </div>
               
-              <motion.h1
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="text-xl lg:text-2xl font-bold text-neutral-900 dark:text-white mb-2 tracking-tight"
-              >
+              <h1 className="text-xl lg:text-2xl font-bold text-neutral-900 dark:text-white mb-2 tracking-tight">
                 Something went wrong
-              </motion.h1>
+              </h1>
               
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="text-sm text-neutral-500 dark:text-neutral-400 max-w-md mx-auto"
-              >
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 max-w-md mx-auto">
                 We encountered an unexpected error. Please try again or reload the page.
-              </motion.p>
+              </p>
             </div>
 
             {/* Error Details Card */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 }}
-              className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm overflow-hidden mb-5"
-            >
+            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm overflow-hidden mb-5">
               <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-red-500" />
@@ -115,7 +84,7 @@ class ErrorBoundary extends Component {
                 {isDev && (
                   <button
                     onClick={this.handleCopyError}
-                    className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-primary-600 transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-primary-600 transition-colors duration-150"
                   >
                     {this.state.copied ? (
                       <>
@@ -140,8 +109,8 @@ class ErrorBoundary extends Component {
                 
                 {isDev && this.state.errorInfo && (
                   <details className="group">
-                    <summary className="text-xs text-neutral-500 cursor-pointer hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors flex items-center gap-1.5">
-                      <span className="group-open:rotate-90 transition-transform">▶</span>
+                    <summary className="text-xs text-neutral-500 cursor-pointer hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors duration-150 flex items-center gap-1.5">
+                      <span className="inline-block transition-transform duration-150 group-open:rotate-90">▶</span>
                       Technical Details
                     </summary>
                     <pre className="mt-2 p-3 bg-neutral-100 dark:bg-neutral-800 rounded-lg text-[11px] text-neutral-600 dark:text-neutral-400 overflow-auto max-h-40 font-mono leading-relaxed">
@@ -158,50 +127,40 @@ class ErrorBoundary extends Component {
                   </p>
                 )}
               </div>
-            </motion.div>
+            </div>
 
             {/* Action Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="flex flex-col sm:flex-row gap-2.5 justify-center"
-            >
+            <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
               <button
                 onClick={this.handleReset}
-                className="px-5 py-2.5 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                className="px-5 py-2.5 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 transition-colors duration-150 flex items-center justify-center gap-2 shadow-sm active:scale-98"
               >
                 <FiRefreshCw className="h-4 w-4" />
                 Try Again
               </button>
               <button
                 onClick={this.handleReload}
-                className="px-5 py-2.5 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-semibold rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors flex items-center justify-center gap-2 border border-neutral-200 dark:border-neutral-700 shadow-sm"
+                className="px-5 py-2.5 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-semibold rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors duration-150 flex items-center justify-center gap-2 border border-neutral-200 dark:border-neutral-700 shadow-sm active:scale-98"
               >
                 Reload Page
               </button>
               <Link
                 to="/"
-                className="px-5 py-2.5 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-semibold rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors flex items-center justify-center gap-2 border border-neutral-200 dark:border-neutral-700 shadow-sm"
+                className="px-5 py-2.5 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-semibold rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors duration-150 flex items-center justify-center gap-2 border border-neutral-200 dark:border-neutral-700 shadow-sm active:scale-98"
               >
                 <FiHome className="h-4 w-4" />
                 Go Home
               </Link>
-            </motion.div>
+            </div>
 
             {/* Help Link */}
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="text-center text-xs text-neutral-400 mt-6"
-            >
+            <p className="text-center text-xs text-neutral-400 mt-6">
               If the problem persists,{' '}
-              <Link to="/contact" className="text-primary-600 hover:text-primary-700 font-medium underline underline-offset-2">
+              <Link to="/contact" className="text-primary-600 hover:text-primary-700 font-medium underline underline-offset-2 transition-colors duration-150">
                 contact our support team
               </Link>
-            </motion.p>
-          </motion.div>
+            </p>
+          </div>
         </div>
       );
     }

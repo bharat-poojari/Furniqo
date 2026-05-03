@@ -53,10 +53,66 @@ const mockPosts = [
   },
 ];
 
+// Optimized LazyImage Component with Intersection Observer
+const LazyImage = memo(({ src, alt, className, priority = false }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [srcToLoad, setSrcToLoad] = useState(priority ? src : null);
+  const imgRef = useRef(null);
+  const observerRef = useRef(null);
+
+  useEffect(() => {
+    if (priority) {
+      setSrcToLoad(src);
+      return;
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setSrcToLoad(src);
+            observerRef.current?.disconnect();
+          }
+        });
+      },
+      { rootMargin: '200px', threshold: 0.01 }
+    );
+
+    if (imgRef.current) {
+      observerRef.current.observe(imgRef.current);
+    }
+
+    return () => observerRef.current?.disconnect();
+  }, [src, priority]);
+
+  const handleLoad = useCallback(() => {
+    setIsLoaded(true);
+  }, []);
+
+  return (
+    <div className="relative w-full h-full overflow-hidden bg-neutral-200 dark:bg-neutral-800">
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-800 animate-pulse" />
+      )}
+      <img
+        ref={imgRef}
+        src={srcToLoad || undefined}
+        alt={alt}
+        className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        onLoad={handleLoad}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+      />
+    </div>
+  );
+});
+
+LazyImage.displayName = 'LazyImage';
+
 // Memoized Instagram Post Card Component
 const InstagramPost = memo(({ post, index, isHovered, onHoverStart, onHoverEnd }) => {
-  const [imageLoaded, setImageLoaded] = useState(false);
   const [isMobileHover, setIsMobileHover] = useState(false);
+  const imageRef = useRef(null);
 
   // Handle touch events for mobile
   const handleTouchStart = useCallback(() => {
@@ -71,54 +127,70 @@ const InstagramPost = memo(({ post, index, isHovered, onHoverStart, onHoverEnd }
     }
   }, []);
 
+  const handleMouseEnter = useCallback(() => {
+    onHoverStart(post.id);
+  }, [onHoverStart, post.id]);
+
+  const handleMouseLeave = useCallback(() => {
+    onHoverEnd();
+  }, [onHoverEnd]);
+
   const showZoom = isHovered === post.id || isMobileHover;
+
+  // Memoized animation variants
+  const variants = useMemo(() => ({
+    hidden: { opacity: 0, y: 15 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.2, delay: index * 0.02 } }
+  }), [index]);
+
+  // Format numbers for display
+  const formattedLikes = useMemo(() => {
+    return post.likes >= 1000 ? `${(post.likes / 1000).toFixed(1)}k` : post.likes;
+  }, [post.likes]);
+
+  const formattedComments = useMemo(() => {
+    return post.comments >= 1000 ? `${(post.comments / 1000).toFixed(1)}k` : post.comments;
+  }, [post.comments]);
 
   return (
     <motion.a
       href="https://instagram.com/furniqo"
       target="_blank"
       rel="noopener noreferrer"
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      variants={variants}
+      initial="hidden"
+      whileInView="visible"
       viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.3, delay: index * 0.03 }}
-      onMouseEnter={() => onHoverStart(post.id)}
-      onMouseLeave={() => onHoverEnd()}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="group relative aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-neutral-200 dark:bg-neutral-800 cursor-pointer shadow-md hover:shadow-xl transition-shadow duration-150"
+      className="group relative aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-neutral-200 dark:bg-neutral-800 cursor-pointer shadow hover:shadow-lg transition-shadow duration-150 will-change-transform"
     >
-      {/* Image with loading optimization */}
-      {!imageLoaded && (
-        <div className="absolute inset-0 bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-800 animate-pulse" />
-      )}
-      <img
+      <LazyImage
         src={post.image}
         alt={`Instagram post by ${post.user}: ${post.caption}`}
-        className={`w-full h-full object-cover transition-transform duration-500 ${
-          showZoom ? 'scale-110' : 'scale-100'
-        } ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-        onLoad={() => setImageLoaded(true)}
-        loading="lazy"
+        className={`w-full h-full object-cover transition-transform duration-300 ${
+          showZoom ? 'scale-105' : 'scale-100'
+        }`}
+        priority={index < 2}
       />
       
-      {/* Content Overlay - Clean gradient only at bottom for text readability */}
+      {/* Content Overlay - Gradient only at bottom */}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent pt-8 pb-2 sm:pb-3 px-2 sm:px-3">
-        {/* Caption */}
         <p className="text-white text-[10px] sm:text-xs line-clamp-2 mb-1.5 sm:mb-2 font-medium">
           {post.caption}
         </p>
         
-        {/* Stats */}
         <div className="flex items-center justify-between text-white">
           <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs">
             <div className="flex items-center gap-0.5 sm:gap-1">
               <FiHeart className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-current" />
-              <span>{post.likes >= 1000 ? `${(post.likes / 1000).toFixed(1)}k` : post.likes}</span>
+              <span>{formattedLikes}</span>
             </div>
             <div className="flex items-center gap-0.5 sm:gap-1">
               <FiMessageCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-              <span>{post.comments >= 1000 ? `${(post.comments / 1000).toFixed(1)}k` : post.comments}</span>
+              <span>{formattedComments}</span>
             </div>
           </div>
           
@@ -126,20 +198,15 @@ const InstagramPost = memo(({ post, index, isHovered, onHoverStart, onHoverEnd }
         </div>
       </div>
       
-      {/* External Link Indicator - Always visible but subtle */}
-      <div className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 bg-black/50 backdrop-blur-sm rounded-full p-1 sm:p-1.5 opacity-70 hover:opacity-100 transition-opacity duration-150">
+      {/* External Link Indicator */}
+      <div className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 bg-black/50 backdrop-blur-sm rounded-full p-1 sm:p-1.5 opacity-70 group-hover:opacity-100 transition-opacity duration-150">
         <FiExternalLink className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
       </div>
       
-      {/* Instagram Logo Badge - Always visible but subtle */}
+      {/* Instagram Logo Badge */}
       <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full p-1 sm:p-1.5 shadow-md">
         <FiInstagram className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
       </div>
-      
-      {/* Hover border effect - only on hover */}
-      {showZoom && (
-        <div className="absolute inset-0 rounded-lg sm:rounded-xl ring-2 ring-white/40 pointer-events-none transition-all duration-200" />
-      )}
     </motion.a>
   );
 });
@@ -148,11 +215,11 @@ InstagramPost.displayName = 'InstagramPost';
 
 // Memoized Stats Component
 const StatsBar = memo(({ stats }) => {
-  const statsItems = [
+  const statsItems = useMemo(() => [
     { icon: FiCamera, label: 'posts', value: stats.posts, color: 'text-purple-600 dark:text-purple-400' },
     { icon: FiHeart, label: 'followers', value: stats.followers, color: 'text-pink-600 dark:text-pink-400' },
     { icon: FiTrendingUp, label: 'engagement', value: stats.engagement, color: 'text-green-600 dark:text-green-400' },
-  ];
+  ], [stats]);
 
   return (
     <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
@@ -171,25 +238,34 @@ const StatsBar = memo(({ stats }) => {
 
 StatsBar.displayName = 'StatsBar';
 
+// Main Instagram Feed Component
 const InstagramFeed = () => {
   const [hoveredId, setHoveredId] = useState(null);
   const sectionRef = useRef(null);
+  const sectionObserverRef = useRef(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          // Just trigger visibility, no state needed for functionality
-        }
+    sectionObserverRef.current = new IntersectionObserver(
+      (entries) => {
+        // Just observe, no state update needed
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Optional: analytics tracking could go here
+          }
+        });
       },
-      { threshold: 0.1, rootMargin: "50px" }
+      { threshold: 0.05, rootMargin: "100px" }
     );
     
     const element = sectionRef.current;
-    if (element) observer.observe(element);
+    if (element) {
+      sectionObserverRef.current.observe(element);
+    }
     
     return () => {
-      if (element) observer.unobserve(element);
+      if (element && sectionObserverRef.current) {
+        sectionObserverRef.current.unobserve(element);
+      }
     };
   }, []);
 
@@ -201,10 +277,16 @@ const InstagramFeed = () => {
     setHoveredId(null);
   }, []);
 
-  const stats = {
+  const stats = useMemo(() => ({
     posts: 124,
     followers: '45.2K',
     engagement: '4.8%',
+  }), []);
+
+  // Header animation variants
+  const headerVariants = {
+    hidden: { opacity: 0, y: -10 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.25 } }
   };
 
   return (
@@ -218,7 +300,13 @@ const InstagramFeed = () => {
       
       <div className="w-full px-4 sm:px-6 lg:px-8 relative">
         {/* Header Section */}
-        <div className="text-center mb-6 sm:mb-8 lg:mb-10">
+        <motion.div
+          variants={headerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          className="text-center mb-6 sm:mb-8 lg:mb-10"
+        >
           <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 px-3 py-1.5 rounded-full mb-3">
             <FiInstagram className="h-3.5 w-3.5 text-pink-600 dark:text-pink-400" />
             <span className="text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
@@ -239,7 +327,7 @@ const InstagramFeed = () => {
           <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto px-4">
             Get inspired by our community. Tag <span className="font-medium text-pink-600 dark:text-pink-400">#MyFurniqo</span> to be featured!
           </p>
-        </div>
+        </motion.div>
 
         {/* Stats Bar */}
         <StatsBar stats={stats} />
@@ -259,12 +347,18 @@ const InstagramFeed = () => {
         </div>
 
         {/* CTA Button */}
-        <div className="text-center mt-6 sm:mt-8 lg:mt-10">
+        <motion.div 
+          className="text-center mt-6 sm:mt-8 lg:mt-10"
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          viewport={{ once: true, margin: "-50px" }}
+        >
           <a
             href="https://instagram.com/furniqo"
             target="_blank"
             rel="noopener noreferrer"
-            className="group relative inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white rounded-full font-medium text-xs sm:text-sm hover:shadow-lg transition-all duration-150 hover:scale-105 active:scale-95"
+            className="group relative inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 text-white rounded-full font-medium text-xs sm:text-sm hover:shadow-lg transition-all duration-150 hover:scale-105 active:scale-95 will-change-transform"
           >
             <FiInstagram className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span>Follow @Furniqo</span>
@@ -273,7 +367,7 @@ const InstagramFeed = () => {
           <p className="text-[10px] sm:text-xs text-neutral-500 dark:text-neutral-400 mt-3">
             Share your style with <span className="font-medium text-pink-600 dark:text-pink-400">#MyFurniqo</span>
           </p>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

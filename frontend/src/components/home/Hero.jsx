@@ -1,9 +1,98 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiArrowRight, FiChevronLeft, FiChevronRight, FiPause, FiPlay } from 'react-icons/fi';
 import { heroSlides } from '../../data/data';
 import { cn } from '../../utils/cn';
+
+// Optimized LazyImage Component
+const LazyImage = ({ src, alt, priority = false }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [srcToLoad, setSrcToLoad] = useState(priority ? src : null);
+  const imgRef = useRef(null);
+  const observerRef = useRef(null);
+
+  useEffect(() => {
+    if (priority) {
+      setSrcToLoad(src);
+      return;
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setSrcToLoad(src);
+            observerRef.current?.disconnect();
+          }
+        });
+      },
+      { rootMargin: '200px', threshold: 0.01 }
+    );
+
+    if (imgRef.current) {
+      observerRef.current.observe(imgRef.current);
+    }
+
+    return () => observerRef.current?.disconnect();
+  }, [src, priority]);
+
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-neutral-800">
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-gradient-to-r from-neutral-700 via-neutral-600 to-neutral-700 animate-pulse" />
+      )}
+      <img
+        ref={imgRef}
+        src={srcToLoad || undefined}
+        alt={alt}
+        className={`w-full h-full object-cover object-center transition-opacity duration-300 ${
+          isLoaded ? 'opacity-100' : 'opacity-0'
+        }`}
+        onLoad={() => setIsLoaded(true)}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+      />
+    </div>
+  );
+};
+
+// Optimized animation variants - simplified for performance
+const slideVariants = {
+  enter: (direction) => ({
+    x: direction > 0 ? '100%' : '-100%',
+    opacity: 0,
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    transition: {
+      x: { type: 'tween', duration: 0.35, ease: [0.25, 0.1, 0.25, 1] },
+      opacity: { duration: 0.25 },
+    },
+  },
+  exit: (direction) => ({
+    x: direction > 0 ? '-100%' : '100%',
+    opacity: 0,
+    transition: {
+      x: { type: 'tween', duration: 0.35, ease: [0.25, 0.1, 0.25, 1] },
+      opacity: { duration: 0.25 },
+    },
+  }),
+};
+
+const contentVariants = {
+  hidden: { opacity: 0, y: 15 },
+  visible: (custom) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      delay: custom * 0.06,
+      duration: 0.3,
+      ease: 'easeOut',
+    },
+  }),
+};
 
 const Hero = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -37,9 +126,12 @@ const Hero = () => {
   const goToSlide = useCallback((index) => {
     setDirection(index > currentSlide ? 1 : -1);
     setCurrentSlide(index);
-    if (isPlaying) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = setInterval(nextSlide, 6000);
+    // Reset auto-play timer
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      if (isPlaying) {
+        intervalRef.current = setInterval(nextSlide, 5000);
+      }
     }
   }, [currentSlide, isPlaying, nextSlide]);
 
@@ -53,6 +145,20 @@ const Hero = () => {
     };
   }, [isPlaying, nextSlide]);
 
+  // Pause auto-play on hover (desktop only)
+  const handleMouseEnter = useCallback(() => {
+    if (!isMobile && isPlaying && intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+  }, [isMobile, isPlaying]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (!isMobile && isPlaying) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(nextSlide, 5000);
+    }
+  }, [isMobile, isPlaying, nextSlide]);
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -64,11 +170,11 @@ const Hero = () => {
   }, [nextSlide, prevSlide]);
 
   // Touch swipe for mobile
-  const handleTouchStart = (e) => {
+  const handleTouchStart = useCallback((e) => {
     touchStartX.current = e.touches[0].clientX;
-  };
+  }, []);
 
-  const handleTouchEnd = (e) => {
+  const handleTouchEnd = useCallback((e) => {
     touchEndX.current = e.changedTouches[0].clientX;
     const swipeDistance = touchEndX.current - touchStartX.current;
     if (Math.abs(swipeDistance) > 50) {
@@ -78,44 +184,18 @@ const Hero = () => {
         nextSlide();
       }
     }
-  };
+  }, [nextSlide, prevSlide]);
 
-  // Optimized animation variants
-  const slideVariants = {
-    enter: (direction) => ({
-      x: direction > 0 ? '100%' : '-100%',
-      opacity: 0,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-      transition: {
-        x: { type: 'tween', duration: 0.4, ease: [0.25, 0.1, 0.25, 1] },
-        opacity: { duration: 0.3 },
-      },
-    },
-    exit: (direction) => ({
-      x: direction > 0 ? '-100%' : '100%',
-      opacity: 0,
-      transition: {
-        x: { type: 'tween', duration: 0.4, ease: [0.25, 0.1, 0.25, 1] },
-        opacity: { duration: 0.3 },
-      },
-    }),
-  };
+  const togglePlayPause = useCallback(() => {
+    setIsPlaying(prev => !prev);
+  }, []);
 
-  const contentVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: (custom) => ({
-      opacity: 1,
-      y: 0,
-      transition: {
-        delay: custom * 0.08,
-        duration: 0.4,
-        ease: 'easeOut',
-      },
-    }),
-  };
+  // Memoized slide data
+  const currentSlideData = useMemo(() => heroSlides[currentSlide], [currentSlide]);
+  const truncatedSubtitle = useMemo(() => {
+    const subtitle = currentSlideData.subtitle;
+    return subtitle.length > 60 ? subtitle.substring(0, 60) + '...' : subtitle;
+  }, [currentSlideData.subtitle]);
 
   return (
     <section 
@@ -125,6 +205,8 @@ const Hero = () => {
         maxHeight: '100vh',
         minHeight: isMobile ? '100vh' : '600px'
       }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -137,37 +219,30 @@ const Hero = () => {
           initial="enter"
           animate="center"
           exit="exit"
-          className="absolute inset-0"
+          className="absolute inset-0 will-change-transform"
         >
           {/* Image with optimized loading */}
-          <div className="absolute inset-0">
-            <img
-              src={heroSlides[currentSlide].image}
-              alt={heroSlides[currentSlide].title}
-              className="w-full h-full object-cover object-center"
-              loading={currentSlide === 0 ? "eager" : "lazy"}
-              fetchpriority={currentSlide === 0 ? "high" : "low"}
-            />
-            {/* Gradient overlays for text visibility */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/60" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-          </div>
+          <LazyImage
+            src={currentSlideData.image}
+            alt={currentSlideData.title}
+            priority={currentSlide === 0}
+          />
+          
+          {/* Gradient overlays for text visibility - simplified */}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/60" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 
-          {/* MOBILE LAYOUT - No empty space */}
+          {/* MOBILE LAYOUT */}
           {isMobile ? (
             <div className="relative h-full w-full flex flex-col px-5">
-              {/* Content container - takes full height with flex */}
+              {/* Content container */}
               <div className="flex-1 flex flex-col justify-center items-center text-center">
                 <motion.div
                   key={`content-${currentSlide}`}
                   initial="hidden"
                   animate="visible"
                   variants={{
-                    visible: {
-                      transition: {
-                        staggerChildren: 0.08,
-                      },
-                    },
+                    visible: { transition: { staggerChildren: 0.06 } },
                   }}
                   className="w-full"
                 >
@@ -186,7 +261,7 @@ const Hero = () => {
                     custom={1}
                     className="text-3xl font-display font-bold text-white mb-2 leading-tight drop-shadow-2xl px-2"
                   >
-                    {heroSlides[currentSlide].title}
+                    {currentSlideData.title}
                   </motion.h1>
                   
                   {/* Short description for mobile */}
@@ -195,9 +270,7 @@ const Hero = () => {
                     custom={2}
                     className="text-xs text-white/90 mb-5 max-w-xs mx-auto leading-relaxed drop-shadow-lg px-3"
                   >
-                    {heroSlides[currentSlide].subtitle.length > 60 
-                      ? heroSlides[currentSlide].subtitle.substring(0, 60) + '...' 
-                      : heroSlides[currentSlide].subtitle}
+                    {truncatedSubtitle}
                   </motion.p>
                   
                   {/* Buttons - Stacked vertically */}
@@ -207,10 +280,10 @@ const Hero = () => {
                     className="flex flex-col gap-2.5 justify-center items-stretch max-w-[260px] mx-auto w-full px-4"
                   >
                     <Link
-                      to={heroSlides[currentSlide].link}
+                      to={currentSlideData.link}
                       className="group inline-flex items-center justify-center gap-2 px-5 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold text-sm transition-all active:scale-95 shadow-lg"
                     >
-                      {heroSlides[currentSlide].cta}
+                      {currentSlideData.cta}
                       <FiArrowRight className="group-hover:translate-x-1 transition-transform duration-150 h-3.5 w-3.5" />
                     </Link>
                     <Link
@@ -223,7 +296,7 @@ const Hero = () => {
                 </motion.div>
               </div>
               
-              {/* Bottom Controls - Fixed at bottom */}
+              {/* Bottom Controls */}
               <div className="py-3 pb-4">
                 <div className="flex items-center justify-between">
                   {/* Dots */}
@@ -233,7 +306,7 @@ const Hero = () => {
                         key={index}
                         onClick={() => goToSlide(index)}
                         className={cn(
-                          'rounded-full transition-all duration-200 active:scale-90',
+                          'rounded-full transition-all duration-150 active:scale-90',
                           index === currentSlide
                             ? 'w-6 h-1.5 bg-white shadow-lg'
                             : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/75'
@@ -245,7 +318,7 @@ const Hero = () => {
 
                   {/* Play/Pause */}
                   <button
-                    onClick={() => setIsPlaying(!isPlaying)}
+                    onClick={togglePlayPause}
                     className="w-7 h-7 bg-white/20 backdrop-blur-md hover:bg-white/30 rounded-full flex items-center justify-center text-white transition-all border border-white/30 active:scale-95"
                     aria-label={isPlaying ? 'Pause slideshow' : 'Play slideshow'}
                   >
@@ -255,7 +328,7 @@ const Hero = () => {
               </div>
             </div>
           ) : (
-            // DESKTOP LAYOUT - Original design preserved
+            // DESKTOP LAYOUT
             <div className="relative h-full w-full flex items-center justify-center text-center px-6">
               <div className="w-full max-w-4xl mx-auto">
                 <motion.div
@@ -263,11 +336,7 @@ const Hero = () => {
                   initial="hidden"
                   animate="visible"
                   variants={{
-                    visible: {
-                      transition: {
-                        staggerChildren: 0.1,
-                      },
-                    },
+                    visible: { transition: { staggerChildren: 0.08 } },
                   }}
                 >
                   {/* Badge */}
@@ -285,7 +354,7 @@ const Hero = () => {
                     custom={1}
                     className="text-5xl md:text-6xl lg:text-7xl font-display font-bold text-white mb-4 leading-tight drop-shadow-2xl"
                   >
-                    {heroSlides[currentSlide].title}
+                    {currentSlideData.title}
                   </motion.h1>
                   
                   {/* Subtitle */}
@@ -294,7 +363,7 @@ const Hero = () => {
                     custom={2}
                     className="text-base md:text-lg text-white/90 mb-6 max-w-2xl mx-auto leading-relaxed drop-shadow-lg"
                   >
-                    {heroSlides[currentSlide].subtitle}
+                    {currentSlideData.subtitle}
                   </motion.p>
                   
                   {/* Buttons */}
@@ -304,15 +373,15 @@ const Hero = () => {
                     className="flex flex-row gap-4 justify-center"
                   >
                     <Link
-                      to={heroSlides[currentSlide].link}
-                      className="group inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold text-base transition-all hover:scale-105 shadow-lg hover:shadow-primary-600/30"
+                      to={currentSlideData.link}
+                      className="group inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold text-base transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-primary-600/30"
                     >
-                      {heroSlides[currentSlide].cta}
+                      {currentSlideData.cta}
                       <FiArrowRight className="group-hover:translate-x-1 transition-transform duration-150 h-4 w-4" />
                     </Link>
                     <Link
                       to="/products"
-                      className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white/20 backdrop-blur-md hover:bg-white/30 text-white rounded-xl font-semibold text-base border border-white/30 transition-all hover:scale-105"
+                      className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white/20 backdrop-blur-md hover:bg-white/30 text-white rounded-xl font-semibold text-base border border-white/30 transition-all hover:scale-105 active:scale-95"
                     >
                       Browse All
                     </Link>
@@ -329,7 +398,7 @@ const Hero = () => {
                         key={index}
                         onClick={() => goToSlide(index)}
                         className={cn(
-                          'rounded-full transition-all duration-200',
+                          'rounded-full transition-all duration-150',
                           index === currentSlide
                             ? 'w-8 h-1.5 bg-white shadow-lg'
                             : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/75'
@@ -340,7 +409,7 @@ const Hero = () => {
                   </div>
 
                   <button
-                    onClick={() => setIsPlaying(!isPlaying)}
+                    onClick={togglePlayPause}
                     className="w-9 h-9 bg-white/20 backdrop-blur-md hover:bg-white/30 rounded-full flex items-center justify-center text-white transition-all border border-white/30 hover:scale-110 active:scale-95"
                     aria-label={isPlaying ? 'Pause slideshow' : 'Play slideshow'}
                   >

@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiBell,
   FiX,
@@ -34,7 +33,7 @@ const EmptyBellIcon = (props) => (
   </svg>
 );
 
-// Format time
+// Optimized format time - memoized
 const formatTimeAgo = (dateString) => {
   const date = new Date(dateString);
   const now = new Date();
@@ -87,13 +86,15 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     };
   }, [isOpen, onClose]);
 
-  const getFilteredNotifications = () => {
+  // Memoized filtered notifications
+  const getFilteredNotifications = useCallback(() => {
     if (activeTab === 'all') return notifications;
     if (activeTab === 'unread') return notifications.filter(n => !n.read);
     return notifications.filter(n => n.type === activeTab);
-  };
+  }, [activeTab, notifications]);
 
-  const getNotificationStyle = (type) => {
+  // Memoized notification style getter
+  const getNotificationStyle = useCallback((type) => {
     const styles = {
       order: { icon: FiPackage, color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-900/30' },
       wishlist: { icon: FiHeart, color: 'text-red-500', bg: 'bg-red-100 dark:bg-red-900/30' },
@@ -103,9 +104,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       review: { icon: FiStar, color: 'text-orange-500', bg: 'bg-orange-100 dark:bg-orange-900/30' },
     };
     return styles[type] || { icon: FiBell, color: 'text-primary-500', bg: 'bg-primary-100 dark:bg-primary-900/30' };
-  };
+  }, []);
 
-  const handleNotificationClick = (notification) => {
+  const handleNotificationClick = useCallback((notification) => {
     if (!notification.read) markAsRead(notification._id);
     if (notification.actionUrl) {
       setTimeout(() => {
@@ -113,40 +114,39 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         window.location.href = notification.actionUrl;
       }, 200);
     }
-  };
+  }, [markAsRead, onClose]);
+
+  const handleClearAll = useCallback(() => {
+    clearAll();
+    setShowClearConfirm(false);
+  }, [clearAll]);
 
   const filteredNotifications = getFilteredNotifications();
-  const hasUnread = notifications.some(n => !n.read);
+  const hasUnread = useMemo(() => notifications.some(n => !n.read), [notifications]);
 
-  const tabs = [
+  // Memoized tabs data
+  const tabs = useMemo(() => [
     { id: 'all', label: 'All', count: notifications.length },
     { id: 'unread', label: 'Unread', count: unreadCount },
     { id: 'order', label: 'Orders', count: notifications.filter(n => n.type === 'order').length },
     { id: 'promotion', label: 'Offers', count: notifications.filter(n => n.type === 'promotion').length },
     { id: 'wishlist', label: 'Wishlist', count: notifications.filter(n => n.type === 'wishlist').length },
-  ];
+  ], [notifications.length, unreadCount, notifications]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center sm:items-center p-4">
-      {/* Backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+      {/* Backdrop - Removed motion */}
+      <div 
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200"
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <motion.div
+      {/* Modal - Removed motion */}
+      <div
         ref={modalRef}
-        initial={{ opacity: 0, scale: 0.95, y: -10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: -10 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        className="relative w-full max-w-lg bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden max-h-[85vh] flex flex-col"
+        className="relative w-full max-w-lg bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden max-h-[85vh] flex flex-col transition-all duration-200"
       >
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-neutral-100 dark:border-neutral-800">
@@ -166,7 +166,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
             {hasUnread && (
               <button
                 onClick={markAllAsRead}
-                className="px-2.5 py-1.5 text-xs font-medium text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors flex items-center gap-1.5"
+                className="px-2.5 py-1.5 text-xs font-medium text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors duration-150 flex items-center gap-1.5 active:scale-95"
               >
                 <FiCheck className="h-3 w-3" />
                 Read all
@@ -175,14 +175,14 @@ const NotificationsModal = ({ isOpen, onClose }) => {
             {notifications.length > 0 && (
               <button
                 onClick={() => setShowClearConfirm(true)}
-                className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-neutral-400 hover:text-red-500"
+                className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors duration-150 text-neutral-400 hover:text-red-500 active:scale-95"
               >
                 <FiTrash2 className="h-4 w-4" />
               </button>
             )}
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors duration-150 active:scale-95"
             >
               <FiX className="h-4.5 w-4.5" />
             </button>
@@ -196,7 +196,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all flex-shrink-0",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-150 flex-shrink-0 active:scale-95",
                 activeTab === tab.id
                   ? "bg-primary-600 text-white shadow-sm"
                   : "bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700"
@@ -205,7 +205,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
               {tab.label}
               {tab.count > 0 && (
                 <span className={cn(
-                  "text-[10px] px-1.5 py-0.5 rounded-full",
+                  "text-[10px] px-1.5 py-0.5 rounded-full transition-colors duration-150",
                   activeTab === tab.id ? "bg-white/20" : "bg-neutral-200 dark:bg-neutral-700"
                 )}>
                   {tab.count > 99 ? '99+' : tab.count}
@@ -215,7 +215,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           ))}
         </div>
 
-        {/* Notifications List */}
+        {/* Notifications List - Removed motion animations */}
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {filteredNotifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -229,25 +229,22 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                   : `No ${activeTab} notifications yet.`}
               </p>
               {activeTab !== 'all' && (
-                <button onClick={() => setActiveTab('all')} className="mt-3 text-xs text-primary-600 hover:text-primary-700 font-medium">
+                <button onClick={() => setActiveTab('all')} className="mt-3 text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors duration-150">
                   View all notifications
                 </button>
               )}
             </div>
           ) : (
             <div className="divide-y divide-neutral-50 dark:divide-neutral-800">
-              {filteredNotifications.map((notification, index) => {
+              {filteredNotifications.map((notification) => {
                 const style = getNotificationStyle(notification.type);
                 const Icon = style.icon;
                 
                 return (
-                  <motion.div
+                  <div
                     key={notification._id}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.03 }}
                     className={cn(
-                      "group relative transition-colors cursor-pointer",
+                      "group relative transition-colors duration-150 cursor-pointer",
                       !notification.read && "bg-primary-50/40 dark:bg-primary-900/10",
                       "hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
                     )}
@@ -290,7 +287,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                           {notification.actionUrl && (
                             <Link
                               to={notification.actionUrl}
-                              className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-primary-600 hover:text-primary-700"
+                              className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors duration-150"
                               onClick={(e) => e.stopPropagation()}
                             >
                               View details
@@ -302,13 +299,13 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                         {/* Delete */}
                         <button
                           onClick={(e) => { e.stopPropagation(); deleteNotification(notification._id); }}
-                          className="absolute top-2 right-2 p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-all"
+                          className="absolute top-2 right-2 p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-all duration-150"
                         >
                           <FiX className="h-3 w-3 text-neutral-400" />
                         </button>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
@@ -320,7 +317,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           <div className="flex-shrink-0 p-3 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/30">
             <Link
               to="/profile/notifications"
-              className="flex items-center justify-center gap-2 text-xs text-neutral-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+              className="flex items-center justify-center gap-2 text-xs text-neutral-500 hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-150"
               onClick={onClose}
             >
               <FiSettings className="h-3.5 w-3.5" />
@@ -328,38 +325,40 @@ const NotificationsModal = ({ isOpen, onClose }) => {
             </Link>
           </div>
         )}
-      </motion.div>
+      </div>
 
-      {/* Clear Confirm Modal */}
-      <AnimatePresence>
-        {showClearConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowClearConfirm(false)}
+      {/* Clear Confirm Modal - Simplified */}
+      {showClearConfirm && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-200"
+          onClick={() => setShowClearConfirm(false)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="bg-white dark:bg-neutral-900 rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-neutral-200 dark:border-neutral-800 text-center transition-all duration-200"
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-white dark:bg-neutral-900 rounded-2xl w-full max-w-sm p-6 shadow-2xl border border-neutral-200 dark:border-neutral-800 text-center"
-            >
-              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <FiAlertCircle className="h-6 w-6 text-red-500" />
-              </div>
-              <h3 className="text-lg font-bold dark:text-white mb-2">Clear all notifications?</h3>
-              <p className="text-sm text-neutral-500 mb-5">This action cannot be undone.</p>
-              <div className="flex gap-2">
-                <button onClick={() => setShowClearConfirm(false)} className="flex-1 px-4 py-2.5 text-sm font-semibold border border-neutral-200 dark:border-neutral-700 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors dark:text-white">Cancel</button>
-                <button onClick={() => { clearAll(); setShowClearConfirm(false); }} className="flex-1 px-4 py-2.5 text-sm font-semibold bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors">Clear All</button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <FiAlertCircle className="h-6 w-6 text-red-500" />
+            </div>
+            <h3 className="text-lg font-bold dark:text-white mb-2">Clear all notifications?</h3>
+            <p className="text-sm text-neutral-500 mb-5">This action cannot be undone.</p>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setShowClearConfirm(false)} 
+                className="flex-1 px-4 py-2.5 text-sm font-semibold border border-neutral-200 dark:border-neutral-700 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors duration-150 dark:text-white active:scale-98"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleClearAll} 
+                className="flex-1 px-4 py-2.5 text-sm font-semibold bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors duration-150 active:scale-98"
+              >
+                Clear All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 3px; }
@@ -370,6 +369,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .h-4\\.5 { height: 1.125rem; }
         .w-4\\.5 { width: 1.125rem; }
+        .active\:scale-95:active { transform: scale(0.95); }
+        .active\:scale-98:active { transform: scale(0.98); }
       `}</style>
     </div>
   );

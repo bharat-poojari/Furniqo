@@ -1,9 +1,8 @@
-import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { FiClock, FiArrowRight, FiTrash2, FiEye } from 'react-icons/fi';
 import { useRecentlyViewed } from '../../store/RecentlyViewedContext';
 import { formatPrice, calculateDiscount } from '../../utils/helpers';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import QuickView from './QuickView';
 
 const RecentlyViewed = () => {
@@ -21,41 +20,19 @@ const RecentlyViewed = () => {
 
   const handleCloseQuickView = useCallback(() => {
     setIsQuickViewOpen(false);
-    // Don't clear the product immediately to avoid hook count issues
+    // Clean up product reference after close
+    setTimeout(() => setQuickViewProduct(null), 300);
+  }, []);
+
+  const handleMouseEnter = useCallback((productId) => {
+    setHoveredId(productId);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredId(null);
   }, []);
 
   if (recentlyViewed.length === 0) return null;
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        type: 'spring',
-        stiffness: 300,
-        damping: 24,
-      },
-    },
-    exit: {
-      opacity: 0,
-      x: -20,
-      transition: {
-        duration: 0.2,
-      },
-    },
-  };
 
   return (
     <>
@@ -63,19 +40,12 @@ const RecentlyViewed = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-primary-50/50 to-transparent dark:from-primary-900/10 dark:to-transparent pointer-events-none" />
         
         <div className="w-full px-[1%] sm:px-[1.5%] relative">
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between mb-8"
-          >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-              <motion.div
-                whileHover={{ rotate: 360 }}
-                transition={{ duration: 0.6 }}
-                className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-full"
-              >
+              <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-full transition-transform duration-300 hover:rotate-180">
                 <FiClock className="h-5 w-5 text-primary-600" />
-              </motion.div>
+              </div>
               <div>
                 <h2 className="text-xl font-bold text-neutral-900 dark:text-white">
                   Recently Viewed
@@ -88,155 +58,135 @@ const RecentlyViewed = () => {
             
             <div className="flex items-center gap-3">
               {recentlyViewed.length > 0 && (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                <button
                   onClick={clearRecentlyViewed}
-                  className="text-sm text-neutral-400 hover:text-red-500 dark:text-neutral-500 dark:hover:text-red-400 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  className="text-sm text-neutral-400 hover:text-red-500 dark:text-neutral-500 dark:hover:text-red-400 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors duration-150 active:scale-95"
                   title="Clear recently viewed"
+                  aria-label="Clear all recently viewed items"
                 >
                   <FiTrash2 className="h-4 w-4" />
                   <span className="hidden sm:inline">Clear</span>
-                </motion.button>
+                </button>
               )}
               
               <Link
                 to="/products"
-                className="group text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                className="group text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors duration-150"
+                aria-label="View all products"
               >
                 View All
-                <FiArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                <FiArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-1" />
               </Link>
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory"
-          >
-            <AnimatePresence mode="popLayout">
-              {recentlyViewed.map((product) => {
-                const discount = calculateDiscount(product.price, product.originalPrice);
-                
-                return (
-                  <motion.div
-                    key={product._id}
-                    variants={itemVariants}
-                    layout
-                    exit="exit"
-                    onHoverStart={() => setHoveredId(product._id)}
-                    onHoverEnd={() => setHoveredId(null)}
-                    className="flex-shrink-0 w-48 snap-start"
+          {/* Products Grid */}
+          <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
+            {recentlyViewed.map((product) => {
+              const discount = calculateDiscount(product.price, product.originalPrice);
+              
+              return (
+                <div
+                  key={product._id}
+                  onMouseEnter={() => handleMouseEnter(product._id)}
+                  onMouseLeave={handleMouseLeave}
+                  className="flex-shrink-0 w-48 snap-start"
+                >
+                  <Link
+                    to={`/products/${product.slug}`}
+                    className="block group relative bg-white dark:bg-neutral-800 rounded-xl overflow-hidden shadow-soft hover:shadow-lg transition-all duration-200"
+                    aria-label={`View ${product.name}`}
                   >
-                    <Link
-                      to={`/products/${product.slug}`}
-                      className="block group relative bg-white dark:bg-neutral-800 rounded-xl overflow-hidden shadow-soft hover:shadow-lg transition-all duration-300"
-                    >
-                      <div className="relative overflow-hidden">
-                        <img
-                          src={product.images?.[0] || '/placeholder-image.jpg'}
-                          alt={product.name}
-                          className="w-full h-32 object-cover group-hover:scale-110 transition-transform duration-500"
-                          onError={(e) => {
-                            e.target.src = '/placeholder-image.jpg';
+                    <div className="relative overflow-hidden">
+                      <img
+                        src={product.images?.[0] || '/placeholder-image.jpg'}
+                        alt={product.name}
+                        className="w-full h-32 object-cover transition-transform duration-300 group-hover:scale-110"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.target.src = '/placeholder-image.jpg';
+                        }}
+                      />
+                      
+                      {/* Hover Overlay */}
+                      <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-center justify-center transition-opacity duration-200 ${hoveredId === product._id ? 'opacity-100' : 'opacity-0'}`}>
+                        <button
+                          onClick={(e) => handleQuickView(product, e)}
+                          className="flex items-center gap-1.5 text-white text-xs font-medium bg-white/20 backdrop-blur-sm hover:bg-white/30 px-3 py-1.5 rounded-full transition-all duration-150 hover:scale-105 active:scale-95"
+                          style={{
+                            transform: hoveredId === product._id ? 'translateY(0)' : 'translateY(10px)',
+                            transition: 'transform 0.2s ease'
                           }}
-                        />
-                        
-                        <motion.div
-                          initial={false}
-                          animate={{ opacity: hoveredId === product._id ? 1 : 0 }}
-                          className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-center justify-center"
+                          aria-label={`Quick view ${product.name}`}
                         >
-                          <motion.button
-                            initial={{ y: 10 }}
-                            animate={{ y: hoveredId === product._id ? 0 : 10 }}
-                            onClick={(e) => handleQuickView(product, e)}
-                            className="flex items-center gap-1.5 text-white text-xs font-medium bg-white/20 backdrop-blur-sm hover:bg-white/30 px-3 py-1.5 rounded-full transition-colors"
-                          >
-                            <FiEye className="h-3.5 w-3.5" />
-                            Quick View
-                          </motion.button>
-                        </motion.div>
-                        
-                        {discount > 0 && (
-                          <motion.span
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg"
-                          >
-                            {discount}% OFF
-                          </motion.span>
-                        )}
-                        
-                        {!product.inStock && (
-                          <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full">
-                            Sold Out
-                          </span>
+                          <FiEye className="h-3.5 w-3.5" />
+                          Quick View
+                        </button>
+                      </div>
+                      
+                      {discount > 0 && (
+                        <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+                          {discount}% OFF
+                        </span>
+                      )}
+                      
+                      {!product.inStock && (
+                        <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-medium px-2 py-1 rounded-full">
+                          Sold Out
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="p-3">
+                      <p className="text-sm font-medium text-neutral-900 dark:text-white truncate transition-colors duration-150 group-hover:text-primary-600 dark:group-hover:text-primary-400">
+                        {product.name}
+                      </p>
+                      
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <p className="text-sm font-bold text-primary-600">
+                          {formatPrice(product.price)}
+                        </p>
+                        {product.originalPrice && product.originalPrice > product.price && (
+                          <p className="text-xs text-neutral-400 line-through">
+                            {formatPrice(product.originalPrice)}
+                          </p>
                         )}
                       </div>
                       
-                      <div className="p-3">
-                        <p className="text-sm font-medium text-neutral-900 dark:text-white truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                          {product.name}
-                        </p>
-                        
-                        <div className="flex items-baseline gap-2 mt-1">
-                          <p className="text-sm font-bold text-primary-600">
-                            {formatPrice(product.price)}
-                          </p>
-                          {product.originalPrice && product.originalPrice > product.price && (
-                            <p className="text-xs text-neutral-400 line-through">
-                              {formatPrice(product.originalPrice)}
-                            </p>
+                      {product.rating > 0 && (
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <span className="text-yellow-400 text-xs">★</span>
+                          <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                            {product.rating.toFixed(1)}
+                          </span>
+                          {product.numReviews > 0 && (
+                            <span className="text-xs text-neutral-400">
+                              ({product.numReviews})
+                            </span>
                           )}
                         </div>
-                        
-                        {product.rating && (
-                          <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-yellow-400 text-xs">★</span>
-                            <span className="text-xs text-neutral-500 dark:text-neutral-400">
-                              {product.rating.toFixed(1)}
-                            </span>
-                            {product.numReviews > 0 && (
-                              <span className="text-xs text-neutral-400">
-                                ({product.numReviews})
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </Link>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </motion.div>
+                      )}
+                    </div>
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
           
+          {/* Scroll Hint */}
           {recentlyViewed.length > 3 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1 }}
-              className="flex justify-center mt-4"
-            >
-              <div className="flex items-center gap-1.5 text-xs text-neutral-400 dark:text-neutral-500">
+            <div className="flex justify-center mt-4">
+              <div className="flex items-center gap-1.5 text-xs text-neutral-400 dark:text-neutral-500 animate-fade-in">
                 <span>Scroll for more</span>
-                <motion.span
-                  animate={{ x: [0, 5, 0] }}
-                  transition={{ repeat: Infinity, duration: 1.5 }}
-                >
-                  →
-                </motion.span>
+                <span className="inline-block animate-bounce-x">→</span>
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
       </section>
 
-      {/* Quick View Modal - Always render but conditionally show */}
-      {quickViewProduct && (
+      {/* Quick View Modal */}
+      {quickViewProduct && isQuickViewOpen && (
         <QuickView
           product={quickViewProduct}
           isOpen={isQuickViewOpen}
@@ -247,4 +197,4 @@ const RecentlyViewed = () => {
   );
 };
 
-export default RecentlyViewed;
+export default memo(RecentlyViewed);

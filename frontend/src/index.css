@@ -428,3 +428,455 @@ body > div:last-child {
   }
 }
 
+/* Performance-optimized animations */
+@keyframes float-slow {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(15px, -15px); }
+}
+
+@keyframes float-slower {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-15px, 15px); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes pulse-very-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes rotate-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes rotate-reverse-slow {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes slide-right {
+  0%, 100% { transform: translateX(0); opacity: 0; }
+  50% { transform: translateX(100px); opacity: 0.1; }
+}
+
+@keyframes slide-left {
+  0%, 100% { transform: translateX(0); opacity: 0; }
+  50% { transform: translateX(-100px); opacity: 0.1; }
+}
+
+@keyframes float-up {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  20% { opacity: 0.5; }
+  80% { opacity: 0.3; }
+  100% { transform: translateY(-800px) translateX(50px); opacity: 0; }
+}
+
+@keyframes sparkle {
+  0%, 100% { transform: translateY(0) scale(0); opacity: 0; }
+  50% { transform: translateY(-40px) scale(1); opacity: 0.8; }
+}
+
+/* Animation classes */
+.animate-float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+.animate-float-slower {
+  animation: float-slower 10s ease-in-out infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+.animate-pulse-very-slow {
+  animation: pulse-very-slow 2s ease-in-out infinite;
+}
+
+.animate-rotate-slow {
+  animation: rotate-slow 20s linear infinite;
+}
+
+.animate-rotate-reverse-slow {
+  animation: rotate-reverse-slow 25s linear infinite;
+}
+
+.animate-slide-right {
+  animation: slide-right 6s ease-in-out infinite;
+}
+
+.animate-slide-left {
+  animation: slide-left 7s ease-in-out infinite;
+}
+
+.animate-float-up {
+  animation: float-up linear infinite;
+}
+
+.animate-sparkle {
+  animation: sparkle ease-in-out infinite;
+}
+
+/* Hover scale utilities */
+.hover\:scale-103:hover {
+  transform: scale(1.03);
+}
+
+.active\:scale-97:active {
+  transform: scale(0.97);
+}
+/* Performance-optimized hover effects */
+.hover\:scale-102:hover {
+  transform: scale(1.02);
+}
+
+.active\:scale-98:active {
+  transform: scale(0.98);
+}
+/* Performance-optimized animations */
+@keyframes bounce-x {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-bounce-x {
+  animation: bounce-x 1.5s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+/* Scrollbar hide utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth transitions */
+.hover\:rotate-180:hover {
+  transform: rotate(180deg);
+}
+
+.active\:scale-95:active {
+  transform: scale(0.95);
+}
+
+.hover\:scale-105:hover {
+  transform: scale(1.05);
+}
+/* Performance-optimized button animations */
+.hover\:scale-102:hover {
+  transform: scale(1.02);
+}
+
+.active\:scale-98:active {
+  transform: scale(0.98);
+}
+
+/* Optimized transition for buttons */
+button, .button {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+/* Disabled state optimizations */
+button:disabled,
+.button:disabled {
+  transform: none !important;
+  transition: none !important;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  button, .button {
+    transition: none;
+  }
+  
+  .hover\:scale-102:hover,
+  .active\:scale-98:active {
+    transform: none;
+  }
+  
+  .animate-spin,
+  .animate-pulse {
+    animation: none;
+  }
+}
+
+/* Loading spinner optimization */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 0.8s linear infinite;
+  will-change: transform;
+}
+
+/* Pulse animation for loading ring */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 1s ease-in-out infinite;
+}
+/* Performance-optimized animations */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Animation classes */
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out forwards;
+}
+
+/* Hover and active states */
+.hover\:scale-102:hover {
+  transform: scale(1.02);
+}
+
+.active\:scale-98:active {
+  transform: scale(0.98);
+}
+
+/* Transition optimizations */
+button, 
+a {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+/* Details/summary transition */
+details > summary {
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details summary .transition-transform {
+  transition: transform 0.15s ease;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-slow,
+  .animate-fade-in,
+  .animate-fade-in-up,
+  .animate-scale-in {
+    animation: none;
+  }
+  
+  button,
+  a {
+    transition: none;
+  }
+  
+  details summary .transition-transform {
+    transition: none;
+  }
+  
+  .hover\:scale-102:hover,
+  .active\:scale-98:active {
+    transform: none;
+  }
+}
+/* Performance-optimized spinner animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  animation: spin 0.8s linear infinite;
+  will-change: transform;
+  transform: translateZ(0); /* GPU acceleration */
+  backface-visibility: hidden;
+}
+
+/* Optimized pulse animation for text */
+@keyframes pulse-text {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.pulse-text {
+  animation: pulse-text 1.5s ease-in-out infinite;
+  will-change: opacity;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+  
+  .pulse-text {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+/* Performance-optimized animations */
+@keyframes bounce-x {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-bounce-x {
+  animation: bounce-x 1.5s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Scrollbar hide utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hover and active states */
+.hover\:rotate-180:hover {
+  transform: rotate(180deg);
+  transition: transform 0.3s ease;
+}
+
+.active\:scale-95:active {
+  transform: scale(0.95);
+}
+
+.hover\:scale-105:hover {
+  transform: scale(1.05);
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .animate-bounce-x,
+  .animate-fade-in {
+    animation: none;
+  }
+  
+  .hover\:rotate-180:hover {
+    transform: none;
+  }
+  
+  .hover\:scale-105:hover,
+  .active\:scale-95:active {
+    transform: none;
+  }
+}

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiStar, FiThumbsUp, FiFlag, FiChevronDown, FiFilter, FiX, FiSearch, FiMessageSquare } from 'react-icons/fi';
 import Rating from '../common/Rating';
@@ -7,7 +7,202 @@ import Pagination from '../common/Pagination';
 import { formatDate } from '../../utils/helpers';
 import { cn } from '../../utils/cn';
 
-const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportClick, variant = 'full' }) => {
+// Simplified animation variants
+const fadeInUp = {
+  initial: { opacity: 0, y: 15 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+  exit: { opacity: 0, scale: 0.96, transition: { duration: 0.15 } }
+};
+
+const scaleIn = {
+  initial: { opacity: 0, scale: 0.9 },
+  animate: { opacity: 1, scale: 1, transition: { duration: 0.2 } }
+};
+
+// Memoized Rating Distribution Bar component
+const RatingDistributionBar = memo(({ star, percentage, count, isActive, onClick }) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      "flex items-center gap-3 w-full p-2 rounded-lg transition-all duration-150 hover:bg-neutral-100 dark:hover:bg-neutral-800 group",
+      isActive && "bg-amber-50 dark:bg-amber-900/20 ring-2 ring-amber-400 dark:ring-amber-500"
+    )}
+    aria-label={`Filter by ${star} star reviews`}
+  >
+    <div className="flex items-center gap-1 w-20">
+      <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-white transition-colors">
+        {star}
+      </span>
+      <FiStar className={cn(
+        "h-4 w-4 text-amber-400",
+        isActive && "fill-amber-400"
+      )} />
+    </div>
+    <div className="flex-grow h-3 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+      <motion.div
+        initial={{ width: 0 }}
+        animate={{ width: `${percentage}%` }}
+        transition={{ duration: 0.4 }}
+        className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full"
+      />
+    </div>
+    <span className="text-sm text-neutral-500 w-12 text-right font-mono">
+      {count}
+    </span>
+  </button>
+));
+
+RatingDistributionBar.displayName = 'RatingDistributionBar';
+
+// Memoized Single Review component
+const ReviewItem = memo(({ review, isExpanded, helpfulReviews, onToggleExpand, onHelpfulClick, onReportClick }) => {
+  const handleExpand = useCallback(() => onToggleExpand(review._id), [onToggleExpand, review._id]);
+  const handleHelpful = useCallback(() => onHelpfulClick(review._id), [onHelpfulClick, review._id]);
+  const handleReport = useCallback(() => onReportClick(review._id), [onReportClick, review._id]);
+  
+  const userInitials = review.user.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const isReviewHelpful = helpfulReviews.has(review._id);
+  const needsTruncation = review.comment?.length > 300;
+  const isTruncated = !isExpanded && needsTruncation;
+
+  return (
+    <motion.div
+      layout
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={fadeInUp}
+      className="bg-white dark:bg-neutral-900 rounded-2xl p-6 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 transition-all duration-150"
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-lg">
+              <span className="font-semibold text-white text-lg">
+                {userInitials}
+              </span>
+            </div>
+            {review.verified && (
+              <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1 border-2 border-white dark:border-neutral-900">
+                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-semibold text-neutral-900 dark:text-white">
+                {review.user}
+              </p>
+              {review.verified && (
+                <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">
+                  Verified
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <Rating value={review.rating} size="sm" showCount={false} />
+              <span className="text-sm text-neutral-500">
+                {formatDate(review.date)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {review.title && (
+        <h4 className="font-semibold text-neutral-900 dark:text-white mb-2 text-lg">
+          {review.title}
+        </h4>
+      )}
+      
+      <div className="relative">
+        <p className={cn(
+          "text-neutral-600 dark:text-neutral-400 leading-relaxed",
+          isTruncated && "line-clamp-4"
+        )}>
+          {review.comment}
+        </p>
+        {needsTruncation && (
+          <button
+            onClick={handleExpand}
+            className="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline mt-1"
+            aria-expanded={isExpanded}
+          >
+            {isExpanded ? 'Show less' : 'Read more'}
+          </button>
+        )}
+      </div>
+
+      {/* Review Images */}
+      {review.images && review.images.length > 0 && (
+        <div className="flex gap-2 mt-3">
+          {review.images.slice(0, 4).map((image, idx) => (
+            <img
+              key={idx}
+              src={image}
+              alt={`Review image ${idx + 1}`}
+              className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+              loading="lazy"
+            />
+          ))}
+          {review.images.length > 4 && (
+            <div className="w-16 h-16 rounded-lg bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-sm text-neutral-500">
+              +{review.images.length - 4}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-4 mt-4 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+        <button
+          onClick={handleHelpful}
+          className={cn(
+            "flex items-center gap-1.5 text-sm transition-all duration-150 px-3 py-1.5 rounded-lg",
+            isReviewHelpful
+              ? "bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400"
+              : "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 dark:hover:text-neutral-300 dark:hover:bg-neutral-800"
+          )}
+          aria-pressed={isReviewHelpful}
+        >
+          <FiThumbsUp className="h-4 w-4" />
+          Helpful ({review.helpful || 0})
+        </button>
+        
+        <button
+          onClick={handleReport}
+          className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-red-600 dark:hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+          aria-label="Report this review"
+        >
+          <FiFlag className="h-4 w-4" />
+          Report
+        </button>
+      </div>
+    </motion.div>
+  );
+});
+
+ReviewItem.displayName = 'ReviewItem';
+
+// Memoized Filter Chip component
+const FilterChip = memo(({ label, onRemove }) => (
+  <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-sm">
+    {label}
+    <button
+      onClick={onRemove}
+      className="hover:text-amber-900 dark:hover:text-amber-200"
+      aria-label="Remove filter"
+    >
+      <FiX className="h-3 w-3" />
+    </button>
+  </span>
+));
+
+FilterChip.displayName = 'FilterChip';
+
+// Main ProductReviews Component
+const ProductReviews = memo(({ reviews, rating, numReviews, onHelpfulClick, onReportClick, variant = 'full' }) => {
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [filterRating, setFilterRating] = useState(null);
@@ -21,12 +216,10 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
   const processedReviews = useMemo(() => {
     let filtered = [...reviews];
     
-    // Apply rating filter
     if (filterRating) {
-      filtered = filtered.filter(review => review.rating === filterRating);
+      filtered = filtered.filter(review => Math.round(review.rating) === filterRating);
     }
     
-    // Apply search
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(review => 
@@ -36,28 +229,31 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
       );
     }
     
-    // Sort reviews
     switch (sortBy) {
       case 'newest':
-        return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+        filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+        break;
       case 'oldest':
-        return filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+        filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+        break;
       case 'highest':
-        return filtered.sort((a, b) => b.rating - a.rating);
+        filtered.sort((a, b) => b.rating - a.rating);
+        break;
       case 'lowest':
-        return filtered.sort((a, b) => a.rating - b.rating);
+        filtered.sort((a, b) => a.rating - b.rating);
+        break;
       case 'helpful':
-        return filtered.sort((a, b) => (b.helpful || 0) - (a.helpful || 0));
+        filtered.sort((a, b) => (b.helpful || 0) - (a.helpful || 0));
+        break;
       case 'relevant':
-        // Sort by combination of helpful votes and recency
-        return filtered.sort((a, b) => {
+        filtered.sort((a, b) => {
           const scoreA = (a.helpful || 0) * 0.7 + (new Date(a.date).getTime() / 100000000000) * 0.3;
           const scoreB = (b.helpful || 0) * 0.7 + (new Date(b.date).getTime() / 100000000000) * 0.3;
           return scoreB - scoreA;
         });
-      default:
-        return filtered;
+        break;
     }
+    return filtered;
   }, [reviews, sortBy, filterRating, searchTerm]);
 
   const totalPages = Math.ceil(processedReviews.length / reviewsPerPage);
@@ -67,8 +263,8 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
   );
 
   // Reset page when filters change
-  const handleFilterChange = useCallback((newFilter) => {
-    setFilterRating(newFilter);
+  const handleFilterChange = useCallback((star) => {
+    setFilterRating(prev => prev === star ? null : star);
     setCurrentPage(1);
   }, []);
 
@@ -79,6 +275,21 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
 
   const handleSortChange = useCallback((e) => {
     setSortBy(e.target.value);
+    setCurrentPage(1);
+  }, []);
+
+  const clearSearch = useCallback(() => {
+    setSearchTerm('');
+  }, []);
+
+  const toggleFilters = useCallback(() => {
+    setShowFilters(prev => !prev);
+  }, []);
+
+  const clearAllFilters = useCallback(() => {
+    setSearchTerm('');
+    setFilterRating(null);
+    setSortBy('newest');
     setCurrentPage(1);
   }, []);
 
@@ -107,7 +318,11 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
     onHelpfulClick?.(reviewId);
   }, [onHelpfulClick]);
 
-  // Rating distribution with enhanced calculations
+  const handleReportClick = useCallback((reviewId) => {
+    onReportClick?.(reviewId);
+  }, [onReportClick]);
+
+  // Memoized distribution data
   const distribution = useMemo(() => [5, 4, 3, 2, 1].map(star => {
     const count = reviews.filter(r => Math.round(r.rating) === star).length;
     return {
@@ -118,24 +333,27 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
     };
   }), [reviews, numReviews, filterRating]);
 
-  // Calculate recommendation percentage
+  // Memoized recommendation percentage
   const recommendationPercentage = useMemo(() => {
     if (numReviews === 0) return 0;
     const positiveReviews = reviews.filter(r => r.rating >= 4).length;
     return (positiveReviews / numReviews) * 100;
   }, [reviews, numReviews]);
 
-  // Get rating label
-  const getRatingLabel = (rating) => {
+  const getRatingLabel = useCallback((rating) => {
     if (rating >= 4.5) return 'Excellent';
     if (rating >= 4.0) return 'Very Good';
     if (rating >= 3.0) return 'Average';
     if (rating >= 2.0) return 'Below Average';
     return 'Poor';
-  };
+  }, []);
+
+  const ratingLabel = getRatingLabel(rating);
+  const startIndex = (currentPage - 1) * reviewsPerPage + 1;
+  const endIndex = Math.min(currentPage * reviewsPerPage, processedReviews.length);
 
   return (
-    <div className="space-y-8" role="region" aria-label="Product reviews">
+    <div className="space-y-6" role="region" aria-label="Product reviews">
       {/* Reviews Summary Header */}
       <div className={cn(
         "grid gap-6",
@@ -143,9 +361,9 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
       )}>
         {/* Average Rating Card */}
         <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
+          variants={scaleIn}
+          initial="initial"
+          animate="animate"
           className="text-center p-6 bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-800 dark:to-neutral-850 rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50"
         >
           <div className="text-6xl font-bold text-neutral-900 dark:text-white mb-2">
@@ -153,19 +371,19 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
           </div>
           <Rating value={rating} size="lg" showCount={false} className="justify-center mb-2" />
           <p className="text-lg font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
-            {getRatingLabel(rating)}
+            {ratingLabel}
           </p>
           <p className="text-sm text-neutral-500">
             Based on {numReviews} {numReviews === 1 ? 'review' : 'reviews'}
           </p>
           {recommendationPercentage > 0 && (
             <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-              {recommendationPercentage.toFixed(0)}% of customers recommend this product
+              {recommendationPercentage.toFixed(0)}% recommend this product
             </p>
           )}
         </motion.div>
 
-        {/* Rating Distribution with Interactive Filtering */}
+        {/* Rating Distribution */}
         <div className={cn(
           "p-6 bg-neutral-50 dark:bg-neutral-800 rounded-2xl border border-neutral-200/50 dark:border-neutral-700/50",
           variant === 'full' ? 'md:col-span-2' : ''
@@ -173,37 +391,14 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
           <h4 className="font-semibold text-neutral-900 dark:text-white mb-4">Rating Distribution</h4>
           <div className="space-y-3">
             {distribution.map(({ star, percentage, count, isActive }) => (
-              <button
+              <RatingDistributionBar
                 key={star}
-                onClick={() => handleFilterChange(isActive ? null : star)}
-                className={cn(
-                  "flex items-center gap-3 w-full p-2 rounded-lg transition-all duration-200 hover:bg-neutral-100 dark:hover:bg-neutral-750 group",
-                  isActive && "bg-amber-50 dark:bg-amber-900/20 ring-2 ring-amber-400 dark:ring-amber-500"
-                )}
-                aria-label={`Filter by ${star} star reviews`}
-              >
-                <div className="flex items-center gap-1 w-20">
-                  <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-white transition-colors">
-                    {star}
-                  </span>
-                  <FiStar className={cn(
-                    "h-4 w-4 text-amber-400 transition-transform group-hover:scale-110",
-                    isActive && "fill-amber-400"
-                  )} />
-                </div>
-                <div className="flex-grow h-3 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    whileInView={{ width: `${percentage}%` }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 1, ease: 'easeOut' }}
-                    className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full"
-                  />
-                </div>
-                <span className="text-sm text-neutral-500 w-12 text-right font-mono">
-                  {count}
-                </span>
-              </button>
+                star={star}
+                percentage={percentage}
+                count={count}
+                isActive={isActive}
+                onClick={() => handleFilterChange(star)}
+              />
             ))}
           </div>
         </div>
@@ -214,19 +409,19 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
         <div className="flex flex-col sm:flex-row gap-4">
           {/* Search Input */}
           <div className="relative flex-grow">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 h-4 w-4" />
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 h-4 w-4 pointer-events-none" />
             <input
               type="text"
               value={searchTerm}
               onChange={handleSearchChange}
               placeholder="Search reviews..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+              className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
               aria-label="Search reviews"
             />
             {searchTerm && (
               <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
                 aria-label="Clear search"
               >
                 <FiX className="h-4 w-4" />
@@ -250,15 +445,14 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
               <option value="relevant">Most Relevant</option>
             </select>
             <button
-              onClick={() => setShowFilters(!showFilters)}
+              onClick={toggleFilters}
               className={cn(
-                "px-4 py-2.5 rounded-lg border transition-all duration-200 flex items-center gap-2",
+                "px-4 py-2.5 rounded-lg border transition-all duration-150 flex items-center gap-2",
                 showFilters 
                   ? "bg-primary-50 border-primary-300 text-primary-700 dark:bg-primary-900/20 dark:border-primary-700 dark:text-primary-400"
-                  : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-750"
+                  : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
               )}
               aria-expanded={showFilters}
-              aria-label="Toggle filters"
             >
               <FiFilter className="h-4 w-4" />
               Filters
@@ -278,163 +472,43 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.15 }}
               className="flex flex-wrap gap-2"
             >
               {filterRating && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-sm">
-                  {filterRating} Stars
-                  <button
-                    onClick={() => handleFilterChange(null)}
-                    className="hover:text-amber-900 dark:hover:text-amber-200"
-                    aria-label="Remove star filter"
-                  >
-                    <FiX className="h-3 w-3" />
-                  </button>
-                </span>
+                <FilterChip 
+                  label={`${filterRating} Stars`} 
+                  onRemove={() => handleFilterChange(filterRating)}
+                />
               )}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Reviews Count Summary */}
-      <div className="flex items-center justify-between">
+      {/* Reviews Count */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">
           Customer Reviews 
           <span className="text-neutral-500 text-base font-normal ml-2">
-            ({processedReviews.length} {processedReviews.length === 1 ? 'review' : 'reviews'})
+            ({processedReviews.length})
           </span>
         </h3>
-        {processedReviews.length === 0 && (
-          <p className="text-sm text-neutral-500">No reviews match your criteria</p>
-        )}
       </div>
 
       {/* Reviews List */}
       <div className="space-y-4">
         <AnimatePresence mode="popLayout">
-          {paginatedReviews.map((review, index) => (
-            <motion.div
+          {paginatedReviews.map((review) => (
+            <ReviewItem
               key={review._id}
-              layout
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ delay: index * 0.05 }}
-              className="bg-white dark:bg-neutral-900 rounded-2xl p-6 border border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 transition-all duration-200 group"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center shadow-lg">
-                      <span className="font-semibold text-white text-lg">
-                        {review.user.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                      </span>
-                    </div>
-                    {review.verified && (
-                      <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1 border-2 border-white dark:border-neutral-900">
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-neutral-900 dark:text-white">
-                        {review.user}
-                      </p>
-                      {review.verified && (
-                        <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">
-                          Verified Purchase
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Rating value={review.rating} size="sm" showCount={false} />
-                      <span className="text-sm text-neutral-500">
-                        {formatDate(review.date)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {review.title && (
-                <h4 className="font-semibold text-neutral-900 dark:text-white mb-2 text-lg">
-                  {review.title}
-                </h4>
-              )}
-              
-              <div className="relative">
-                <p className={cn(
-                  "text-neutral-600 dark:text-neutral-400 leading-relaxed",
-                  !expandedReviews.has(review._id) && review.comment.length > 300 && "line-clamp-4"
-                )}>
-                  {review.comment}
-                </p>
-                {review.comment.length > 300 && (
-                  <button
-                    onClick={() => toggleReviewExpansion(review._id)}
-                    className="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline mt-1"
-                    aria-expanded={expandedReviews.has(review._id)}
-                  >
-                    {expandedReviews.has(review._id) ? 'Show less' : 'Read more'}
-                  </button>
-                )}
-              </div>
-
-              {/* Review Images if any */}
-              {review.images && review.images.length > 0 && (
-                <div className="flex gap-2 mt-3">
-                  {review.images.map((image, idx) => (
-                    <img
-                      key={idx}
-                      src={image}
-                      alt={`Review image ${idx + 1}`}
-                      className="w-16 h-16 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
-                    />
-                  ))}
-                </div>
-              )}
-
-              <div className="flex items-center gap-4 mt-4 pt-4 border-t border-neutral-100 dark:border-neutral-800">
-                <button
-                  onClick={() => handleHelpfulClick(review._id)}
-                  className={cn(
-                    "flex items-center gap-1.5 text-sm transition-all duration-200 px-3 py-1.5 rounded-lg",
-                    helpfulReviews.has(review._id)
-                      ? "bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400"
-                      : "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50 dark:hover:text-neutral-300 dark:hover:bg-neutral-800"
-                  )}
-                  aria-pressed={helpfulReviews.has(review._id)}
-                  aria-label={`Mark as helpful. ${review.helpful || 0} people found this helpful`}
-                >
-                  <FiThumbsUp className={cn(
-                    "h-4 w-4 transition-transform",
-                    helpfulReviews.has(review._id) && "scale-110"
-                  )} />
-                  Helpful ({review.helpful || 0})
-                </button>
-                
-                <button
-                  onClick={() => onReportClick?.(review._id)}
-                  className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-red-600 dark:hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-                  aria-label="Report this review"
-                >
-                  <FiFlag className="h-4 w-4" />
-                  Report
-                </button>
-
-                <button
-                  className="ml-auto flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors px-3 py-1.5 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800"
-                  aria-label="Reply to this review"
-                >
-                  <FiMessageSquare className="h-4 w-4" />
-                  Reply
-                </button>
-              </div>
-            </motion.div>
+              review={review}
+              isExpanded={expandedReviews.has(review._id)}
+              helpfulReviews={helpfulReviews}
+              onToggleExpand={toggleReviewExpansion}
+              onHelpfulClick={handleHelpfulClick}
+              onReportClick={handleReportClick}
+            />
           ))}
         </AnimatePresence>
       </div>
@@ -442,35 +516,33 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
       {/* Empty State */}
       {processedReviews.length === 0 && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
           className="text-center py-12 bg-neutral-50 dark:bg-neutral-800 rounded-2xl"
         >
           <FiMessageSquare className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">
             No reviews found
           </h3>
-          <p className="text-neutral-500">
+          <p className="text-neutral-500 max-w-md mx-auto">
             Try adjusting your filters or search terms
           </p>
           <Button
-            onClick={() => {
-              setSearchTerm('');
-              setFilterRating(null);
-              setSortBy('newest');
-            }}
+            onClick={clearAllFilters}
             className="mt-4"
+            variant="outline"
           >
             Clear all filters
           </Button>
         </motion.div>
       )}
 
-      {/* Pagination with Summary */}
+      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
           <p className="text-sm text-neutral-500">
-            Showing {((currentPage - 1) * reviewsPerPage) + 1}-{Math.min(currentPage * reviewsPerPage, processedReviews.length)} of {processedReviews.length} reviews
+            Showing {startIndex}-{endIndex} of {processedReviews.length} reviews
           </p>
           <Pagination
             currentPage={currentPage}
@@ -481,6 +553,8 @@ const ProductReviews = ({ reviews, rating, numReviews, onHelpfulClick, onReportC
       )}
     </div>
   );
-};
+});
+
+ProductReviews.displayName = 'ProductReviews';
 
 export default ProductReviews;

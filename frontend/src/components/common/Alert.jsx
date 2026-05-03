@@ -1,5 +1,5 @@
 // src/components/common/Alert.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 const Alert = ({ 
   type = 'info',
@@ -13,41 +13,46 @@ const Alert = ({
 }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [isExiting, setIsExiting] = useState(false);
-  const [autoCloseTimer, setAutoCloseTimer] = useState(null);
+  const autoCloseTimerRef = useRef(null);
+  const exitTimerRef = useRef(null);
 
-  // Handle auto-close functionality
+  // Handle auto-close functionality - Optimized
   useEffect(() => {
-    if (autoClose && isVisible && !autoCloseTimer) {
-      const timer = setTimeout(() => {
+    if (autoClose && isVisible && !isExiting) {
+      autoCloseTimerRef.current = setTimeout(() => {
         handleDismiss();
       }, autoClose);
-      setAutoCloseTimer(timer);
     }
 
     return () => {
-      if (autoCloseTimer) {
-        clearTimeout(autoCloseTimer);
+      if (autoCloseTimerRef.current) {
+        clearTimeout(autoCloseTimerRef.current);
       }
     };
-  }, [autoClose, isVisible, autoCloseTimer]);
+  }, [autoClose, isVisible, isExiting]);
 
-  // Clean up timer on unmount
+  // Clean up all timers on unmount
   useEffect(() => {
     return () => {
-      if (autoCloseTimer) {
-        clearTimeout(autoCloseTimer);
-      }
+      if (autoCloseTimerRef.current) clearTimeout(autoCloseTimerRef.current);
+      if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
     };
-  }, [autoCloseTimer]);
+  }, []);
 
   const handleDismiss = useCallback(() => {
     if (isExiting) return;
+    
+    // Clear auto-close timer if exists
+    if (autoCloseTimerRef.current) {
+      clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = null;
+    }
     
     // Start exit animation
     setIsExiting(true);
     
     // After animation completes, remove from DOM
-    setTimeout(() => {
+    exitTimerRef.current = setTimeout(() => {
       setIsVisible(false);
       if (onDismiss) {
         onDismiss(id);
@@ -55,15 +60,14 @@ const Alert = ({
     }, 300);
   }, [onDismiss, isExiting, id]);
 
-  // Prevent rapid dismiss by ignoring if already exiting
-  const handleDismissClick = () => {
+  const handleDismissClick = useCallback(() => {
     if (!isExiting) {
       handleDismiss();
     }
-  };
+  }, [handleDismiss, isExiting]);
 
-  // Icon mapping based on alert type
-  const getIconByType = () => {
+  // Icon mapping based on alert type - Memoized with useCallback
+  const getIconByType = useCallback(() => {
     switch (type) {
       case 'success':
         return (
@@ -91,14 +95,7 @@ const Alert = ({
           </svg>
         );
     }
-  };
-
-  const alertClasses = `
-    alert 
-    alert--${type} 
-    ${isExiting ? 'alert--exiting' : 'alert--entering'}
-    ${dismissible ? 'alert--dismissible' : ''}
-  `;
+  }, [type]);
 
   if (!isVisible) {
     return null;
@@ -106,7 +103,7 @@ const Alert = ({
 
   return (
     <div 
-      className={alertClasses}
+      className={`alert alert--${type} ${isExiting ? 'alert--exiting' : 'alert--entering'} ${dismissible ? 'alert--dismissible' : ''}`}
       role="alert"
       aria-live={type === 'error' ? 'assertive' : 'polite'}
       aria-atomic="true"
@@ -137,8 +134,8 @@ const Alert = ({
   );
 };
 
-// AlertContainer component for managing multiple alerts
-export const AlertContainer = ({ alerts, onDismiss }) => {
+// AlertContainer component for managing multiple alerts - Optimized with memo
+export const AlertContainer = React.memo(({ alerts, onDismiss }) => {
   if (!alerts || alerts.length === 0) return null;
 
   return (
@@ -158,9 +155,11 @@ export const AlertContainer = ({ alerts, onDismiss }) => {
       ))}
     </div>
   );
-};
+});
 
-// CSS styles to be included with the component
+AlertContainer.displayName = 'AlertContainer';
+
+// CSS styles - Inlined but can be moved to external CSS
 const styles = `
   /* Alert Container - for stacking multiple alerts */
   .alert-container {
@@ -189,10 +188,10 @@ const styles = `
     border-radius: 0.5rem;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     overflow: hidden;
-    transition: all 0.3s ease-in-out;
+    will-change: transform, opacity;
   }
 
-  /* Animation States */
+  /* Animation States - Optimized with GPU acceleration */
   .alert--entering {
     animation: slideIn 0.3s ease-out forwards;
   }
@@ -269,7 +268,7 @@ const styles = `
     padding: 0.25rem;
     margin: -0.25rem;
     border-radius: 0.375rem;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease;
   }
 
   .dismiss-icon {
@@ -381,6 +380,22 @@ const styles = `
     white-space: pre-wrap;
   }
 
+  /* Reduced motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    .alert--entering,
+    .alert--exiting {
+      animation: none;
+    }
+    
+    .alert--entering {
+      opacity: 1;
+    }
+    
+    .alert--exiting {
+      opacity: 0;
+    }
+  }
+
   /* Responsive adjustments */
   @media (max-width: 640px) {
     .alert-container {
@@ -400,68 +415,62 @@ const styles = `
   }
 `;
 
-// Hook for managing alert state in components
+// Hook for managing alert state in components - Optimized
 export const useAlert = () => {
   const [alerts, setAlerts] = useState([]);
+  const nextIdRef = useRef(0);
 
-  const addAlert = (alert) => {
-    const id = alert.id || Date.now() + Math.random().toString(36).substr(2, 9);
+  const addAlert = useCallback((alert) => {
+    const id = alert.id || `alert-${Date.now()}-${nextIdRef.current++}`;
     const newAlert = { ...alert, id };
     
     setAlerts(prev => [...prev, newAlert]);
-
-    // Auto-remove if no autoClose is specified but we want to clean up
-    if (!alert.autoClose && alert.dismissible !== false) {
-      // No auto-close, user must dismiss
-      return id;
-    }
-
     return id;
-  };
+  }, []);
 
-  const removeAlert = (id) => {
+  const removeAlert = useCallback((id) => {
     setAlerts(prev => prev.filter(alert => alert.id !== id));
-  };
+  }, []);
 
-  const clearAlerts = () => {
+  const clearAlerts = useCallback(() => {
     setAlerts([]);
-  };
+  }, []);
 
-  const showSuccess = (message, title = 'Success', options = {}) => {
+  const showSuccess = useCallback((message, title = 'Success', options = {}) => {
     return addAlert({
       type: 'success',
       title,
       message,
       ...options
     });
-  };
+  }, [addAlert]);
 
-  const showError = (message, title = 'Error', options = {}) => {
+  const showError = useCallback((message, title = 'Error', options = {}) => {
     return addAlert({
       type: 'error',
       title,
       message,
       ...options
     });
-  };
+  }, [addAlert]);
 
-  const showWarning = (message, title = 'Warning', options = {}) => {
+  const showWarning = useCallback((message, title = 'Warning', options = {}) => {
     return addAlert({
       type: 'warning',
       title,
       message,
       ...options
     });
-  };
+  }, [addAlert]);
 
-  const showInfo = (message, title = 'Info', options = {}) => {
+  const showInfo = useCallback((message, title = 'Info', options = {}) => {
     return addAlert({
       type: 'info',
       title,
       message,
       ...options
     });
-  };
+  }, [addAlert]);
 
   return {
     alerts,
@@ -475,8 +484,8 @@ export const useAlert = () => {
   };
 };
 
-// Usage example with a provider pattern
-export const AlertProvider = ({ children }) => {
+// Optimized AlertProvider component
+export const AlertProvider = React.memo(({ children }) => {
   const { alerts, removeAlert } = useAlert();
 
   return (
@@ -485,6 +494,8 @@ export const AlertProvider = ({ children }) => {
       {children}
     </>
   );
-};
+});
+
+AlertProvider.displayName = 'AlertProvider';
 
 export default Alert;

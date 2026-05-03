@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion } from 'framer-motion';
 import ProductCard from './ProductCard';
 import { ProductCardSkeleton } from '../common/Skeleton';
 import apiWrapper from '../../services/apiWrapper';
@@ -105,11 +104,7 @@ const RelatedProducts = ({ productId, category }) => {
   return (
     <section className="py-12" aria-label="Related products">
       <div className="w-full px-[1%] sm:px-[1.5%]">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-50px" }}
-        >
+        <div>
           <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-6">
             You May Also Like
           </h2>
@@ -125,7 +120,7 @@ const RelatedProducts = ({ productId, category }) => {
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

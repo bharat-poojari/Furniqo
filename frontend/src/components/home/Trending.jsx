@@ -32,7 +32,7 @@ const getCategoryName = (category) => {
   return null;
 };
 
-// Improved Share functionality that opens native share panel on mobile
+// Optimized Share functionality
 const shareProduct = async (product, e) => {
   if (e) {
     e.preventDefault();
@@ -43,69 +43,103 @@ const shareProduct = async (product, e) => {
   const shareTitle = product.name;
   const shareText = `Check out ${product.name} on Furniqo!`;
   
-  // Create share data object
   const shareData = {
     title: shareTitle,
     text: shareText,
     url: shareUrl,
   };
   
-  // Check if Web Share API is available (requires HTTPS)
   if (navigator.share && typeof navigator.share === 'function') {
     try {
-      // Try to share using native share panel
       await navigator.share(shareData);
-      toast.success('Shared successfully!', {
-        icon: '📱',
-        duration: 2000
-      });
+      toast.success('Shared successfully!', { icon: '📱', duration: 2000 });
       return;
     } catch (error) {
-      console.error('Share error:', error);
-      // User cancelled share or share failed
       if (error.name !== 'AbortError') {
-        toast.error('Could not open share panel', {
-          icon: '❌',
-          duration: 2000
-        });
+        toast.error('Could not open share panel', { icon: '❌', duration: 2000 });
       }
       return;
     }
   }
   
-  // If Web Share API is not available (desktop or HTTP), copy to clipboard
   await copyToClipboard(shareUrl);
 };
 
 const copyToClipboard = async (text) => {
   try {
     await navigator.clipboard.writeText(text);
-    toast.success('Product link copied to clipboard!', {
-      icon: '🔗',
-      duration: 2000
-    });
+    toast.success('Product link copied to clipboard!', { icon: '🔗', duration: 2000 });
   } catch (err) {
-    console.error('Clipboard error:', err);
-    // Fallback for older browsers
     const textarea = document.createElement('textarea');
     textarea.value = text;
     document.body.appendChild(textarea);
     textarea.select();
     try {
       document.execCommand('copy');
-      toast.success('Product link copied to clipboard!', {
-        icon: '🔗',
-        duration: 2000
-      });
+      toast.success('Product link copied to clipboard!', { icon: '🔗', duration: 2000 });
     } catch (fallbackErr) {
-      toast.error('Failed to copy link. Please try again.', {
-        icon: '❌',
-        duration: 2000
-      });
+      toast.error('Failed to copy link. Please try again.', { icon: '❌', duration: 2000 });
     }
     document.body.removeChild(textarea);
   }
 };
+
+// Optimized LazyImage Component with Intersection Observer
+const LazyImage = memo(({ src, alt, className, onLoad, priority = false }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [srcToLoad, setSrcToLoad] = useState(priority ? src : null);
+  const imgRef = useRef(null);
+  const observerRef = useRef(null);
+
+  useEffect(() => {
+    if (priority) {
+      setSrcToLoad(src);
+      return;
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setSrcToLoad(src);
+            observerRef.current?.disconnect();
+          }
+        });
+      },
+      { rootMargin: '200px', threshold: 0.01 }
+    );
+
+    if (imgRef.current) {
+      observerRef.current.observe(imgRef.current);
+    }
+
+    return () => observerRef.current?.disconnect();
+  }, [src, priority]);
+
+  const handleLoad = useCallback(() => {
+    setIsLoaded(true);
+    onLoad?.();
+  }, [onLoad]);
+
+  return (
+    <div className="relative w-full h-full overflow-hidden bg-neutral-100 dark:bg-neutral-700">
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-gradient-to-r from-neutral-200 via-neutral-300 to-neutral-200 dark:from-neutral-700 dark:via-neutral-600 dark:to-neutral-700 animate-pulse" />
+      )}
+      <img
+        ref={imgRef}
+        src={srcToLoad || undefined}
+        alt={alt}
+        className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        onLoad={handleLoad}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+      />
+    </div>
+  );
+});
+
+LazyImage.displayName = 'LazyImage';
 
 // Optimized Modal Component
 const Modal = memo(({ 
@@ -148,24 +182,36 @@ const Modal = memo(({
     full: 'max-w-full m-4',
   };
 
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.96, y: 10 },
+    visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.12 } },
+    exit: { opacity: 0, scale: 0.96, y: 10, transition: { duration: 0.1 } },
+  };
+
+  const overlayVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: 0.1 } },
+    exit: { opacity: 0, transition: { duration: 0.08 } },
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
+            variants={overlayVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={closeOnOverlay ? onClose : undefined}
           />
           
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'tween', duration: 0.2 }}
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             className={cn(
               'relative w-full bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl',
               'border border-neutral-200 dark:border-neutral-800',
@@ -246,15 +292,10 @@ const QuickViewModal = memo(({ product, isOpen, onClose }) => {
       await addToCart(product, quantity);
       setAddedToCart(true);
       
-      toast.success(`${quantity} × ${product.name} added to cart!`, {
-        icon: '🛒',
-        duration: 1500,
-      });
-      
       setTimeout(() => {
         setAddedToCart(false);
         onClose();
-      }, 1200);
+      }, 1000);
     } catch (error) {
       toast.error('Failed to add to cart');
     } finally {
@@ -284,20 +325,20 @@ const QuickViewModal = memo(({ product, isOpen, onClose }) => {
   const reviewCount = product.numReviews || 128;
   const categoryName = getCategoryName(product.category);
   const inWishlist = isWishlisted(product._id);
+  const imageUrl = product.images?.[selectedImage] || 'https://placehold.co/500x500/eee/999?text=No+Image';
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="4xl" showCloseButton={true} closeOnOverlay={true}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
         {/* Image Gallery */}
         <div className="space-y-3">
-          <div className="relative overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-800">
-            <img
-              src={product.images?.[selectedImage] || 'https://via.placeholder.com/500x500?text=No+Image'}
+          <div className="relative overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-800 aspect-square">
+            <LazyImage
+              src={imageUrl}
               alt={product.name}
-              className="w-full aspect-square object-cover"
-              loading="lazy"
+              className="w-full h-full object-cover"
+              priority={true}
             />
-            
             {discount > 0 && (
               <div className="absolute top-4 left-4 bg-gradient-to-r from-red-500 to-orange-500 text-white text-sm font-bold px-3 py-1.5 rounded-full shadow-lg">
                 -{discount}% OFF
@@ -480,11 +521,9 @@ QuickViewModal.displayName = 'QuickViewModal';
 
 // Optimized Product Card Component
 const ProductCard = memo(({ product, index, onQuickView, onWishlistToggle, onAddToCart, isWishlisted, isAddingToCart }) => {
-  const [imageLoaded, setImageLoaded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Detect mobile for layout adjustments
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -492,10 +531,6 @@ const ProductCard = memo(({ product, index, onQuickView, onWishlistToggle, onAdd
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  const handleImageLoad = useCallback(() => {
-    setImageLoaded(true);
   }, []);
 
   const getDisplayCategory = useCallback((product) => {
@@ -511,67 +546,91 @@ const ProductCard = memo(({ product, index, onQuickView, onWishlistToggle, onAdd
     shareProduct(product, e);
   }, [product]);
 
+  const handleWishlist = useCallback((e) => {
+    onWishlistToggle(product, e);
+  }, [onWishlistToggle, product]);
+
+  const handleAdd = useCallback((e) => {
+    onAddToCart(product, e);
+  }, [onAddToCart, product]);
+
+  const handleQuick = useCallback(() => {
+    onQuickView(product);
+  }, [onQuickView, product]);
+
+  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
+  const handleMouseLeave = useCallback(() => setIsHovered(false), []);
+
   const category = getDisplayCategory(product);
+  const imageUrl = product.images?.[0] || 'https://placehold.co/400x400/eee/999?text=No+Image';
+  const inWishlist = isWishlisted(product._id);
+  const discount = product.originalPrice && product.originalPrice > product.price
+    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+    : 0;
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.2, delay: index * 0.03 } }
+  };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      variants={cardVariants}
+      initial="hidden"
+      whileInView="visible"
       viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.3, delay: index * 0.04 }}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
-      <div className="group relative bg-white dark:bg-neutral-800 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-shadow duration-200 h-full flex flex-col">
+      <div className="group relative bg-white dark:bg-neutral-800 rounded-xl sm:rounded-2xl overflow-hidden shadow hover:shadow-xl transition-shadow duration-150 h-full flex flex-col border border-neutral-200 dark:border-neutral-700 will-change-transform">
         {/* Image Container */}
-        <div className="relative overflow-hidden bg-neutral-100 dark:bg-neutral-700 flex-shrink-0">
-          {!imageLoaded && (
-            <div className="absolute inset-0 bg-gradient-to-r from-neutral-200 via-neutral-300 to-neutral-200 dark:from-neutral-700 dark:via-neutral-600 dark:to-neutral-700 animate-pulse" />
-          )}
-          <img
-            src={product.images?.[0] || 'https://via.placeholder.com/400x400?text=No+Image'}
+        <div className="relative overflow-hidden bg-neutral-100 dark:bg-neutral-700 flex-shrink-0 contain-paint">
+          <LazyImage
+            src={imageUrl}
             alt={product.name}
-            className={`w-full aspect-square object-cover transition-transform duration-300 ${isHovered ? 'scale-105' : 'scale-100'} ${
-              imageLoaded ? 'opacity-100' : 'opacity-0'
-            }`}
-            onLoad={handleImageLoad}
-            loading="lazy"
+            className="w-full aspect-square object-cover transition-transform duration-200 will-change-transform"
+            priority={index < 2}
           />
           
           {isHovered && !isMobile && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity duration-200">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity duration-150">
               <button
-                onClick={() => onQuickView(product)}
-                className="bg-white/90 backdrop-blur-md text-neutral-900 px-4 sm:px-6 py-1.5 sm:py-2.5 rounded-full font-medium transform transition-all duration-200 hover:bg-white shadow-lg text-xs sm:text-sm flex items-center gap-2"
+                onClick={handleQuick}
+                className="bg-white/90 backdrop-blur-md text-neutral-900 px-4 sm:px-6 py-1.5 sm:py-2.5 rounded-full font-medium transform transition-all duration-150 hover:bg-white shadow-lg text-xs sm:text-sm flex items-center gap-2"
               >
                 <FiEye className="h-3 w-3 sm:h-4 sm:w-4" />
                 Quick View
               </button>
             </div>
           )}
+
+          {/* Discount Badge */}
+          {discount > 0 && (
+            <div className="absolute top-2 sm:top-3 left-2 sm:left-3 z-10">
+              <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-[9px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full shadow-lg">
+                -{discount}%
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Action Buttons - Vertical stack */}
+        {/* Action Buttons */}
         <div className="absolute top-2 sm:top-3 right-2 sm:right-3 flex flex-col gap-1.5 sm:gap-2 z-10">
-          {/* Wishlist Button */}
           <button
-            onClick={(e) => onWishlistToggle(product, e)}
+            onClick={handleWishlist}
             className="p-1.5 sm:p-2 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-shadow duration-150"
             aria-label="Add to wishlist"
           >
             <FiHeart
               className={`h-3 w-3 sm:h-4 sm:w-4 transition-colors duration-150 ${
-                isWishlisted(product._id)
-                  ? 'fill-red-500 text-red-500'
-                  : 'text-neutral-600 dark:text-neutral-400'
+                inWishlist ? 'fill-red-500 text-red-500' : 'text-neutral-600 dark:text-neutral-400'
               }`}
             />
           </button>
 
-          {/* Quick View Button - Mobile only with Eye icon */}
           {isMobile && (
             <button
-              onClick={() => onQuickView(product)}
+              onClick={handleQuick}
               className="p-1.5 sm:p-2 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-shadow duration-150"
               aria-label="Quick view"
             >
@@ -579,7 +638,6 @@ const ProductCard = memo(({ product, index, onQuickView, onWishlistToggle, onAdd
             </button>
           )}
 
-          {/* Share Button */}
           <button
             onClick={handleShare}
             className="p-1.5 sm:p-2 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-shadow duration-150"
@@ -589,18 +647,20 @@ const ProductCard = memo(({ product, index, onQuickView, onWishlistToggle, onAdd
           </button>
         </div>
 
-        {/* Trending Badge */}
-        <div className="absolute top-2 sm:top-3 left-2 sm:left-3 z-10">
-          <div className="flex items-center gap-0.5 sm:gap-1 bg-gradient-to-r from-primary-500 to-purple-500 text-white text-[9px] sm:text-xs font-semibold px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-lg">
-            <FiZap className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
-            <span>Trending</span>
+        {/* Trending Badge - show only if no discount or discount < 20 */}
+        {discount === 0 && (
+          <div className="absolute top-2 sm:top-3 left-2 sm:left-3 z-10">
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-gradient-to-r from-primary-500 to-purple-500 text-white text-[9px] sm:text-xs font-semibold px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-lg">
+              <FiZap className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
+              <span>Trending</span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Product Info */}
         <div className="p-2.5 sm:p-4 flex flex-col flex-grow">
           {category && (
-            <p className="text-[10px] sm:text-xs text-primary-600 dark:text-primary-400 font-medium mb-0.5 sm:mb-1">
+            <p className="text-[10px] sm:text-xs text-primary-600 dark:text-primary-400 font-medium mb-0.5 sm:mb-1 truncate">
               {category}
             </p>
           )}
@@ -639,7 +699,7 @@ const ProductCard = memo(({ product, index, onQuickView, onWishlistToggle, onAdd
             </div>
 
             <button
-              onClick={(e) => onAddToCart(product, e)}
+              onClick={handleAdd}
               disabled={isAddingToCart}
               className="p-1.5 sm:p-2.5 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white rounded-lg sm:rounded-xl transition-all duration-150 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -647,11 +707,6 @@ const ProductCard = memo(({ product, index, onQuickView, onWishlistToggle, onAdd
             </button>
           </div>
         </div>
-
-        {/* Hover Border Effect - Desktop only */}
-        {isHovered && !isMobile && (
-          <div className="absolute inset-0 rounded-xl sm:rounded-2xl pointer-events-none ring-2 ring-primary-500/50 transition-all duration-150" />
-        )}
       </div>
     </motion.div>
   );
@@ -669,14 +724,14 @@ const Trending = () => {
   const { addToCart } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
   const fetchAttempted = useRef(false);
+  const abortRef = useRef(null);
 
-  useEffect(() => {
-    fetchTrendingProducts();
-  }, []);
-
-  const fetchTrendingProducts = async () => {
+  const fetchTrendingProducts = useCallback(async () => {
     if (fetchAttempted.current) return;
     fetchAttempted.current = true;
+    
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
     
     try {
       const response = await apiWrapper.getTrendingProducts(8);
@@ -689,12 +744,19 @@ const Trending = () => {
         setProducts([]);
       }
     } catch (error) {
-      console.error('Error fetching trending products:', error);
-      setProducts([]);
+      if (error.name !== 'AbortError') {
+        console.error('Error fetching trending products:', error);
+        setProducts([]);
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchTrendingProducts();
+    return () => abortRef.current?.abort();
+  }, [fetchTrendingProducts]);
 
   const handleWishlistToggle = useCallback((product, e) => {
     if (e) {
@@ -716,10 +778,7 @@ const Trending = () => {
     
     try {
       await addToCart(product, 1);
-      toast.success(`${product.name} added to cart!`, {
-        icon: '🛒',
-        duration: 1500
-      });
+      toast.success(`${product.name} added to cart!`, { icon: '🛒', duration: 1500 });
     } catch (error) {
       toast.error('Failed to add to cart');
     } finally {
@@ -732,14 +791,9 @@ const Trending = () => {
     setIsQuickViewOpen(true);
   }, []);
 
-  // Memoized header variants
   const headerVariants = useMemo(() => ({
-    hidden: { opacity: 0, y: -20 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
-      transition: { duration: 0.4, ease: "easeOut" } 
-    },
+    hidden: { opacity: 0, y: -15 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
   }), []);
 
   // Loading skeleton
@@ -754,8 +808,8 @@ const Trending = () => {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="rounded-xl sm:rounded-2xl bg-white dark:bg-neutral-800 shadow-lg overflow-hidden">
-                <div className="aspect-square bg-neutral-200 dark:bg-neutral-700 animate-pulse" />
+              <div key={i} className="rounded-xl sm:rounded-2xl bg-white dark:bg-neutral-800 shadow-lg overflow-hidden border border-neutral-200 dark:border-neutral-700">
+                <div className="aspect-square bg-gradient-to-r from-neutral-200 via-neutral-300 to-neutral-200 dark:from-neutral-700 dark:via-neutral-600 dark:to-neutral-700 animate-pulse" />
                 <div className="p-3 sm:p-5 space-y-2">
                   <div className="h-4 sm:h-5 bg-neutral-200 dark:bg-neutral-700 rounded-lg w-3/4 animate-pulse" />
                   <div className="h-3 sm:h-4 bg-neutral-200 dark:bg-neutral-700 rounded-lg w-1/2 animate-pulse" />
@@ -820,9 +874,9 @@ const Trending = () => {
         {products.length > 0 && (
           <motion.div 
             className="text-center mt-8 sm:mt-12 lg:mt-16"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.2 }}
             viewport={{ once: true }}
           >
             <Link

@@ -1,138 +1,95 @@
 // src/components/common/Accordion.jsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 
-const Accordion = ({ 
-  items = [], 
-  defaultOpen = null, 
-  allowMultiple = false, 
-  variant = 'default' 
-}) => {
-  // Initialize expanded state based on props
-  const [expandedItems, setExpandedItems] = useState(() => {
-    if (defaultOpen !== null && !allowMultiple) {
-      return { [defaultOpen]: true };
-    }
-    if (defaultOpen !== null && allowMultiple) {
-      const initial = {};
-      const defaultArray = Array.isArray(defaultOpen) ? defaultOpen : [defaultOpen];
-      defaultArray.forEach(index => {
-        if (items[index]) initial[index] = true;
-      });
-      return initial;
-    }
-    return {};
-  });
-
-  // Handle empty items array
-  if (!items || items.length === 0) {
-    return (
-      <div className="accordion-empty">
-        <p>No content available</p>
-      </div>
-    );
-  }
-
-  const toggleItem = (index) => {
-    if (allowMultiple) {
-      setExpandedItems(prev => ({
-        ...prev,
-        [index]: !prev[index]
-      }));
-    } else {
-      setExpandedItems({
-        [index]: !expandedItems[index]
-      });
-    }
-  };
-
-  const handleKeyDown = (e, index) => {
-    // Toggle on Enter or Space
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      toggleItem(index);
-    }
-    
-    // Keyboard navigation between items
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      const direction = e.key === 'ArrowDown' ? 1 : -1;
-      const nextIndex = index + direction;
-      
-      if (nextIndex >= 0 && nextIndex < items.length) {
-        const nextButton = document.querySelector(`[data-accordion-button="${nextIndex}"]`);
-        nextButton?.focus();
-      }
-    }
-  };
-
-  return (
-    <div 
-      className={`accordion accordion--${variant}`}
-      role="region"
-      aria-label="Accordion content"
-    >
-      {items.map((item, index) => (
-        <AccordionItem
-          key={index}
-          title={item.title}
-          content={item.content}
-          isExpanded={!!expandedItems[index]}
-          onToggle={() => toggleItem(index)}
-          onKeyDown={(e) => handleKeyDown(e, index)}
-          index={index}
-          variant={variant}
-          isLast={index === items.length - 1}
-        />
-      ))}
-    </div>
-  );
-};
-
-// Sub-component for individual accordion items
-const AccordionItem = ({ 
+// Optimized AccordionItem component with memo
+const AccordionItem = memo(({ 
   title, 
   content, 
   isExpanded, 
   onToggle, 
-  onKeyDown, 
   index,
   variant,
-  isLast
+  isLast,
+  onKeyDown
 }) => {
   const contentRef = useRef(null);
   const [height, setHeight] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
 
+  // Optimized height calculation with RAF
   useEffect(() => {
-    if (isExpanded && contentRef.current) {
-      const scrollHeight = contentRef.current.scrollHeight;
-      setHeight(scrollHeight);
-    } else {
-      setHeight(0);
-    }
+    let rafId;
+    const updateHeight = () => {
+      if (contentRef.current) {
+        const scrollHeight = contentRef.current.scrollHeight;
+        setHeight(isExpanded ? scrollHeight : 0);
+        if (isExpanded) {
+          rafId = requestAnimationFrame(() => {
+            setTimeout(() => setIsAnimating(false), 300);
+          });
+        } else {
+          setIsAnimating(true);
+          rafId = requestAnimationFrame(() => {
+            setTimeout(() => setIsAnimating(false), 300);
+          });
+        }
+      }
+    };
+    
+    updateHeight();
+    
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [isExpanded, content]);
 
-  // Handle content changes
+  // Handle content changes without reflow thrashing
   useEffect(() => {
-    if (isExpanded && contentRef.current) {
-      setHeight(contentRef.current.scrollHeight);
+    if (isExpanded && contentRef.current && !isAnimating) {
+      const rafId = requestAnimationFrame(() => {
+        if (contentRef.current) {
+          setHeight(contentRef.current.scrollHeight);
+        }
+      });
+      return () => cancelAnimationFrame(rafId);
     }
-  }, [content, isExpanded]);
+  }, [content, isExpanded, isAnimating]);
 
-  const variantClasses = {
+  const handleToggle = useCallback(() => {
+    onToggle(index);
+  }, [onToggle, index]);
+
+  const handleKeyDownEvent = useCallback((e) => {
+    onKeyDown(e, index);
+  }, [onKeyDown, index]);
+
+  const variantClasses = useMemo(() => ({
     default: 'accordion-item--default',
     bordered: 'accordion-item--bordered',
     minimal: 'accordion-item--minimal'
-  };
+  }), []);
+
+  const itemClassName = useMemo(() => {
+    const classes = [variantClasses[variant] || variantClasses.default];
+    if (!isLast) classes.push('accordion-item--not-last');
+    return classes.join(' ');
+  }, [variant, variantClasses, isLast]);
+
+  const buttonClassName = useMemo(() => {
+    const classes = ['accordion-button'];
+    if (isExpanded) classes.push('accordion-button--expanded');
+    return classes.join(' ');
+  }, [isExpanded]);
 
   return (
     <div 
-      className={`accordion-item ${variantClasses[variant]} ${!isLast ? 'accordion-item--not-last' : ''}`}
+      className={itemClassName}
       data-accordion-item
     >
       <button
-        className={`accordion-button ${isExpanded ? 'accordion-button--expanded' : ''}`}
-        onClick={onToggle}
-        onKeyDown={onKeyDown}
+        className={buttonClassName}
+        onClick={handleToggle}
+        onKeyDown={handleKeyDownEvent}
         aria-expanded={isExpanded}
         aria-controls={`accordion-content-${index}`}
         id={`accordion-button-${index}`}
@@ -150,8 +107,8 @@ const AccordionItem = ({
         aria-labelledby={`accordion-button-${index}`}
         className="accordion-content"
         style={{
-          height: height,
-          transition: 'height 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          height: `${height}px`,
+          transition: 'height 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
           overflow: 'hidden'
         }}
       >
@@ -159,6 +116,120 @@ const AccordionItem = ({
           {content}
         </div>
       </div>
+    </div>
+  );
+});
+
+AccordionItem.displayName = 'AccordionItem';
+
+// Main Accordion component
+const Accordion = ({ 
+  items = [], 
+  defaultOpen = null, 
+  allowMultiple = false, 
+  variant = 'default' 
+}) => {
+  // Memoized initial expanded state
+  const [expandedItems, setExpandedItems] = useState(() => {
+    if (!items.length) return {};
+    
+    if (defaultOpen !== null && !allowMultiple) {
+      return { [defaultOpen]: true };
+    }
+    if (defaultOpen !== null && allowMultiple) {
+      const initial = {};
+      const defaultArray = Array.isArray(defaultOpen) ? defaultOpen : [defaultOpen];
+      defaultArray.forEach(index => {
+        if (items[index]) initial[index] = true;
+      });
+      return initial;
+    }
+    return {};
+  });
+
+  // Memoized toggle function
+  const toggleItem = useCallback((index) => {
+    setExpandedItems(prev => {
+      if (allowMultiple) {
+        return {
+          ...prev,
+          [index]: !prev[index]
+        };
+      } else {
+        // Single mode - close others, open only this one if not already open
+        const isOpen = prev[index];
+        return isOpen ? {} : { [index]: true };
+      }
+    });
+  }, [allowMultiple]);
+
+  // Keyboard navigation handler
+  const handleKeyDown = useCallback((e, index) => {
+    // Toggle on Enter or Space
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleItem(index);
+    }
+    
+    // Keyboard navigation between items
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const direction = e.key === 'ArrowDown' ? 1 : -1;
+      const nextIndex = index + direction;
+      
+      if (nextIndex >= 0 && nextIndex < items.length) {
+        const nextButton = document.querySelector(`[data-accordion-button="${nextIndex}"]`);
+        nextButton?.focus();
+      }
+    }
+    
+    // Home/End keys
+    if (e.key === 'Home') {
+      e.preventDefault();
+      const firstButton = document.querySelector('[data-accordion-button="0"]');
+      firstButton?.focus();
+    }
+    
+    if (e.key === 'End') {
+      e.preventDefault();
+      const lastButton = document.querySelector(`[data-accordion-button="${items.length - 1}"]`);
+      lastButton?.focus();
+    }
+  }, [items.length, toggleItem]);
+
+  // Memoized empty state
+  const emptyState = useMemo(() => (
+    <div className="accordion-empty">
+      <p>No content available</p>
+    </div>
+  ), []);
+
+  // Handle empty items array
+  if (!items || items.length === 0) {
+    return emptyState;
+  }
+
+  const accordionClassName = useMemo(() => `accordion accordion--${variant}`, [variant]);
+
+  return (
+    <div 
+      className={accordionClassName}
+      role="region"
+      aria-label="Accordion content"
+    >
+      {items.map((item, index) => (
+        <AccordionItem
+          key={index}
+          title={item.title}
+          content={item.content}
+          isExpanded={!!expandedItems[index]}
+          onToggle={toggleItem}
+          onKeyDown={handleKeyDown}
+          index={index}
+          variant={variant}
+          isLast={index === items.length - 1}
+        />
+      ))}
     </div>
   );
 };
@@ -188,16 +259,17 @@ const styles = `
     font-size: 1rem;
     font-weight: 500;
     color: #1f2937;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
   }
 
   .accordion--default .accordion-button:hover {
     background: #f3f4f6;
   }
 
-  .accordion--default .accordion-button:focus {
+  .accordion--default .accordion-button:focus-visible {
     outline: 2px solid #3b82f6;
     outline-offset: 2px;
+    border-radius: 4px;
   }
 
   /* Variant: Bordered */
@@ -224,16 +296,17 @@ const styles = `
     font-size: 1rem;
     font-weight: 600;
     color: #111827;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
   }
 
   .accordion--bordered .accordion-button:hover {
     background: #f9fafb;
   }
 
-  .accordion--bordered .accordion-button:focus {
+  .accordion--bordered .accordion-button:focus-visible {
     outline: 2px solid #3b82f6;
     outline-offset: -2px;
+    border-radius: 4px;
   }
 
   .accordion--bordered .accordion-button--expanded {
@@ -262,16 +335,17 @@ const styles = `
     font-size: 1rem;
     font-weight: 400;
     color: #4b5563;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
   }
 
   .accordion--minimal .accordion-button:hover {
     color: #111827;
   }
 
-  .accordion--minimal .accordion-button:focus {
+  .accordion--minimal .accordion-button:focus-visible {
     outline: 2px solid #3b82f6;
     outline-offset: 2px;
+    border-radius: 4px;
   }
 
   .accordion--minimal .accordion-title {
@@ -283,7 +357,8 @@ const styles = `
     font-size: 1.25rem;
     font-weight: 600;
     margin-left: 1rem;
-    transition: transform 0.2s ease;
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
   }
 
   .accordion-button--expanded .accordion-icon {
@@ -295,6 +370,7 @@ const styles = `
     background: #ffffff;
     color: #4b5563;
     line-height: 1.6;
+    will-change: transform;
   }
 
   .accordion--bordered .accordion-content-inner {
@@ -315,6 +391,11 @@ const styles = `
     font-size: 0.875rem;
   }
 
+  /* Prevent layout shift during animation */
+  .accordion-content {
+    contain: layout;
+  }
+
   /* Responsive */
   @media (max-width: 640px) {
     .accordion-content-inner {
@@ -324,13 +405,46 @@ const styles = `
     .accordion-button {
       font-size: 0.875rem;
     }
+    
+    .accordion-button {
+      padding: 0.875rem;
+    }
+    
+    .accordion--bordered .accordion-button {
+      padding: 0.875rem 1rem;
+    }
+    
+    .accordion--minimal .accordion-button {
+      padding: 0.875rem 0.5rem;
+    }
+  }
+
+  /* Reduced motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    .accordion-button,
+    .accordion-icon,
+    .accordion-content {
+      transition: none !important;
+    }
+    
+    .accordion-button--expanded .accordion-icon {
+      transform: none;
+    }
+  }
+
+  /* High contrast mode support */
+  @media (forced-colors: active) {
+    .accordion-button {
+      border: 1px solid CanvasText;
+    }
+    
+    .accordion-button:focus-visible {
+      outline: 2px solid CanvasText;
+    }
   }
 `;
 
 // Export styles to be included in your main CSS or inject them
-// For proper usage, you can either:
-// 1. Include these styles in your main CSS file
-// 2. Use CSS-in-JS solution
-// 3. Import this as a CSS module
+export { styles };
 
-export default Accordion;
+export default memo(Accordion);

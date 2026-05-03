@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, memo } from 'react';
+import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -79,7 +79,30 @@ const StorageIcon = memo((props) => (
   </svg>
 ));
 
-const MobileMenu = ({ onClose }) => {
+// Optimized animation variants for faster mobile performance
+const menuVariants = {
+  hidden: { x: '100%' },
+  visible: { 
+    x: 0,
+    transition: { 
+      type: 'tween',
+      duration: 0.2,
+      ease: [0.25, 0.1, 0.25, 1],
+    }
+  },
+  exit: { 
+    x: '100%',
+    transition: { type: 'tween', duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }
+  }
+};
+
+const overlayVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.1 } },
+  exit: { opacity: 0, transition: { duration: 0.1 } }
+};
+
+const MobileMenu = memo(({ onClose }) => {
   const { isAuthenticated, user, logout } = useAuth();
   const { wishlistItems } = useWishlist();
   const { getCartCount } = useCart();
@@ -88,8 +111,7 @@ const MobileMenu = ({ onClose }) => {
   const navigate = useNavigate();
   const [expandedSection, setExpandedSection] = useState(null);
   const [avatar, setAvatar] = useState(null);
-  const [hoveredItem, setHoveredItem] = useState(null);
-  const [clickedItem, setClickedItem] = useState(null);
+  const menuRef = useRef(null);
 
   // Load avatar from localStorage
   useEffect(() => {
@@ -97,15 +119,27 @@ const MobileMenu = ({ onClose }) => {
     if (savedAvatar) setAvatar(savedAvatar);
   }, [user]);
 
+  // Handle escape key to close menu
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
   // Check if a link is active
-  const isActiveLink = (href) => {
+  const isActiveLink = useCallback((href) => {
     if (href === '/') return location.pathname === href;
     if (href === '/offers') return location.pathname === href;
     if (href.includes('/products')) return location.pathname === '/products';
     return location.pathname === href;
-  };
+  }, [location.pathname]);
 
-  const categories = [
+  // Memoized categories data
+  const categories = useMemo(() => [
     { name: 'Living Room', icon: SofaIcon, href: '/products?category=Living%20Room', color: 'text-purple-500', bgColor: 'bg-purple-50 dark:bg-purple-950/30' },
     { name: 'Bedroom', icon: BedIcon, href: '/products?category=Bedroom', color: 'text-blue-500', bgColor: 'bg-blue-50 dark:bg-blue-950/30' },
     { name: 'Dining Room', icon: TableIcon, href: '/products?category=Dining%20Room', color: 'text-emerald-500', bgColor: 'bg-emerald-50 dark:bg-emerald-950/30' },
@@ -114,77 +148,74 @@ const MobileMenu = ({ onClose }) => {
     { name: 'Lighting', icon: LightIcon, href: '/products?category=Lighting', color: 'text-amber-500', bgColor: 'bg-amber-50 dark:bg-amber-950/30' },
     { name: 'Decor', icon: DecorIcon, href: '/products?category=Decor', color: 'text-rose-500', bgColor: 'bg-rose-50 dark:bg-rose-950/30' },
     { name: 'Storage', icon: StorageIcon, href: '/products?category=Storage', color: 'text-indigo-500', bgColor: 'bg-indigo-50 dark:bg-indigo-950/30' },
-  ];
+  ], []);
 
-  const mainLinks = [
+  const mainLinks = useMemo(() => [
     { label: 'Home', href: '/', icon: FiHome },
     { label: 'All Products', href: '/products', icon: FiGrid },
     { label: 'On Sale', href: '/offers', icon: FiTag, highlight: true },
     { label: 'Room Inspiration', href: '/room-inspiration', icon: FiBookOpen },
     { label: 'Custom Furniture', href: '/custom-furniture', icon: FiPenTool },
     { label: 'Blog', href: '/blog', icon: FiEdit },
-  ];
+  ], []);
 
-  const secondaryLinks = [
+  const secondaryLinks = useMemo(() => [
     { label: 'About Us', href: '/about', icon: FiInfo },
     { label: 'Contact', href: '/contact', icon: FiMessageCircle },
     { label: 'FAQ', href: '/faq', icon: FiHelpCircle },
     { label: 'Privacy Policy', href: '/policies/privacy', icon: FiShield },
-  ];
+  ], []);
 
-  const handleLogout = () => {
+  const quickActions = useMemo(() => [
+    { to: '/wishlist', icon: FiHeart, label: 'Wishlist', count: wishlistItems.length, color: 'hover:text-red-500' },
+    { to: '/cart', icon: FiShoppingCart, label: 'Cart', count: getCartCount(), color: 'hover:text-primary-500' },
+    { to: 'tel:+15559876543', icon: FiPhone, label: 'Call Us', color: 'hover:text-emerald-500', external: true }
+  ], [wishlistItems.length, getCartCount]);
+
+  const handleLogout = useCallback(() => {
     logout();
     onClose();
     navigate('/');
-  };
+  }, [logout, onClose, navigate]);
 
-  const toggleSection = (section) => {
-    setExpandedSection(expandedSection === section ? null : section);
-  };
+  const toggleSection = useCallback((section) => {
+    setExpandedSection(prev => prev === section ? null : section);
+  }, []);
 
-  const handleItemClick = (href, e) => {
-    // Set clicked item for visual feedback
-    setClickedItem(href);
-    setTimeout(() => setClickedItem(null), 200);
-    
-    // Close menu after navigation with a slight delay for animation
-    setTimeout(() => {
-      onClose();
-      navigate(href);
-    }, 80); // Reduced from 150ms to 80ms for faster response
-  };
-
-  // Optimized animation variants for faster mobile performance
-  const menuVariants = {
-    hidden: { x: '100%' },
-    visible: { 
-      x: 0,
-      transition: { 
-        type: 'tween', // Changed from spring to tween for faster performance
-        duration: 0.2, // Reduced from 0.3
-        ease: [0.25, 0.1, 0.25, 1],
-        staggerChildren: 0.01 // Reduced from 0.03
-      }
-    },
-    exit: { 
-      x: '100%',
-      transition: { type: 'tween', duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }
+  const handleItemClick = useCallback((href, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
     }
-  };
+    
+    // Close menu and navigate
+    onClose();
+    
+    // Small delay to allow menu close animation to start
+    setTimeout(() => {
+      navigate(href);
+    }, 50);
+  }, [onClose, navigate]);
 
-  const itemVariants = {
-    hidden: { opacity: 0, x: 20 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.1 } } // Reduced from 0.3
-  };
+  const handleOverlayClick = useCallback((e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }, [onClose]);
 
-  const overlayVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.1 } }, // Reduced from 0.2
-    exit: { opacity: 0, transition: { duration: 0.1 } }
-  };
+  const handleThemeToggle = useCallback(() => {
+    toggleTheme();
+  }, [toggleTheme]);
+
+  // Get user initial for avatar
+  const userInitial = useMemo(() => {
+    return user?.name?.charAt(0)?.toUpperCase() || 'U';
+  }, [user?.name]);
+
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
 
   return (
-    <AnimatePresence mode="popLayout">
+    <AnimatePresence mode="wait">
       <motion.div
         key="mobile-menu"
         initial="hidden"
@@ -195,16 +226,14 @@ const MobileMenu = ({ onClose }) => {
       >
         {/* Overlay */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.1 }}
-          onClick={onClose}
+          variants={overlayVariants}
+          onClick={handleOverlayClick}
           className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         />
         
         {/* Menu Panel */}
         <motion.div
+          ref={menuRef}
           variants={menuVariants}
           className="absolute right-0 top-0 bottom-0 w-[85%] max-w-sm bg-white dark:bg-neutral-950 shadow-2xl flex flex-col"
           style={{ 
@@ -213,10 +242,7 @@ const MobileMenu = ({ onClose }) => {
           }}
         >
           {/* Header */}
-          <motion.div 
-            variants={itemVariants}
-            className="flex items-center justify-between p-4 border-b border-neutral-100 dark:border-neutral-800 flex-shrink-0"
-          >
+          <div className="flex items-center justify-between p-4 border-b border-neutral-100 dark:border-neutral-800 flex-shrink-0">
             <Link to="/" onClick={(e) => handleItemClick('/', e)} className="flex items-center gap-2.5 group active:opacity-70 transition-opacity">
               <img 
                 src="/logo.svg" 
@@ -231,7 +257,7 @@ const MobileMenu = ({ onClose }) => {
             </Link>
             <div className="flex items-center gap-1">
               <button
-                onClick={toggleTheme}
+                onClick={handleThemeToggle}
                 className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-100 active:scale-95"
                 aria-label="Toggle theme"
               >
@@ -245,10 +271,10 @@ const MobileMenu = ({ onClose }) => {
                 <FiX className="h-5 w-5" />
               </button>
             </div>
-          </motion.div>
+          </div>
 
           {/* User Section or Sign In */}
-          <motion.div variants={itemVariants} className="flex-shrink-0">
+          <div className="flex-shrink-0">
             {isAuthenticated ? (
               <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-900/50 dark:to-neutral-900/30">
                 <Link to="/profile" onClick={(e) => handleItemClick('/profile', e)} className="flex items-center gap-3 group active:opacity-70 transition-opacity">
@@ -257,7 +283,7 @@ const MobileMenu = ({ onClose }) => {
                       {avatar ? (
                         <img src={avatar} alt="" className="w-full h-full object-cover" loading="lazy" />
                       ) : (
-                        <span className="text-base">{user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                        <span className="text-base">{userInitial}</span>
                       )}
                     </div>
                     <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white dark:border-neutral-900 flex items-center justify-center">
@@ -283,30 +309,22 @@ const MobileMenu = ({ onClose }) => {
                 </Link>
               </div>
             )}
-          </motion.div>
+          </div>
 
           {/* Quick Actions */}
-          <motion.div 
-            variants={itemVariants}
-            className="grid grid-cols-3 gap-2 p-4 border-b border-neutral-100 dark:border-neutral-800 flex-shrink-0"
-          >
-            {[
-              { to: '/wishlist', icon: FiHeart, label: 'Wishlist', count: wishlistItems.length, color: 'hover:text-red-500' },
-              { to: '/cart', icon: FiShoppingCart, label: 'Cart', count: getCartCount(), color: 'hover:text-primary-500' },
-              { to: 'tel:+15559876543', icon: FiPhone, label: 'Call Us', color: 'hover:text-emerald-500', external: true }
-            ].map((item) => (
-              <motion.div
+          <div className="grid grid-cols-3 gap-2 p-4 border-b border-neutral-100 dark:border-neutral-800 flex-shrink-0">
+            {quickActions.map((item) => (
+              <div
                 key={item.label}
-                whileTap={{ scale: 0.95 }}
-                transition={{ duration: 0.05 }}
+                className="transform transition-transform duration-75 active:scale-95"
               >
                 {item.external ? (
                   <a
                     href={item.to}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all duration-100 relative group"
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-100 relative group"
                   >
                     <div className="relative">
-                      <item.icon className={`h-5 w-5 transition-all duration-100 ${item.color}`} />
+                      <item.icon className={`h-5 w-5 transition-colors duration-100 ${item.color}`} />
                       {item.count > 0 && (
                         <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] w-4.5 h-4.5 rounded-full flex items-center justify-center font-bold">
                           {item.count > 9 ? '9+' : item.count}
@@ -319,16 +337,14 @@ const MobileMenu = ({ onClose }) => {
                   <Link
                     to={item.to}
                     onClick={(e) => handleItemClick(item.to, e)}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all duration-100 relative group ${
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl transition-colors duration-100 relative group ${
                       isActiveLink(item.to)
                         ? 'bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400'
                         : 'bg-neutral-50 dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800'
                     }`}
                   >
                     <div className="relative">
-                      <item.icon className={`h-5 w-5 transition-all duration-100 ${item.color} ${
-                        isActiveLink(item.to) ? 'text-primary-600 dark:text-primary-400' : ''
-                      }`} />
+                      <item.icon className={`h-5 w-5 transition-colors duration-100 ${item.color}`} />
                       {item.count > 0 && (
                         <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] w-4.5 h-4.5 rounded-full flex items-center justify-center font-bold">
                           {item.count > 9 ? '9+' : item.count}
@@ -338,29 +354,26 @@ const MobileMenu = ({ onClose }) => {
                     <span className="text-[10px] font-medium">{item.label}</span>
                   </Link>
                 )}
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
 
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
             {/* Main Navigation */}
-            <motion.nav variants={itemVariants} className="p-3 border-b border-neutral-100 dark:border-neutral-800">
+            <nav className="p-3 border-b border-neutral-100 dark:border-neutral-800">
               {mainLinks.map((link) => {
                 const isActive = isActiveLink(link.href);
-                const isClicked = clickedItem === link.href;
                 
                 return (
-                  <motion.div
+                  <div
                     key={link.href}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ duration: 0.05 }}
-                    className="relative overflow-hidden"
+                    className="relative overflow-hidden transform transition-transform duration-75 active:scale-98"
                   >
                     <Link
                       to={link.href}
                       onClick={(e) => handleItemClick(link.href, e)}
-                      className={`flex items-center gap-3 py-2.5 px-3 rounded-lg mb-0.5 transition-all duration-100 relative z-10 ${
+                      className={`flex items-center gap-3 py-2.5 px-3 rounded-lg mb-0.5 transition-colors duration-100 relative z-10 ${
                         link.highlight && isActive
                           ? 'bg-gradient-to-r from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/30 text-red-600 dark:text-red-400 font-semibold'
                           : link.highlight && !isActive
@@ -368,12 +381,7 @@ const MobileMenu = ({ onClose }) => {
                           : isActive
                           ? 'bg-primary-50 dark:bg-primary-950/20 text-primary-600 dark:text-primary-400 font-semibold'
                           : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800'
-                      } ${
-                        isClicked ? 'scale-98' : ''
                       }`}
-                      style={{
-                        transform: isClicked ? 'scale(0.98)' : 'scale(1)',
-                      }}
                     >
                       <link.icon className="h-4.5 w-4.5 flex-shrink-0" />
                       <span className="text-sm flex-1">{link.label}</span>
@@ -382,21 +390,15 @@ const MobileMenu = ({ onClose }) => {
                     
                     {/* Active indicator bar */}
                     {isActive && (
-                      <motion.div
-                        layoutId="activeIndicator"
-                        className="absolute left-0 top-1/2 transform -translate-y-1/2 w-0.5 h-6 bg-primary-500 rounded-full"
-                        initial={{ scaleY: 0 }}
-                        animate={{ scaleY: 1 }}
-                        transition={{ duration: 0.1 }}
-                      />
+                      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-0.5 h-6 bg-primary-500 rounded-full" />
                     )}
-                  </motion.div>
+                  </div>
                 );
               })}
-            </motion.nav>
+            </nav>
 
             {/* Categories Accordion */}
-            <motion.div variants={itemVariants} className="border-b border-neutral-100 dark:border-neutral-800">
+            <div className="border-b border-neutral-100 dark:border-neutral-800">
               <button
                 onClick={() => toggleSection('categories')}
                 className="flex items-center justify-between w-full p-3 font-semibold text-sm dark:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors duration-100 active:scale-98"
@@ -412,7 +414,7 @@ const MobileMenu = ({ onClose }) => {
                   <FiChevronDown className="h-4 w-4 text-neutral-400" />
                 </motion.div>
               </button>
-              <AnimatePresence mode="popLayout">
+              <AnimatePresence mode="wait">
                 {expandedSection === 'categories' && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
@@ -422,23 +424,20 @@ const MobileMenu = ({ onClose }) => {
                     className="overflow-hidden"
                   >
                     <div className="grid grid-cols-2 gap-2 p-3 pt-0">
-                      {categories.map((cat, index) => {
+                      {categories.map((cat) => {
                         const IconComponent = cat.icon;
                         const isCategoryActive = location.pathname === '/products' && 
                           new URLSearchParams(location.search).get('category') === cat.name;
                         
                         return (
-                          <motion.div
+                          <div
                             key={cat.name}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.01, duration: 0.1 }}
-                            whileTap={{ scale: 0.98 }}
+                            className="transform transition-transform duration-75 active:scale-98"
                           >
                             <Link
                               to={cat.href}
                               onClick={(e) => handleItemClick(cat.href, e)}
-                              className={`flex items-center gap-2.5 p-2.5 rounded-lg transition-all duration-100 group ${
+                              className={`flex items-center gap-2.5 p-2.5 rounded-lg transition-colors duration-100 group ${
                                 isCategoryActive
                                   ? `${cat.bgColor} shadow-md ring-1 ring-primary-500/30`
                                   : cat.bgColor
@@ -448,7 +447,7 @@ const MobileMenu = ({ onClose }) => {
                                 isCategoryActive ? 'ring-1 ring-primary-500' : ''
                               }`}>
                                 <IconComponent className={`h-4 w-4 ${cat.color} ${
-                                  isCategoryActive ? 'scale-110' : ''
+                                  isCategoryActive ? 'scale-105' : ''
                                 }`} />
                               </div>
                               <span className={`text-xs font-medium dark:text-white ${
@@ -457,41 +456,33 @@ const MobileMenu = ({ onClose }) => {
                                 {cat.name}
                               </span>
                             </Link>
-                          </motion.div>
+                          </div>
                         );
                       })}
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
+            </div>
 
             {/* Secondary Links */}
-            <motion.nav variants={itemVariants} className="p-3">
+            <nav className="p-3">
               {secondaryLinks.map((link) => {
                 const isActive = isActiveLink(link.href);
-                const isClicked = clickedItem === link.href;
                 
                 return (
-                  <motion.div
+                  <div
                     key={link.href}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ duration: 0.05 }}
-                    className="relative"
+                    className="relative transform transition-transform duration-75 active:scale-98"
                   >
                     <Link
                       to={link.href}
                       onClick={(e) => handleItemClick(link.href, e)}
-                      className={`flex items-center gap-3 py-2.5 px-3 rounded-lg mb-0.5 transition-all duration-100 ${
+                      className={`flex items-center gap-3 py-2.5 px-3 rounded-lg mb-0.5 transition-colors duration-100 ${
                         isActive
                           ? 'bg-primary-50 dark:bg-primary-950/20 text-primary-600 dark:text-primary-400 font-semibold'
                           : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800'
-                      } ${
-                        isClicked ? 'scale-98' : ''
                       }`}
-                      style={{
-                        transform: isClicked ? 'scale(0.98)' : 'scale(1)',
-                      }}
                     >
                       <link.icon className="h-4.5 w-4.5 flex-shrink-0" />
                       <span className="text-sm flex-1">{link.label}</span>
@@ -500,25 +491,19 @@ const MobileMenu = ({ onClose }) => {
                     
                     {/* Active indicator bar for secondary links */}
                     {isActive && (
-                      <motion.div
-                        layoutId="activeIndicatorSecondary"
-                        className="absolute left-0 top-1/2 transform -translate-y-1/2 w-0.5 h-6 bg-primary-500 rounded-full"
-                        initial={{ scaleY: 0 }}
-                        animate={{ scaleY: 1 }}
-                        transition={{ duration: 0.1 }}
-                      />
+                      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-0.5 h-6 bg-primary-500 rounded-full" />
                     )}
-                  </motion.div>
+                  </div>
                 );
               })}
 
               {/* Settings for logged-in users */}
               {isAuthenticated && (
-                <motion.div whileTap={{ scale: 0.98 }} transition={{ duration: 0.05 }}>
+                <div className="transform transition-transform duration-75 active:scale-98">
                   <Link
                     to="/profile"
                     onClick={(e) => handleItemClick('/profile', e)}
-                    className={`flex items-center gap-3 py-2.5 px-3 rounded-lg mb-0.5 transition-all duration-100 ${
+                    className={`flex items-center gap-3 py-2.5 px-3 rounded-lg mb-0.5 transition-colors duration-100 ${
                       isActiveLink('/profile')
                         ? 'bg-primary-50 dark:bg-primary-950/20 text-primary-600 dark:text-primary-400 font-semibold'
                         : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800'
@@ -528,20 +513,17 @@ const MobileMenu = ({ onClose }) => {
                     <span className="text-sm flex-1">Account Settings</span>
                     <FiChevronRight className="h-4 w-4 text-neutral-400 flex-shrink-0" />
                   </Link>
-                </motion.div>
+                </div>
               )}
-            </motion.nav>
+            </nav>
           </div>
 
           {/* Footer */}
-          <motion.div 
-            variants={itemVariants}
-            className="flex-shrink-0 p-4 border-t border-neutral-100 dark:border-neutral-800 bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-900/50 dark:to-neutral-900/30"
-          >
+          <div className="flex-shrink-0 p-4 border-t border-neutral-100 dark:border-neutral-800 bg-gradient-to-r from-neutral-50 to-neutral-100 dark:from-neutral-900/50 dark:to-neutral-900/30">
             {isAuthenticated ? (
               <button
                 onClick={handleLogout}
-                className="flex items-center justify-center gap-2 w-full py-3 px-4 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all duration-100 text-sm font-semibold active:scale-98"
+                className="flex items-center justify-center gap-2 w-full py-3 px-4 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors duration-100 text-sm font-semibold active:scale-98"
               >
                 <FiLogOut className="h-4.5 w-4.5" />
                 Sign Out
@@ -558,16 +540,16 @@ const MobileMenu = ({ onClose }) => {
                 <Link
                   to="/signup"
                   onClick={(e) => handleItemClick('/signup', e)}
-                  className="flex-1 text-center py-2.5 border-2 border-neutral-200 dark:border-neutral-700 rounded-lg text-sm font-semibold hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all duration-100 dark:text-white active:scale-98"
+                  className="flex-1 text-center py-2.5 border-2 border-neutral-200 dark:border-neutral-700 rounded-lg text-sm font-semibold hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors duration-100 dark:text-white active:scale-98"
                 >
                   Sign Up
                 </Link>
               </div>
             )}
             <p className="text-center text-[10px] text-neutral-400 mt-3">
-              © {new Date().getFullYear()} Furniqo. All rights reserved.
+              © {currentYear} Furniqo. All rights reserved.
             </p>
-          </motion.div>
+          </div>
         </motion.div>
       </motion.div>
 
@@ -617,9 +599,17 @@ const MobileMenu = ({ onClose }) => {
         .w-4\\.5 {
           width: 1.125rem;
         }
+
+        /* Optimize scrolling performance */
+        .custom-scrollbar {
+          scroll-behavior: smooth;
+          -webkit-overflow-scrolling: touch;
+        }
       `}</style>
     </AnimatePresence>
   );
-};
+});
 
-export default memo(MobileMenu);
+MobileMenu.displayName = 'MobileMenu';
+
+export default MobileMenu;

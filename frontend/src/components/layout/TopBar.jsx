@@ -1,15 +1,18 @@
 import { Link } from 'react-router-dom';
 import { FiTruck, FiPhone, FiPercent, FiX, FiGift, FiChevronRight, FiArrowLeft, FiArrowRight } from 'react-icons/fi';
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Custom SVG Icons
-const SparkleIcon = (props) => (
+// Custom SVG Icons - memoized
+const SparkleIcon = memo((props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
   </svg>
-);
+));
 
+SparkleIcon.displayName = 'SparkleIcon';
+
+// Memoized announcements data
 const announcements = [
   { 
     icon: FiTruck, 
@@ -34,6 +37,66 @@ const announcements = [
   },
 ];
 
+// Optimized animation variants
+const containerVariants = {
+  hidden: { height: 0, opacity: 0 },
+  visible: { height: 'auto', opacity: 1, transition: { duration: 0.2 } },
+  exit: { height: 0, opacity: 0, transition: { duration: 0.15 } }
+};
+
+const contentVariants = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+  exit: { opacity: 0, y: -8, transition: { duration: 0.15 } }
+};
+
+const orbVariants = {
+  animate: {
+    x: [0, 15, 0],
+    transition: { duration: 6, repeat: Infinity, ease: "easeInOut" }
+  }
+};
+
+const iconVariants = {
+  animate: {
+    rotate: [0, 8, -8, 0],
+    transition: { duration: 2.5, repeat: Infinity, ease: "easeInOut" }
+  }
+};
+
+// Memoized Dot Indicator component
+const DotIndicator = memo(({ index, isActive, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-white/50 ${
+      isActive
+        ? 'bg-white w-3 sm:w-4 h-1 sm:h-1.5 rounded-full'
+        : 'bg-white/40 hover:bg-white/60 w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full'
+    }`}
+    aria-label={`Announcement ${index + 1}`}
+  />
+));
+
+DotIndicator.displayName = 'DotIndicator';
+
+// Memoized Navigation Button component
+const NavButton = memo(({ direction, onClick, ariaLabel }) => (
+  <button
+    onClick={onClick}
+    className="p-1 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0 hidden xs:inline-flex focus:outline-none focus:ring-1 focus:ring-white/30 active:scale-95"
+    aria-label={ariaLabel}
+  >
+    {direction === 'prev' ? (
+      <FiArrowLeft className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+    ) : (
+      <FiArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+    )}
+  </button>
+));
+
+NavButton.displayName = 'NavButton';
+
+// Main TopBar Component
 const TopBar = () => {
   const [currentAnnouncement, setCurrentAnnouncement] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
@@ -54,7 +117,7 @@ const TopBar = () => {
     
     const handleResize = () => {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(checkMobile, 150);
+      timeoutId = setTimeout(checkMobile, 100);
     };
     
     window.addEventListener('resize', handleResize);
@@ -73,25 +136,35 @@ const TopBar = () => {
     setCurrentAnnouncement(prev => (prev - 1 + announcements.length) % announcements.length);
   }, []);
 
+  const goToSlide = useCallback((index) => {
+    setCurrentAnnouncement(index);
+  }, []);
+
   // Optimized interval with cleanup
   useEffect(() => {
-    if (isPaused) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+    if (isPaused || !isVisible) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
       return;
     }
     
     intervalRef.current = setInterval(goToNext, 5000);
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
-  }, [isPaused, goToNext]);
+  }, [isPaused, isVisible, goToNext]);
 
   // Touch swipe for mobile
-  const handleTouchStart = (e) => {
+  const handleTouchStart = useCallback((e) => {
     touchStartX.current = e.touches[0].clientX;
-  };
+  }, []);
 
-  const handleTouchEnd = (e) => {
+  const handleTouchEnd = useCallback((e) => {
     touchEndX.current = e.changedTouches[0].clientX;
     const swipeThreshold = 50;
     const diff = touchStartX.current - touchEndX.current;
@@ -103,33 +176,29 @@ const TopBar = () => {
         goToPrev();
       }
     }
-  };
+  }, [goToNext, goToPrev]);
 
-  // Memoized announcement data
+  const handleMouseEnter = useCallback(() => setIsPaused(true), []);
+  const handleMouseLeave = useCallback(() => setIsPaused(false), []);
+  const handleClose = useCallback(() => setIsVisible(false), []);
+
+  // Memoized current announcement data
   const currentData = useMemo(() => announcements[currentAnnouncement], [currentAnnouncement]);
   const CurrentIcon = currentData.icon;
-
-  // Optimized animation variants
-  const variants = useMemo(() => ({
-    initial: { opacity: 0, y: 10 },
-    animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -10 },
-    transition: { duration: 0.25, ease: "easeOut" }
-  }), []);
 
   if (!isVisible) return null;
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       {isVisible && (
         <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.25 }}
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           className="relative bg-gradient-to-r from-primary-600 via-primary-700 to-purple-700 text-white overflow-hidden"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
@@ -141,47 +210,45 @@ const TopBar = () => {
             }} />
           </div>
 
-          {/* Optimized Gradient Orbs - Reduced animation complexity */}
+          {/* Optimized Gradient Orbs - Only on desktop, reduced complexity */}
           <motion.div
-            animate={{ x: [0, 20, 0] }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+            variants={orbVariants}
+            animate="animate"
             className="absolute -left-10 top-1/2 -translate-y-1/2 w-16 h-16 bg-white/8 rounded-full blur-xl hidden sm:block pointer-events-none"
           />
           <motion.div
-            animate={{ x: [0, -20, 0] }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2.5 }}
+            variants={orbVariants}
+            animate="animate"
+            custom={2.5}
             className="absolute -right-10 top-1/2 -translate-y-1/2 w-16 h-16 bg-white/8 rounded-full blur-xl hidden sm:block pointer-events-none"
           />
 
           <div className="relative w-full px-[1%] py-1.5 flex items-center justify-between gap-1 sm:gap-2">
             
-            {/* Previous Arrow - Optimized visibility */}
-            <button
-              onClick={goToPrev}
-              className="p-1 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0 hidden xs:inline-flex focus:outline-none focus:ring-1 focus:ring-white/30"
-              aria-label="Previous announcement"
-            >
-              <FiArrowLeft className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-            </button>
+            {/* Previous Arrow */}
+            <NavButton direction="prev" onClick={goToPrev} ariaLabel="Previous announcement" />
 
-            {/* Announcement Content - Optimized */}
+            {/* Announcement Content */}
             <div className="flex-1 flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-4 min-w-0">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentAnnouncement}
-                  {...variants}
+                  variants={contentVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
                   className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center"
                 >
                   {/* Smaller icon with reduced animation */}
                   <motion.span
-                    animate={{ rotate: [0, 10, -10, 0] }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    variants={iconVariants}
+                    animate="animate"
                     className="flex-shrink-0"
                   >
                     <CurrentIcon className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
                   </motion.span>
                   
-                  {/* Optimized Text - Better performance */}
+                  {/* Optimized Text */}
                   <span className="text-[10px] xs:text-xs sm:text-sm font-medium text-center leading-tight">
                     {currentData.text}
                   </span>
@@ -198,35 +265,25 @@ const TopBar = () => {
                 </motion.div>
               </AnimatePresence>
               
-              {/* Dot Indicators - Optimized for mobile */}
+              {/* Dot Indicators */}
               <div className="hidden xs:flex gap-1 ml-2 sm:ml-3 flex-shrink-0">
                 {announcements.map((_, index) => (
-                  <button
+                  <DotIndicator
                     key={index}
-                    onClick={() => setCurrentAnnouncement(index)}
-                    className={`transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-white/50 ${
-                      index === currentAnnouncement
-                        ? 'bg-white w-3 sm:w-4 h-1 sm:h-1.5 rounded-full'
-                        : 'bg-white/40 hover:bg-white/60 w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full'
-                    }`}
-                    aria-label={`Announcement ${index + 1}`}
+                    index={index}
+                    isActive={index === currentAnnouncement}
+                    onClick={() => goToSlide(index)}
                   />
                 ))}
               </div>
             </div>
 
             {/* Next Arrow */}
-            <button
-              onClick={goToNext}
-              className="p-1 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0 hidden xs:inline-flex focus:outline-none focus:ring-1 focus:ring-white/30"
-              aria-label="Next announcement"
-            >
-              <FiArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-            </button>
+            <NavButton direction="next" onClick={goToNext} ariaLabel="Next announcement" />
 
             {/* Close Button */}
             <button
-              onClick={() => setIsVisible(false)}
+              onClick={handleClose}
               className="p-1 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0 ml-0 sm:ml-2 focus:outline-none focus:ring-1 focus:ring-white/30 active:scale-95"
               aria-label="Close announcement bar"
             >
@@ -239,4 +296,4 @@ const TopBar = () => {
   );
 };
 
-export default TopBar;
+export default memo(TopBar);

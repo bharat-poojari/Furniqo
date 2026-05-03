@@ -1,21 +1,27 @@
 import { cn } from '../../utils/cn';
+import { memo } from 'react';
 
-// Base Skeleton Component
-export const Skeleton = ({ className }) => {
+// Optimized Base Skeleton Component with better animation performance
+export const Skeleton = memo(({ className }) => {
   return (
     <div
       className={cn(
-        'animate-pulse rounded-lg bg-neutral-200 dark:bg-neutral-800 relative overflow-hidden',
-        'after:absolute after:inset-0 after:-translate-x-full after:animate-[shimmer_1.5s_infinite]',
-        'after:bg-gradient-to-r after:from-transparent after:via-white/20 dark:after:via-white/5 after:to-transparent',
+        'relative overflow-hidden',
+        'bg-neutral-200 dark:bg-neutral-800',
+        'rounded-lg',
         className
       )}
-    />
+    >
+      {/* Simplified shimmer effect - more performant */}
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1s_infinite] bg-gradient-to-r from-transparent via-white/20 dark:via-white/5 to-transparent" />
+    </div>
   );
-};
+});
 
-// Product Card Skeleton - Grid View
-export const ProductCardSkeleton = ({ variant = 'grid' }) => {
+Skeleton.displayName = 'Skeleton';
+
+// Optimized Product Card Skeleton
+export const ProductCardSkeleton = memo(({ variant = 'grid' }) => {
   if (variant === 'list') {
     return (
       <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-100 dark:border-neutral-800 p-4">
@@ -64,10 +70,12 @@ export const ProductCardSkeleton = ({ variant = 'grid' }) => {
       </div>
     </div>
   );
-};
+});
 
-// Product Detail Skeleton
-export const ProductDetailSkeleton = () => {
+ProductCardSkeleton.displayName = 'ProductCardSkeleton';
+
+// Optimized Product Detail Skeleton
+export const ProductDetailSkeleton = memo(() => {
   return (
     <div className="w-[98%] mx-auto py-4">
       <div className="grid lg:grid-cols-2 gap-8">
@@ -110,10 +118,12 @@ export const ProductDetailSkeleton = () => {
       </div>
     </div>
   );
-};
+});
 
-// Cart Skeleton
-export const CartSkeleton = () => {
+ProductDetailSkeleton.displayName = 'ProductDetailSkeleton';
+
+// Optimized Cart Skeleton
+export const CartSkeleton = memo(() => {
   return (
     <div className="w-[98%] mx-auto py-4">
       <Skeleton className="h-6 w-32 mb-4 rounded-md" />
@@ -147,10 +157,12 @@ export const CartSkeleton = () => {
       </div>
     </div>
   );
-};
+});
 
-// Profile Skeleton
-export const ProfileSkeleton = () => {
+CartSkeleton.displayName = 'CartSkeleton';
+
+// Optimized Profile Skeleton
+export const ProfileSkeleton = memo(() => {
   return (
     <div className="w-[98%] mx-auto py-4">
       {/* Header */}
@@ -181,14 +193,16 @@ export const ProfileSkeleton = () => {
       <Skeleton className="h-12 w-full rounded-lg mt-3" />
     </div>
   );
-};
+});
 
-// Home Page Skeleton
-export const HomeSkeleton = () => {
+ProfileSkeleton.displayName = 'ProfileSkeleton';
+
+// Optimized Home Page Skeleton
+export const HomeSkeleton = memo(() => {
   return (
     <div>
       {/* Hero */}
-      <Skeleton className="w-full h-[60vh] rounded-none" />
+      <Skeleton className="w-full h-[50vh] md:h-[60vh] rounded-none" />
       
       {/* Categories */}
       <div className="w-[98%] mx-auto py-8">
@@ -219,10 +233,12 @@ export const HomeSkeleton = () => {
       </div>
     </div>
   );
-};
+});
 
-// Blog Card Skeleton
-export const BlogCardSkeleton = () => {
+HomeSkeleton.displayName = 'HomeSkeleton';
+
+// Optimized Blog Card Skeleton
+export const BlogCardSkeleton = memo(() => {
   return (
     <div className="bg-white dark:bg-neutral-900 rounded-xl overflow-hidden border border-neutral-100 dark:border-neutral-800">
       <Skeleton className="w-full aspect-[16/10] rounded-none" />
@@ -240,10 +256,12 @@ export const BlogCardSkeleton = () => {
       </div>
     </div>
   );
-};
+});
 
-// Order Card Skeleton
-export const OrderCardSkeleton = () => {
+BlogCardSkeleton.displayName = 'BlogCardSkeleton';
+
+// Optimized Order Card Skeleton
+export const OrderCardSkeleton = memo(() => {
   return (
     <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800 p-4 space-y-3">
       <div className="flex justify-between">
@@ -267,10 +285,12 @@ export const OrderCardSkeleton = () => {
       </div>
     </div>
   );
-};
+});
 
-// Table Skeleton
-export const TableSkeleton = ({ rows = 5, cols = 4 }) => {
+OrderCardSkeleton.displayName = 'OrderCardSkeleton';
+
+// Optimized Table Skeleton
+export const TableSkeleton = memo(({ rows = 5, cols = 4 }) => {
   return (
     <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800 overflow-hidden">
       {/* Header */}
@@ -291,10 +311,12 @@ export const TableSkeleton = ({ rows = 5, cols = 4 }) => {
       </div>
     </div>
   );
-};
+});
 
-// Grid Skeleton (for generic grid layouts)
-export const GridSkeleton = ({ columns = 4, count = 8, variant = 'grid' }) => {
+TableSkeleton.displayName = 'TableSkeleton';
+
+// Optimized Grid Skeleton
+export const GridSkeleton = memo(({ columns = 4, count = 8, variant = 'grid' }) => {
   const gridCols = {
     2: 'grid-cols-2',
     3: 'grid-cols-2 sm:grid-cols-3',
@@ -310,4 +332,19 @@ export const GridSkeleton = ({ columns = 4, count = 8, variant = 'grid' }) => {
       ))}
     </div>
   );
-};
+});
+
+GridSkeleton.displayName = 'GridSkeleton';
+
+// CSS for shimmer animation (add this to your global CSS file)
+export const skeletonStyles = `
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 1s infinite;
+  }
+`;

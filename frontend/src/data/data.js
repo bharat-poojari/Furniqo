@@ -170,10 +170,10 @@ export const products = [
     rating: 4.9,
     numReviews: 42,
     images: [
+      "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg",
+"https://images.pexels.com/photos/1643383/pexels-photo-1643383.jpeg",
       "https://images.unsplash.com/photo-1567016432779-094069958ea5?w=1200",
-      "https://images.unsplash.com/photo-1598300184846-7eb3e523e0a2?w=1200",
-      "https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200",
-      "https://images.unsplash.com/photo-1595408074636-899b3028a219?w=1200"
+      "https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200"
     ],
     variants: [
       { color: "Ivory White", material: "Bouclé", price: 649.99, stock: 25 },
@@ -228,10 +228,10 @@ export const products = [
     rating: 4.7,
     numReviews: 89,
     images: [
-      "https://images.unsplash.com/photo-1573680832650-86fd182f96b7?w=1200",
-      "https://images.unsplash.com/photo-1551298370-9d3d53740c6c?w=1200",
-      "https://images.unsplash.com/photo-1560343090-f0409e92791a?w=1200",
-      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200"
+     "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
+     "https://images.pexels.com/photos/276583/pexels-photo-276583.jpeg",
+"https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg",
+"https://images.pexels.com/photos/2079249/pexels-photo-2079249.jpeg"
     ],
     variants: [
       { color: "Walnut / Black", finish: "Matte", price: 399.99, stock: 30 },
@@ -285,9 +285,9 @@ export const products = [
     rating: 4.8,
     numReviews: 114,
     images: [
-      "https://images.unsplash.com/photo-1581783898374-1c140f36ab56?w=1200",
-      "https://images.unsplash.com/photo-1551298370-9d3d53740c6c?w=1200",
-      "https://images.unsplash.com/photo-1577143899987-0f11d3a3c78e?w=1200",
+      "https://images.pexels.com/photos/1648776/pexels-photo-1648776.jpeg",
+"https://images.pexels.com/photos/3932930/pexels-photo-3932930.jpeg",
+"https://images.pexels.com/photos/2544839/pexels-photo-2544839.jpeg",
       "https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=1200"
     ],
     variants: [
@@ -342,8 +342,9 @@ export const products = [
     rating: 4.6,
     numReviews: 37,
     images: [
-      "https://images.unsplash.com/photo-1633504527416-0b660495f204?w=1200",
-      "https://images.unsplash.com/photo-1611498243540-97f59fe233bc?w=1200",
+      "https://images.pexels.com/photos/7534561/pexels-photo-7534561.jpeg",
+"https://images.pexels.com/photos/6585757/pexels-photo-6585757.jpeg",
+"https://images.pexels.com/photos/6489107/pexels-photo-6489107.jpeg",
       "https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=1200"
     ],
     variants: [
@@ -396,9 +397,10 @@ export const products = [
     rating: 4.5,
     numReviews: 28,
     images: [
+      "https://images.pexels.com/photos/4846097/pexels-photo-4846097.jpeg",
+"https://images.pexels.com/photos/6782567/pexels-photo-6782567.jpeg",
+"https://images.pexels.com/photos/7587879/pexels-photo-7587879.jpeg",
       "https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200",
-      "https://images.unsplash.com/photo-1597067728079-1eb03f9d4113?w=1200",
-      "https://images.unsplash.com/photo-1584562957767-6238ef13c24d?w=1200"
     ],
     variants: [
       { color: "Natural Tan", frame: "Brown Wicker", price: 549.99, stock: 12 }
@@ -450,8 +452,9 @@ export const products = [
     rating: 5.0,
     numReviews: 15,
     images: [
-      "https://images.unsplash.com/photo-1574182245530-967d9b383fa1?w=1200",
-      "https://images.unsplash.com/photo-1560343090-f0409e92791a?w=1200",
+      "https://images.pexels.com/photos/4846461/pexels-photo-4846461.jpeg",
+      "https://images.pexels.com/photos/5824901/pexels-photo-5824901.jpeg",
+      "https://images.pexels.com/photos/6782567/pexels-photo-6782567.jpeg",
       "https://images.unsplash.com/photo-1615874959474-d609969a20ed?w=1200"
     ],
     variants: [
@@ -504,9 +507,10 @@ export const products = [
     rating: 4.8,
     numReviews: 91,
     images: [
-      "https://images.unsplash.com/photo-1585421514285-efe14d9e3df1?w=1200",
-      "https://images.unsplash.com/photo-1595576459599-8f89465b2b95?w=1200",
-      "https://images.unsplash.com/photo-1582735689367-623cabc881e3?w=1200"
+      "https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg",
+"https://images.pexels.com/photos/2029694/pexels-photo-2029694.jpeg",
+"https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg",
+      "https://images.pexels.com/photos/4846461/pexels-photo-4846461.jpeg",
     ],
     variants: [
       { size: "Queen", color: "Dusty Rose", price: 399.99, stock: 22 },
@@ -560,9 +564,10 @@ export const products = [
     rating: 4.9,
     numReviews: 67,
     images: [
+      "https://images.pexels.com/photos/262048/pexels-photo-262048.jpeg",
+      "https://images.pexels.com/photos/1148955/pexels-photo-1148955.jpeg",
       "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200",
-      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1596575611623-e81a13f1d27d?w=1200"
+      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200"
     ],
     variants: [
       { size: "Full", color: "Oatmeal", price: 999.99, stock: 7 },
@@ -616,9 +621,10 @@ export const products = [
     rating: 4.7,
     numReviews: 43,
     images: [
-      "https://images.unsplash.com/photo-1615873968403-89e0686291fb?w=1200",
-      "https://images.unsplash.com/photo-1581539250439-c96689b516dd?w=1200",
-      "https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=1200"
+      "https://images.pexels.com/photos/6585759/pexels-photo-6585759.jpeg",
+"https://images.pexels.com/photos/6186513/pexels-photo-6186513.jpeg",
+"https://images.pexels.com/photos/7534567/pexels-photo-7534567.jpeg",
+      "https://images.unsplash.com/photo-1581539250439-c96689b516dd?w=1200"
     ],
     variants: [
       { color: "Black/Natural", drawers: "Mixed", price: 899.99, stock: 14 }
@@ -670,9 +676,10 @@ export const products = [
     rating: 4.6,
     numReviews: 118,
     images: [
-      "https://images.unsplash.com/photo-1600289031464-74d374f64991?w=1200",
+      "https://images.pexels.com/photos/4846094/pexels-photo-4846094.jpeg",
+"https://images.pexels.com/photos/5824888/pexels-photo-5824888.jpeg",
+"https://images.pexels.com/photos/3144581/pexels-photo-3144581.jpeg",
       "https://images.unsplash.com/photo-1532323544230-7191fd51bc1b?w=1200",
-      "https://images.unsplash.com/photo-1595515106969-86e788426689?w=1200"
     ],
     variants: [
       { color: "White", finish: "Gloss", price: 199.99, stock: 35 },
@@ -725,9 +732,10 @@ export const products = [
     rating: 4.9,
     numReviews: 52,
     images: [
-      "https://images.unsplash.com/photo-1566492031773-4f4e446718e6?w=1200",
-      "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1578682624890-2e0f95c72264?w=1200"
+      "https://images.pexels.com/photos/6476587/pexels-photo-6476587.jpeg",
+"https://images.pexels.com/photos/6508356/pexels-photo-6508356.jpeg",
+"https://images.pexels.com/photos/5824895/pexels-photo-5824895.jpeg",
+      "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200"
     ],
     variants: [
       { color: "Natural Beige", fabric: "Linen", price: 249.99, stock: 18 }
@@ -779,9 +787,10 @@ export const products = [
     rating: 4.8,
     numReviews: 34,
     images: [
+      "https://images.pexels.com/photos/6186514/pexels-photo-6186514.jpeg",
+"https://images.pexels.com/photos/7534565/pexels-photo-7534565.jpeg",
       "https://images.unsplash.com/photo-1594026112284-02bb6f3352fe?w=1200",
-      "https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=1200",
-      "https://images.unsplash.com/photo-1582492280815-835b1fd48210?w=1200"
+      "https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=1200"
     ],
     variants: [
       { color: "Walnut/White", style: "Foldable", price: 549.99, stock: 11 }
@@ -833,9 +842,10 @@ export const products = [
     rating: 4.7,
     numReviews: 88,
     images: [
-      "https://images.unsplash.com/photo-1593642532844-d19cec9e1b2b?w=1200",
-      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
-      "https://images.unsplash.com/photo-1615873968403-89e0686291fb?w=1200"
+      "https://images.pexels.com/photos/7534569/pexels-photo-7534569.jpeg",
+"https://images.pexels.com/photos/6580227/pexels-photo-6580227.jpeg",
+"https://images.pexels.com/photos/6508357/pexels-photo-6508357.jpeg",
+      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200"
     ],
     variants: [
       { color: "Rustic Oak", legStyle: "Black Steel", price: 379.99, stock: 24 }
@@ -887,7 +897,7 @@ export const products = [
     rating: 4.8,
     numReviews: 47,
     images: [
-      "https://images.unsplash.com/photo-1551298370-9d3d53740c6c?w=1200",
+      "https://images.pexels.com/photos/5824896/pexels-photo-5824896.jpeg",
       "https://images.unsplash.com/photo-1581539250439-c96689b516dd?w=1200",
       "https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=1200",
       "https://images.unsplash.com/photo-1615874959474-d609969a20ed?w=1200"
@@ -1119,8 +1129,8 @@ export const products = [
     rating: 4.9,
     numReviews: 128,
     images: [
+      "https://images.pexels.com/photos/2762247/pexels-photo-2762247.jpeg",
       "https://images.unsplash.com/photo-1567016432779-094069958ea5?w=1200",
-      "https://images.unsplash.com/photo-1598300184846-7eb3e523e0a2?w=1200",
       "https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200",
       "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200"
     ],
@@ -1177,10 +1187,10 @@ export const products = [
     rating: 4.8,
     numReviews: 64,
     images: [
+      "https://images.pexels.com/photos/6580229/pexels-photo-6580229.jpeg",
       "https://images.unsplash.com/photo-1600585152220-90363fe7e115?w=1200",
       "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
-      "https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=1200",
-      "https://images.unsplash.com/photo-1615873968403-89e0686291fb?w=1200"
+      "https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=1200"
     ],
     variants: [
       { color: "Weathered Gray / Black", shelves: "Reclaimed Pine", price: 599.99, stock: 9 },
@@ -1234,7 +1244,7 @@ export const products = [
     rating: 4.7,
     numReviews: 41,
     images: [
-      "https://images.unsplash.com/photo-1574182245530-967d9b383fa1?w=1200",
+      "https://images.pexels.com/photos/2082090/pexels-photo-2082090.jpeg",
       "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
       "https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=1200",
       "https://images.unsplash.com/photo-1615874959474-d609969a20ed?w=1200"
@@ -1292,10 +1302,10 @@ export const products = [
     rating: 4.8,
     numReviews: 89,
     images: [
+      "https://images.pexels.com/photos/6480707/pexels-photo-6480707.jpeg",
       "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=1200",
       "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1578682624890-2e0f95c72264?w=1200"
+      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200"
     ],
     variants: [
       { size: "Twin", color: "Oatmeal Beige", price: 799.99, stock: 8 },
@@ -1364,9 +1374,9 @@ export const products = [
     rating: 4.7,
     numReviews: 54,
     images: [
+      "https://images.pexels.com/photos/6585758/pexels-photo-6585758.jpeg",
+"https://images.pexels.com/photos/1918291/pexels-photo-1918291.jpeg",
       "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1582735689367-623cabc881e3?w=1200",
-      "https://images.unsplash.com/photo-1566492031773-4f4e446718e6?w=1200",
       "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200"
     ],
     variants: [
@@ -1424,10 +1434,10 @@ export const products = [
     rating: 4.9,
     numReviews: 112,
     images: [
+      "https://images.pexels.com/photos/4846457/pexels-photo-4846457.jpeg",
+"https://images.pexels.com/photos/6508399/pexels-photo-6508399.jpeg",
       "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1582735689367-623cabc881e3?w=1200",
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200",
-      "https://images.unsplash.com/photo-1578682624890-2e0f95c72264?w=1200"
+      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200"
     ],
     variants: [
       { size: "Twin XL", color: "Charcoal Gray", price: 699.99, stock: 10 },
@@ -1485,10 +1495,10 @@ export const products = [
     rating: 4.8,
     numReviews: 78,
     images: [
-      "https://images.unsplash.com/photo-1582735689367-623cabc881e3?w=1200",
+      "https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg",
+"https://images.pexels.com/photos/2029694/pexels-photo-2029694.jpeg",
       "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=1200",
-      "https://images.unsplash.com/photo-1578682624890-2e0f95c72264?w=1200"
+      "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=1200"
     ],
     variants: [
       { size: "Full", color: "Antique Black", price: 699.99, stock: 10 },
@@ -1546,9 +1556,9 @@ export const products = [
     rating: 4.9,
     numReviews: 45,
     images: [
+      "https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg",
       "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
       "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1582735689367-623cabc881e3?w=1200",
       "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=1200"
     ],
     variants: [
@@ -1606,10 +1616,10 @@ export const products = [
     rating: 4.7,
     numReviews: 62,
     images: [
+      "https://images.pexels.com/photos/262048/pexels-photo-262048.jpeg",
+      "https://images.pexels.com/photos/1148955/pexels-photo-1148955.jpeg",
       "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1582735689367-623cabc881e3?w=1200",
-      "https://images.unsplash.com/photo-1578682624890-2e0f95c72264?w=1200"
+      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200"
     ],
     variants: [
       { size: "Full", color: "Whitewashed Oak", price: 1049.99, stock: 7 },
@@ -1666,10 +1676,10 @@ export const products = [
     rating: 4.8,
     numReviews: 94,
     images: [
+      "https://images.pexels.com/photos/6585759/pexels-photo-6585759.jpeg",
       "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=1200",
       "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1582735689367-623cabc881e3?w=1200"
+      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200"
     ],
     variants: [
       { size: "Full", color: "Walnut", price: 869.99, stock: 12 },
@@ -1727,10 +1737,10 @@ export const products = [
     rating: 4.6,
     numReviews: 83,
     images: [
-      "https://images.unsplash.com/photo-1582735689367-623cabc881e3?w=1200",
+      "https://images.pexels.com/photos/6186513/pexels-photo-6186513.jpeg",
+"https://images.pexels.com/photos/7534567/pexels-photo-7534567.jpeg",
       "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1578682624890-2e0f95c72264?w=1200"
+      "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200"
     ],
     variants: [
       { size: "Twin", color: "Matte Black", price: 899.99, stock: 11 },
@@ -1786,10 +1796,10 @@ export const products = [
     rating: 4.9,
     numReviews: 67,
     images: [
+      "https://images.pexels.com/photos/4846094/pexels-photo-4846094.jpeg",
+"https://images.pexels.com/photos/5824888/pexels-photo-5824888.jpeg",
       "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=1200",
-      "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1582735689367-623cabc881e3?w=1200",
-      "https://images.unsplash.com/photo-1578682624890-2e0f95c72264?w=1200"
+      "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200"
     ],
     variants: [
       { size: "Queen", color: "Emerald Green", price: 1799.99, stock: 6 },
@@ -1847,9 +1857,9 @@ export const products = [
     rating: 4.8,
     numReviews: 38,
     images: [
+      "https://images.pexels.com/photos/3144581/pexels-photo-3144581.jpeg",
       "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
       "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1582735689367-623cabc881e3?w=1200",
       "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=1200"
     ],
     variants: [
@@ -1909,10 +1919,10 @@ export const products = [
     rating: 4.8,
     numReviews: 56,
     images: [
-      "https://images.unsplash.com/photo-1581539250439-c96689b516dd?w=1200",
-      "https://images.unsplash.com/photo-1598300184846-7eb3e523e0a2?w=1200",
-      "https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200",
-      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200"
+      "https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?w=1200",
+"https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200",
+"https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200",
+"https://images.unsplash.com/photo-1577140917170-285929fb55b7?w=1200"
     ],
     variants: [
       { color: "Sapphire Blue", material: "Velvet", price: 499.99, stock: 24 },
@@ -2099,10 +2109,10 @@ export const products = [
     rating: 4.8,
     numReviews: 98,
     images: [
-      "https://images.unsplash.com/photo-1598300184846-7eb3e523e0a2?w=1200",
       "https://images.unsplash.com/photo-1581539250439-c96689b516dd?w=1200",
-      "https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200",
-      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200"
+"https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200",
+"https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
+"https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?w=1200"
     ],
     variants: [
       { color: "Natural Beech", seat: "Paper Cord", price: 399.99, stock: 30 },
@@ -2218,10 +2228,10 @@ export const products = [
     rating: 4.7,
     numReviews: 89,
     images: [
-      "https://images.unsplash.com/photo-1598300184846-7eb3e523e0a2?w=1200",
-      "https://images.unsplash.com/photo-1581539250439-c96689b516dd?w=1200",
-      "https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200",
-      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200"
+      "https://images.pexels.com/photos/1395967/pexels-photo-1395967.jpeg",
+"https://images.pexels.com/photos/2343468/pexels-photo-2343468.jpeg",
+"https://images.pexels.com/photos/3209049/pexels-photo-3209049.jpeg",
+"https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200"
     ],
     variants: [
       { color: "Gold/Smoke", shelves: "Smoked Glass", price: 249.99, stock: 35 },
@@ -2277,10 +2287,10 @@ export const products = [
     rating: 4.9,
     numReviews: 47,
     images: [
-      "https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?w=1200",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200",
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200",
-      "https://images.unsplash.com/photo-1577140917170-285929fb55b7?w=1200"
+      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
+"https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200",
+"https://images.unsplash.com/photo-1577140917170-285929fb55b7?w=1200",
+"https://images.pexels.com/photos/3209049/pexels-photo-3209049.jpeg"
     ],
     variants: [
       { size: "48\" Round", color: "Carrara/Oak", price: 1499.99, stock: 6 },
@@ -2395,10 +2405,10 @@ export const products = [
     rating: 4.8,
     numReviews: 73,
     images: [
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200",
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200",
-      "https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?w=1200",
-      "https://images.unsplash.com/photo-1577140917170-285929fb55b7?w=1200"
+      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
+"https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200",
+"https://images.unsplash.com/photo-1577140917170-285929fb55b7?w=1200",
+"https://images.pexels.com/photos/3209049/pexels-photo-3209049.jpeg"
     ],
     variants: [
       { size: "60\"", color: "Rich Walnut", price: 1199.99, stock: 9 },
@@ -2454,10 +2464,10 @@ export const products = [
     rating: 4.8,
     numReviews: 59,
     images: [
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200",
-      "https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?w=1200",
-      "https://images.unsplash.com/photo-1577140917170-285929fb55b7?w=1200",
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1200"
+      "https://images.unsplash.com/photo-1581539250439-c96689b516dd?w=1200",
+"https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200",
+"https://images.pexels.com/photos/2343468/pexels-photo-2343468.jpeg",
+"https://images.pexels.com/photos/6489118/pexels-photo-6489118.jpeg"
     ],
     variants: [
       { size: "60\"-84\"", color: "Honey Bamboo", price: 999.99, stock: 14 },
@@ -2513,10 +2523,10 @@ export const products = [
     rating: 4.9,
     numReviews: 67,
     images: [
-      "https://images.unsplash.com/photo-1593642532844-d19cec9e1b2b?w=1200",
       "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
-      "https://images.unsplash.com/photo-1615873968403-89e0686291fb?w=1200",
-      "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=1200"
+"https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=1200",
+"https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=1200",
+"https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200"
     ],
     variants: [
       { size: "60\"W", color: "Espresso", price: 1199.99, stock: 10 },
@@ -2583,10 +2593,10 @@ export const products = [
     rating: 4.7,
     numReviews: 143,
     images: [
-      "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=1200",
-      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
-      "https://images.unsplash.com/photo-1593642532844-d19cec9e1b2b?w=1200",
-      "https://images.unsplash.com/photo-1615873968403-89e0686291fb?w=1200"
+      "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1200",
+"https://images.unsplash.com/photo-1604328698692-f76ea9498e76?w=1200",
+"https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg",
+"https://images.pexels.com/photos/667838/pexels-photo-667838.jpeg"
     ],
     variants: [
       { color: "Matte White", finish: "Laminate", price: 399.99, stock: 32 },
@@ -2642,10 +2652,10 @@ export const products = [
     rating: 4.6,
     numReviews: 278,
     images: [
-      "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=1200",
-      "https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200",
-      "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1200",
-      "https://images.unsplash.com/photo-1604328698692-f76ea9498e76?w=1200"
+      "https://images.pexels.com/photos/3740747/pexels-photo-3740747.jpeg",
+"https://images.pexels.com/photos/6585601/pexels-photo-6585601.jpeg",
+"https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=1200",
+"https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1200"
     ],
     variants: [
       { color: "Black", armrests: "2D Adjustable", price: 299.99, stock: 45 },
@@ -2701,10 +2711,10 @@ export const products = [
     rating: 4.8,
     numReviews: 76,
     images: [
-      "https://images.unsplash.com/photo-1593642532844-d19cec9e1b2b?w=1200",
-      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
-      "https://images.unsplash.com/photo-1615873968403-89e0686291fb?w=1200",
-      "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=1200"
+      "https://images.unsplash.com/photo-1604328698692-f76ea9498e76?w=1200",
+"https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=1200",
+"https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg",
+"https://images.pexels.com/photos/3740747/pexels-photo-3740747.jpeg"
     ],
     variants: [
       { size: "36\"W", color: "Weathered Wood/Black", price: 649.99, stock: 12 },
@@ -2760,10 +2770,10 @@ export const products = [
     rating: 4.9,
     numReviews: 204,
     images: [
-      "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=1200",
-      "https://images.unsplash.com/photo-1593642532844-d19cec9e1b2b?w=1200",
       "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
-      "https://images.unsplash.com/photo-1615873968403-89e0686291fb?w=1200"
+"https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200",
+"https://images.pexels.com/photos/667838/pexels-photo-667838.jpeg",
+"https://images.pexels.com/photos/6585601/pexels-photo-6585601.jpeg"
     ],
     variants: [
       { size: "55\"W", color: "Natural Bamboo", price: 599.99, stock: 15 },
@@ -2820,10 +2830,10 @@ export const products = [
     rating: 4.7,
     numReviews: 118,
     images: [
-      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
-      "https://images.unsplash.com/photo-1593642532844-d19cec9e1b2b?w=1200",
       "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=1200",
-      "https://images.unsplash.com/photo-1615873968403-89e0686291fb?w=1200"
+"https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1200",
+"https://images.unsplash.com/photo-1604328698692-f76ea9498e76?w=1200",
+"https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg"
     ],
     variants: [
       { color: "Matte Black", drawers: "2 Drawer", price: 199.99, stock: 35 },
@@ -2879,10 +2889,10 @@ export const products = [
     rating: 4.8,
     numReviews: 215,
     images: [
-      "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=1200",
-      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
-      "https://images.unsplash.com/photo-1593642532844-d19cec9e1b2b?w=1200",
-      "https://images.unsplash.com/photo-1615873968403-89e0686291fb?w=1200"
+      "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1200",
+"https://images.unsplash.com/photo-1604328698692-f76ea9498e76?w=1200",
+"https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg",
+"https://images.pexels.com/photos/667838/pexels-photo-667838.jpeg"
     ],
     variants: [
       { size: "36\"W", color: "Clear/Natural", price: 59.99, stock: 60 },
@@ -2938,10 +2948,10 @@ export const products = [
     rating: 4.8,
     numReviews: 94,
     images: [
-      "https://images.unsplash.com/photo-1593642532844-d19cec9e1b2b?w=1200",
-      "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=1200",
-      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
-      "https://images.unsplash.com/photo-1615873968403-89e0686291fb?w=1200"
+      "https://images.pexels.com/photos/3740747/pexels-photo-3740747.jpeg",
+"https://images.pexels.com/photos/6585601/pexels-photo-6585601.jpeg",
+"https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=1200",
+"https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1200"
     ],
     variants: [
       { color: "Natural Acacia/Black", finish: "Matte", price: 849.99, stock: 9 },
@@ -2997,10 +3007,10 @@ export const products = [
     rating: 4.8,
     numReviews: 53,
     images: [
-      "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=1200",
-      "https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200",
-      "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1200",
-      "https://images.unsplash.com/photo-1604328698692-f76ea9498e76?w=1200"
+      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
+"https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=1200",
+"https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=1200",
+"https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200"
     ],
     variants: [
       { color: "Emerald Green", material: "Velvet", price: 299.99, stock: 22 },
@@ -3057,10 +3067,10 @@ export const products = [
     rating: 4.7,
     numReviews: 98,
     images: [
-      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
-      "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=1200",
-      "https://images.unsplash.com/photo-1593642532844-d19cec9e1b2b?w=1200",
-      "https://images.unsplash.com/photo-1615873968403-89e0686291fb?w=1200"
+      "https://images.unsplash.com/photo-1604328698692-f76ea9498e76?w=1200",
+"https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=1200",
+"https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg",
+"https://images.pexels.com/photos/3740747/pexels-photo-3740747.jpeg"
     ],
     variants: [
       { color: "White", accessories: "6-piece set", price: 89.99, stock: 50 },
@@ -3116,10 +3126,10 @@ export const products = [
     rating: 4.9,
     numReviews: 64,
     images: [
-      "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=1200",
-      "https://images.unsplash.com/photo-1549187774-b4e9b0445b41?w=1200",
-      "https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=1200",
-      "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=1200"
+      "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=1200",
+"https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1200",
+"https://images.pexels.com/photos/667838/pexels-photo-667838.jpeg",
+"https://images.pexels.com/photos/6585601/pexels-photo-6585601.jpeg"
     ],
     variants: [
       { color: "Cognac", material: "Full-Grain Leather", price: 1299.99, stock: 8 },
@@ -3176,10 +3186,10 @@ export const products = [
     rating: 4.7,
     numReviews: 52,
     images: [
-      "https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=1200",
-      "https://images.unsplash.com/photo-1549187774-b4e9b0445b41?w=1200",
-      "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=1200",
-      "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=1200"
+      "https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg",
+"https://images.pexels.com/photos/1643383/pexels-photo-1643383.jpeg",
+"https://images.pexels.com/photos/276583/pexels-photo-276583.jpeg",
+"https://images.pexels.com/photos/1350789/pexels-photo-1350789.jpeg"
     ],
     variants: [
       { color: "Natural Honey", cushion: "White Cotton", price: 549.99, stock: 16 },
@@ -3235,10 +3245,10 @@ export const products = [
     rating: 4.9,
     numReviews: 89,
     images: [
-      "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=1200",
-      "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=1200",
-      "https://images.unsplash.com/photo-1549187774-b4e9b0445b41?w=1200",
-      "https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=1200"
+      "https://images.pexels.com/photos/2079249/pexels-photo-2079249.jpeg",
+"https://images.pexels.com/photos/1648776/pexels-photo-1648776.jpeg",
+"https://images.pexels.com/photos/3932930/pexels-photo-3932930.jpeg",
+"https://images.pexels.com/photos/2544839/pexels-photo-2544839.jpeg"
     ],
     variants: [
       { color: "Cream", material: "Bouclé", price: 749.99, stock: 14 },
@@ -3294,10 +3304,10 @@ export const products = [
     rating: 4.8,
     numReviews: 73,
     images: [
-      "https://images.unsplash.com/photo-1549187774-b4e9b0445b41?w=1200",
-      "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=1200",
-      "https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=1200",
-      "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=1200"
+      "https://images.pexels.com/photos/6782567/pexels-photo-6782567.jpeg",
+"https://images.pexels.com/photos/7587879/pexels-photo-7587879.jpeg",
+"https://images.pexels.com/photos/4846461/pexels-photo-4846461.jpeg",
+"https://images.pexels.com/photos/5824901/pexels-photo-5824901.jpeg"
     ],
     variants: [
       { color: "Dusty Blue", fabric: "Performance", price: 849.99, stock: 11 },
@@ -3353,10 +3363,10 @@ export const products = [
     rating: 4.8,
     numReviews: 45,
     images: [
-      "https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=1200",
-      "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=1200",
-      "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=1200",
-      "https://images.unsplash.com/photo-1549187774-b4e9b0445b41?w=1200"
+      "https://images.pexels.com/photos/6508399/pexels-photo-6508399.jpeg",
+"https://images.pexels.com/photos/7534570/pexels-photo-7534570.jpeg",
+"https://images.pexels.com/photos/6816860/pexels-photo-6816860.jpeg",
+"https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg"
     ],
     variants: [
       { color: "Mustard Yellow", base: "Aluminum", price: 799.99, stock: 9 },
@@ -3413,10 +3423,10 @@ export const products = [
     rating: 4.6,
     numReviews: 61,
     images: [
-      "https://images.unsplash.com/photo-1549187774-b4e9b0445b41?w=1200",
-      "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=1200",
-      "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=1200",
-      "https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=1200"
+     "https://images.pexels.com/photos/6480707/pexels-photo-6480707.jpeg",
+"https://images.pexels.com/photos/6585758/pexels-photo-6585758.jpeg",
+"https://images.pexels.com/photos/1918291/pexels-photo-1918291.jpeg",
+"https://images.pexels.com/photos/4846457/pexels-photo-4846457.jpeg"
     ],
     variants: [
       { color: "Black/Brown", frame: "Matte Black", price: 449.99, stock: 20 },
@@ -3472,10 +3482,10 @@ export const products = [
     rating: 4.8,
     numReviews: 38,
     images: [
-      "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=1200",
-      "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=1200",
-      "https://images.unsplash.com/photo-1549187774-b4e9b0445b41?w=1200",
-      "https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=1200"
+      "https://images.pexels.com/photos/6508399/pexels-photo-6508399.jpeg",
+"https://images.pexels.com/photos/7534570/pexels-photo-7534570.jpeg",
+"https://images.pexels.com/photos/6816860/pexels-photo-6816860.jpeg",
+"https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg"
     ],
     variants: [
       { color: "Multi Floral", fabric: "Linen-Blend", price: 599.99, stock: 10 },
@@ -3531,10 +3541,10 @@ export const products = [
     rating: 4.9,
     numReviews: 103,
     images: [
-      "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=1200",
-      "https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=1200",
-      "https://images.unsplash.com/photo-1549187774-b4e9b0445b41?w=1200",
-      "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=1200"
+      "https://images.pexels.com/photos/1643383/pexels-photo-1643383.jpeg",
+"https://images.pexels.com/photos/2079249/pexels-photo-2079249.jpeg",
+"https://images.pexels.com/photos/6782567/pexels-photo-6782567.jpeg",
+"https://images.pexels.com/photos/6782567/pexels-photo-6782567.jpeg"
     ],
     variants: [
       { color: "Cream", fabric: "Performance", price: 899.99, stock: 7 },
@@ -3590,10 +3600,10 @@ export const products = [
     rating: 4.9,
     numReviews: 56,
     images: [
-      "https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=1200",
-      "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=1200",
-      "https://images.unsplash.com/photo-1549187774-b4e9b0445b41?w=1200",
-      "https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=1200"
+      "https://images.pexels.com/photos/1643383/pexels-photo-1643383.jpeg",
+"https://images.pexels.com/photos/2079249/pexels-photo-2079249.jpeg",
+"https://images.pexels.com/photos/6782567/pexels-photo-6782567.jpeg",
+"https://images.pexels.com/photos/6782567/pexels-photo-6782567.jpeg"
     ],
     variants: [
       { color: "Natural Walnut", seat: "Paper Cord", price: 699.99, stock: 13 },
@@ -3649,10 +3659,10 @@ export const products = [
     rating: 4.9,
     numReviews: 48,
     images: [
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200",
-      "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200"
+      "https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg",
+"https://images.pexels.com/photos/2029694/pexels-photo-2029694.jpeg",
+"https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg",
+"https://images.pexels.com/photos/262048/pexels-photo-262048.jpeg"
     ],
     variants: [
       { size: "Queen", color: "Sapphire Blue", price: 1899.99, stock: 6 },
@@ -3709,10 +3719,10 @@ export const products = [
     rating: 4.7,
     numReviews: 92,
     images: [
-      "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200",
-      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200"
+      "https://images.pexels.com/photos/1148955/pexels-photo-1148955.jpeg",
+"https://images.pexels.com/photos/6585759/pexels-photo-6585759.jpeg",
+"https://images.pexels.com/photos/6186513/pexels-photo-6186513.jpeg",
+"https://images.pexels.com/photos/7534567/pexels-photo-7534567.jpeg"
     ],
     variants: [
       { size: "Full", color: "White", price: 1199.99, stock: 12 },
@@ -3769,10 +3779,10 @@ export const products = [
     rating: 4.8,
     numReviews: 67,
     images: [
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200",
-      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200"
+      "https://images.pexels.com/photos/4846094/pexels-photo-4846094.jpeg",
+"https://images.pexels.com/photos/5824888/pexels-photo-5824888.jpeg",
+"https://images.pexels.com/photos/3144581/pexels-photo-3144581.jpeg",
+"https://images.pexels.com/photos/6476587/pexels-photo-6476587.jpeg"
     ],
     variants: [
       { size: "Full", color: "Walnut", price: 899.99, stock: 10 },
@@ -3829,10 +3839,10 @@ export const products = [
     rating: 4.7,
     numReviews: 89,
     images: [
-      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200",
-      "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200"
+     "https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg",
+"https://images.pexels.com/photos/1148955/pexels-photo-1148955.jpeg",
+"https://images.pexels.com/photos/4846094/pexels-photo-4846094.jpeg",
+"https://images.pexels.com/photos/7534569/pexels-photo-7534569.jpeg"
     ],
     variants: [
       { size: "Twin", color: "Matte Black", price: 899.99, stock: 11 },
@@ -3888,10 +3898,10 @@ export const products = [
     rating: 4.8,
     numReviews: 74,
     images: [
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200",
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200",
-      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200"
+      "https://images.pexels.com/photos/7534569/pexels-photo-7534569.jpeg",
+"https://images.pexels.com/photos/6580227/pexels-photo-6580227.jpeg",
+"https://images.pexels.com/photos/6508357/pexels-photo-6508357.jpeg",
+"https://images.pexels.com/photos/5824896/pexels-photo-5824896.jpeg"
     ],
     variants: [
       { size: "Twin", color: "Chestnut", price: 1299.99, stock: 9 },
@@ -3947,10 +3957,10 @@ export const products = [
     rating: 4.5,
     numReviews: 312,
     images: [
-      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200",
-      "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200"
+      "https://images.pexels.com/photos/6508356/pexels-photo-6508356.jpeg",
+"https://images.pexels.com/photos/5824895/pexels-photo-5824895.jpeg",
+"https://images.pexels.com/photos/6186514/pexels-photo-6186514.jpeg",
+"https://images.pexels.com/photos/7534565/pexels-photo-7534565.jpeg"
     ],
     variants: [
       { size: "Set of 4", color: "Gray", price: 89.99, stock: 50 },
@@ -4006,10 +4016,10 @@ export const products = [
     rating: 4.9,
     numReviews: 86,
     images: [
-      "https://images.unsplash.com/photo-1505693314120-0d443867891c?w=1200",
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200",
-      "https://images.unsplash.com/photo-1616627547584-bf28cee262db?w=1200",
-      "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200"
+     "https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg",
+"https://images.pexels.com/photos/2029694/pexels-photo-2029694.jpeg",
+"https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg",
+"https://images.pexels.com/photos/262048/pexels-photo-262048.jpeg"
     ],
     variants: [
       { size: "Full", color: "Walnut", price: 1299.99, stock: 6 },
@@ -4067,9 +4077,9 @@ export const products = [
     numReviews: 124,
     images: [
       "https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=1200",
-      "https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1200",
-      "https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=1200",
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200"
+"https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1200",
+"https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=1200",
+"https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200"
     ],
     variants: [
       { color: "Matte Black", base: "White Marble", price: 349.99, stock: 18 },
@@ -4125,10 +4135,10 @@ export const products = [
     rating: 4.8,
     numReviews: 203,
     images: [
-      "https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=1200",
-      "https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=1200",
-      "https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1200",
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200"
+      "https://images.pexels.com/photos/1123262/pexels-photo-1123262.jpeg",
+"https://images.pexels.com/photos/1112598/pexels-photo-1112598.jpeg",
+"https://images.pexels.com/photos/943150/pexels-photo-943150.jpeg",
+"https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=1200"
     ],
     variants: [
       { color: "Matte Black", finish: "Cage", price: 89.99, stock: 45 },
@@ -4185,10 +4195,10 @@ export const products = [
     rating: 4.7,
     numReviews: 1894,
     images: [
-      "https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=1200",
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200",
-      "https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=1200",
-      "https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1200"
+      "https://images.pexels.com/photos/6782571/pexels-photo-6782571.jpeg",
+"https://images.pexels.com/photos/6782577/pexels-photo-6782577.jpeg",
+"https://images.pexels.com/photos/6782579/pexels-photo-6782579.jpeg",
+"https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1200"
     ],
     variants: [
       { length: "16ft", color: "RGBIC", price: 39.99, stock: 200 },
@@ -4244,10 +4254,10 @@ export const products = [
     rating: 4.9,
     numReviews: 67,
     images: [
-      "https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1200",
-      "https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=1200",
-      "https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=1200",
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200"
+     "https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=1200",
+"https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200",
+"https://images.pexels.com/photos/1123262/pexels-photo-1123262.jpeg",
+"https://images.pexels.com/photos/6782571/pexels-photo-6782571.jpeg"
     ],
     variants: [
       { size: "10\"", color: "White/Brass", price: 149.99, stock: 28 },
@@ -4304,10 +4314,10 @@ export const products = [
     rating: 4.9,
     numReviews: 312,
     images: [
-      "https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=1200",
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200",
       "https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=1200",
-      "https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1200"
+"https://images.pexels.com/photos/1112598/pexels-photo-1112598.jpeg",
+"https://images.pexels.com/photos/6782577/pexels-photo-6782577.jpeg",
+"https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200"
     ],
     variants: [
       { color: "Silver", finish: "Brushed", price: 79.99, stock: 45 },
@@ -4364,9 +4374,9 @@ export const products = [
     numReviews: 89,
     images: [
       "https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1200",
-      "https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=1200",
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200",
-      "https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=1200"
+"https://images.pexels.com/photos/943150/pexels-photo-943150.jpeg",
+"https://images.pexels.com/photos/6782579/pexels-photo-6782579.jpeg",
+"https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=1200"
     ],
     variants: [
       { size: "28\"", arms: "12", finish: "Gold", price: 299.99, stock: 15 },
@@ -4422,10 +4432,10 @@ export const products = [
     rating: 4.6,
     numReviews: 567,
     images: [
-      "https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1200",
       "https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=1200",
-      "https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=1200",
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200"
+"https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200",
+"https://images.pexels.com/photos/1123262/pexels-photo-1123262.jpeg",
+"https://images.pexels.com/photos/6782571/pexels-photo-6782571.jpeg"
     ],
     variants: [
       { quantity: "6-pack", color: "Black", price: 49.99, stock: 85 },
@@ -4481,10 +4491,10 @@ export const products = [
     rating: 4.7,
     numReviews: 128,
     images: [
-      "https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=1200",
-      "https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1200",
-      "https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=1200",
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200"
+     "https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=1200",
+"https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1200",
+"https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=1200",
+"https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200"
     ],
     variants: [
       { size: "16\"", finish: "Brushed Brass", price: 59.99, stock: 35 },
@@ -4540,10 +4550,10 @@ export const products = [
     rating: 4.9,
     numReviews: 104,
     images: [
-      "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200",
-      "https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?w=1200",
-      "https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1200",
-      "https://images.unsplash.com/photo-1540932239986-30128078f3c5?w=1200"
+      "https://images.pexels.com/photos/6782571/pexels-photo-6782571.jpeg",
+"https://images.pexels.com/photos/6782577/pexels-photo-6782577.jpeg",
+"https://images.pexels.com/photos/6782579/pexels-photo-6782579.jpeg",
+"https://images.unsplash.com/photo-1492724441997-5dc865305da7?w=1200"
     ],
     variants: [
       { color: "Natural Oak / Cream", shade: "Linen", price: 199.99, stock: 22 },
@@ -6732,7 +6742,7 @@ export const blogPosts = [
     slug: "smart-furniture-tech-integrated",
     excerpt: "Explore the future of home furnishing with smart furniture that charges devices, adjusts to your needs, and enhances connectivity.",
     content: "Full blog post content would go here...",
-    image: "https://images.unsplash.com/photo-1558002038-1055e2d28b8d?w=800",
+    image: "https://images.pexels.com/photos/7534846/pexels-photo-7534846.jpeg",
     author: "Marcus Style",
     authorRole: "Smart Home Expert",
     authorImage: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100",
@@ -6796,7 +6806,7 @@ export const blogPosts = [
     "slug": "ergonomic-furniture-health-wellness",
     "excerpt": "Invest in your health with ergonomic furniture designed to support proper posture, reduce pain, and enhance well-being.",
     "content": "Full blog post content would go here...",
-    "image": "https://images.unsplash.com/photo-1589384267710-7b170981ca78?w=800",
+    "image": "https://images.pexels.com/photos/6782589/pexels-photo-6782589.jpeg",
     "author": "David Productivity",
     "authorRole": "Ergonomics Specialist",
     "authorImage": "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100",
@@ -6812,7 +6822,7 @@ export const blogPosts = [
     "slug": "art-deco-revival-furniture",
     "excerpt": "Bring the glamour of the 1920s into your home with our guide to Art Deco-inspired furniture and accessories.",
     "content": "Full blog post content would go here...",
-    "image": "https://images.unsplash.com/photo-1620625554255-2502b11d7ebe?w=800",
+    "image": "https://images.pexels.com/photos/667838/pexels-photo-667838.jpeg",
     "author": "Elena Green",
     "authorRole": "Vintage Style Expert",
     "authorImage": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100",
@@ -6894,7 +6904,7 @@ export const rooms = [
     name: "Coastal Outdoor Oasis",
     style: "Coastal Contemporary",
     roomType: "Outdoor",
-    image: "https://images.unsplash.com/photo-1600210492491-094691112712?w=800",
+    image: "https://images.pexels.com/photos/1458457/pexels-photo-1458457.jpeg",
     description: "Relaxed outdoor living with weather-resistant furniture and ocean-inspired palette for ultimate summer vibes.",
     features: "Rattan seating, weather-proof cushions, outdoor rug, string lighting",
     tips: "Add potted palms and lanterns to enhance the coastal atmosphere",
@@ -6966,7 +6976,7 @@ export const rooms = [
     name: "Luxury Walk-In Closet",
     style: "Boutique Luxury",
     roomType: "Storage",
-    image: "https://images.unsplash.com/photo-1567674607101-1454c6ad479b?w=800",
+    image: "data:image/webp;base64,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",
     description: "Dream closet with custom cabinetry, island display, and elegant lighting for your wardrobe collection.",
     features: "Glass-front cabinets, central island, chandelier, valet rods",
     tips: "Group clothing by color and season for Instagram-worthy organization",
@@ -6978,7 +6988,7 @@ export const rooms = [
     name: "Statement Lighting Gallery",
     style: "Modern Art Deco",
     roomType: "Lighting",
-    image: "https://images.unsplash.com/photo-1562157873-8181fc1eb0c3?w=800",
+    image: "https://images.pexels.com/photos/1123262/pexels-photo-1123262.jpeg",
     description: "Showcase of artistic lighting fixtures that serve as functional art pieces in your space.",
     features: "Sputnik chandelier, arc floor lamp, sculptural sconces, dimmable LEDs",
     tips: "Layer ambient, task, and accent lighting for depth and drama",
@@ -6995,7 +7005,7 @@ export const coupons = [
     minPurchase: 500,
     maxDiscount: 500,
     validFrom: "2024-01-01",
-    validUntil: "2024-12-31",
+    validUntil: "2026-12-31",
     description: "25% off your first order (up to $500 off)",
     usageLimit: 1,
     usedCount: 0,
@@ -7008,7 +7018,7 @@ export const coupons = [
     type: "fixed",
     minPurchase: 1000,
     validFrom: "2024-01-01",
-    validUntil: "2024-06-30",
+    validUntil: "2026-06-30",
     description: "$100 off orders over $1,000",
     usageLimit: null,
     usedCount: 0,
@@ -7021,7 +7031,7 @@ export const coupons = [
     type: "freeShipping",
     minPurchase: 200,
     validFrom: "2024-01-01",
-    validUntil: "2024-12-31",
+    validUntil: "2026-12-31",
     description: "Free shipping on orders over $200",
     usageLimit: 3,
     usedCount: 0,
@@ -7035,7 +7045,7 @@ export const coupons = [
     minPurchase: 750,
     maxDiscount: 750,
     validFrom: "2024-09-01",
-    validUntil: "2024-11-30",
+    validUntil: "2026-11-30",
     description: "30% off fall collection (up to $750 off)",
     usageLimit: 1,
     usedCount: 0,
@@ -7049,7 +7059,7 @@ export const coupons = [
     minPurchase: 0,
     maxDiscount: 300,
     validFrom: "2024-01-01",
-    validUntil: "2024-12-31",
+    validUntil: "2026-12-31",
     description: "15% off for VIP members (up to $300 off)",
     usageLimit: null,
     usedCount: 0,

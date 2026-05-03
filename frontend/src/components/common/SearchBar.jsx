@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, createSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiSearch, FiX, FiTrendingUp, FiClock, FiArrowRight, 
   FiGrid, FiPackage, FiTag, FiStar,
@@ -247,350 +246,247 @@ const SearchBar = ({
   const showEmptyState = query.length === 0 || query.length < MIN_SEARCH_LENGTH;
   const hasResults = results.length > 0;
 
+  // Memoized trending searches
+  const trendingSearchesElements = useMemo(() => (
+    <div className="grid grid-cols-2 gap-2">
+      {TRENDING_SEARCHES.map(({ term, category, icon: Icon, count }, idx) => (
+        <button
+          key={term}
+          onClick={() => handleRecentClick(term)}
+          className="flex items-center gap-3 p-2.5 bg-neutral-50 dark:bg-neutral-800/50 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl transition-all duration-150 group text-left active:scale-98"
+        >
+          <div className="w-8 h-8 rounded-lg bg-white dark:bg-neutral-900 flex items-center justify-center group-hover:scale-110 transition-transform duration-150 shadow-sm">
+            <Icon className="h-4 w-4 text-primary-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold dark:text-white truncate">{term}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] text-neutral-500">{category}</p>
+              <span className="text-[10px] text-neutral-400">{count} searches</span>
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  ), [handleRecentClick]);
+
+  // Memoized recent searches
+  const recentSearchesElements = useMemo(() => {
+    if (recentSearches.length === 0) return null;
+    return (
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <FiClock className="h-3.5 w-3.5 text-neutral-500" />
+            <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Recent</p>
+          </div>
+          <button
+            onClick={handleClearAllRecent}
+            className="text-[10px] text-primary-600 hover:text-primary-700 font-medium transition-colors duration-150 active:scale-95"
+          >
+            Clear all
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {recentSearches.map((term, i) => (
+            <button
+              key={i}
+              onClick={() => handleRecentClick(term)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-full text-xs text-neutral-600 dark:text-neutral-400 transition-all duration-150 active:scale-95"
+            >
+              <FiClock className="h-3 w-3" />
+              {term}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }, [recentSearches, handleClearAllRecent, handleRecentClick]);
+
+  // Memoized categories
+  const categoriesElements = useMemo(() => (
+    <div>
+      <div className="flex items-center gap-2 mb-2">
+        <FiGrid className="h-3.5 w-3.5 text-primary-500" />
+        <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Categories</p>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {QUICK_CATEGORIES.map((cat) => {
+          const IconComponent = cat.icon;
+          return (
+            <button
+              key={cat.label}
+              onClick={() => cat.label === 'Sale' ? handleSaleClick() : handleCategoryClick(cat.label)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 active:scale-95",
+                cat.color
+              )}
+            >
+              <IconComponent className="h-3 w-3" />
+              {cat.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  ), [handleCategoryClick, handleSaleClick]);
+
   if (!isOpen && !isClosing) return null;
 
   return createPortal(
-    <AnimatePresence>
-      {(isOpen || isClosing) && (
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[10vh] p-4">
-          {/* Backdrop with smooth fade */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={handleClose}
-          />
-          
-          {/* Modal with smooth scale and fade */}
-          <motion.div
-            ref={modalRef}
-            initial={{ opacity: 0, scale: 0.95, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -20 }}
-            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="relative bg-white dark:bg-neutral-900 w-full max-w-xl rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 flex flex-col max-h-[70vh] overflow-hidden"
-          >
-            {/* Header */}
-            <div className="flex-shrink-0 p-3 border-b border-neutral-100 dark:border-neutral-800">
-              <form onSubmit={handleSubmit} className="relative">
-                <motion.div
-                  initial={false}
-                  animate={{ scale: 1 }}
-                  whileTap={{ scale: 0.98 }}
+    <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[10vh] p-4">
+      {/* Backdrop with smooth fade */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200"
+        onClick={handleClose}
+      />
+      
+      {/* Modal with simplified transition */}
+      <div
+        ref={modalRef}
+        className="relative bg-white dark:bg-neutral-900 w-full max-w-xl rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 flex flex-col max-h-[70vh] overflow-hidden transition-all duration-200"
+      >
+        {/* Header */}
+        <div className="flex-shrink-0 p-3 border-b border-neutral-100 dark:border-neutral-800">
+          <form onSubmit={handleSubmit} className="relative">
+            <div>
+              <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400 pointer-events-none" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+                className="w-full pl-10 pr-16 py-2.5 text-sm rounded-xl border-2 border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 focus:border-primary-500 focus:bg-white dark:focus:bg-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500/10 dark:text-white placeholder-neutral-400 transition-all duration-150"
+                autoFocus={autoFocus}
+              />
+            </div>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {loading && (
+                <div className="animate-spin h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full" />
+              )}
+              {query && !loading && (
+                <button
+                  type="button"
+                  onClick={() => { setQuery(''); setResults([]); inputRef.current?.focus(); }}
+                  className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition-colors duration-150 active:scale-95"
                 >
-                  <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400 pointer-events-none" />
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={placeholder}
-                    className="w-full pl-10 pr-16 py-2.5 text-sm rounded-xl border-2 border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 focus:border-primary-500 focus:bg-white dark:focus:bg-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500/10 dark:text-white placeholder-neutral-400 transition-all duration-200"
-                    autoFocus={autoFocus}
-                  />
-                </motion.div>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                  {loading && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      className="animate-spin h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full"
-                    />
-                  )}
-                  {query && !loading && (
-                    <motion.button
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      whileTap={{ scale: 0.9 }}
-                      type="button"
-                      onClick={() => { setQuery(''); setResults([]); inputRef.current?.focus(); }}
-                      className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition-colors"
-                    >
-                      <FiX className="h-3.5 w-3.5 text-neutral-400" />
-                    </motion.button>
-                  )}
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    type="submit"
-                    className="px-3 py-1.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white text-xs font-semibold rounded-lg hover:from-primary-700 hover:to-primary-800 transition-all duration-200 shadow-sm hover:shadow"
-                  >
-                    Search
-                  </motion.button>
-                </div>
-              </form>
+                  <FiX className="h-3.5 w-3.5 text-neutral-400" />
+                </button>
+              )}
+              <button
+                type="submit"
+                className="px-3 py-1.5 bg-gradient-to-r from-primary-600 to-primary-700 text-white text-xs font-semibold rounded-lg hover:from-primary-700 hover:to-primary-800 transition-all duration-150 shadow-sm hover:shadow active:scale-95"
+              >
+                Search
+              </button>
             </div>
-
-            {/* Body with smooth content transitions */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-              <AnimatePresence mode="wait">
-                {!showEmptyState ? (
-                  <motion.div
-                    key="results"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                    className="p-3"
-                  >
-                    {loading && results.length === 0 ? (
-                      <div className="space-y-3">
-                        {[1, 2, 3].map((i) => (
-                          <motion.div
-                            key={i}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: i * 0.05 }}
-                            className="flex gap-3"
-                          >
-                            <div className="w-12 h-12 bg-neutral-200 dark:bg-neutral-700 rounded-lg animate-pulse" />
-                            <div className="flex-1 space-y-2">
-                              <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4 animate-pulse" />
-                              <div className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2 animate-pulse" />
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    ) : hasResults ? (
-                      <motion.div
-                        ref={resultsRef}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.15 }}
-                        className="space-y-1"
-                      >
-                        <motion.p 
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2"
-                        >
-                          {results.length} results
-                        </motion.p>
-                        <AnimatePresence>
-                          {results.map((product, index) => (
-                            <motion.button
-                              key={product._id}
-                              data-index={index}
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: index * 0.03 }}
-                              whileHover={{ scale: 1.01, x: 4 }}
-                              whileTap={{ scale: 0.99 }}
-                              onClick={() => handleResultClick(product)}
-                              className={cn(
-                                "w-full flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-all duration-150 text-left",
-                                index === selectedIndex && "bg-neutral-50 dark:bg-neutral-800/50 ring-1 ring-primary-500/20"
-                              )}
-                            >
-                              <motion.img
-                                whileHover={{ scale: 1.05 }}
-                                src={product.images?.[0] || '/images/placeholder.jpg'}
-                                alt={product.name}
-                                className="w-12 h-12 object-cover rounded-lg bg-neutral-100 dark:bg-neutral-800 flex-shrink-0"
-                                onError={(e) => { e.target.src = '/images/placeholder.jpg'; }}
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium dark:text-white truncate">{product.name}</p>
-                                <p className="text-xs text-neutral-500">{product.category}</p>
-                              </div>
-                              <motion.p 
-                                whileHover={{ scale: 1.05 }}
-                                className="text-sm font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent flex-shrink-0"
-                              >
-                                {formatPrice(product.price)}
-                              </motion.p>
-                            </motion.button>
-                          ))}
-                        </AnimatePresence>
-                        {results.length === MAX_RESULTS && (
-                          <motion.button
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => performSearch(query)}
-                            className="w-full mt-2 py-2 text-xs font-medium text-primary-600 hover:text-primary-700 text-center hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-all duration-200"
-                          >
-                            View all results →
-                          </motion.button>
-                        )}
-                      </motion.div>
-                    ) : !loading && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        className="py-8 text-center"
-                      >
-                        <motion.div
-                          initial={{ scale: 0.8 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: "spring", stiffness: 200 }}
-                          className="w-12 h-12 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center mx-auto mb-3"
-                        >
-                          <FiSearch className="h-5 w-5 text-neutral-400" />
-                        </motion.div>
-                        <p className="text-sm font-medium dark:text-white mb-1">No results for "{query}"</p>
-                        <p className="text-xs text-neutral-500">Try a different search term</p>
-                      </motion.div>
-                    )}
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="empty"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                    className="p-4"
-                  >
-                    {/* Trending */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.05 }}
-                      className="mb-4"
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <FiTrendingUp className="h-4 w-4 text-primary-500" />
-                        <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Trending</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {TRENDING_SEARCHES.map(({ term, category, icon: Icon, count }, idx) => (
-                          <motion.button
-                            key={term}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.05 + idx * 0.02 }}
-                            whileHover={{ scale: 1.02, x: 4 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => handleRecentClick(term)}
-                            className="flex items-center gap-3 p-2.5 bg-neutral-50 dark:bg-neutral-800/50 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-xl transition-all duration-200 group text-left"
-                          >
-                            <motion.div 
-                              whileHover={{ rotate: 5 }}
-                              className="w-8 h-8 rounded-lg bg-white dark:bg-neutral-900 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm"
-                            >
-                              <Icon className="h-4 w-4 text-primary-500" />
-                            </motion.div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold dark:text-white truncate">{term}</p>
-                              <div className="flex items-center gap-2">
-                                <p className="text-[10px] text-neutral-500">{category}</p>
-                                <span className="text-[10px] text-neutral-400">{count} searches</span>
-                              </div>
-                            </div>
-                          </motion.button>
-                        ))}
-                      </div>
-                    </motion.div>
-
-                    {/* Recent */}
-                    {recentSearches.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="mb-4"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <FiClock className="h-3.5 w-3.5 text-neutral-500" />
-                            <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Recent</p>
-                          </div>
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={handleClearAllRecent}
-                            className="text-[10px] text-primary-600 hover:text-primary-700 font-medium transition-colors"
-                          >
-                            Clear all
-                          </motion.button>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {recentSearches.map((term, i) => (
-                            <motion.button
-                              key={i}
-                              initial={{ opacity: 0, scale: 0.8 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: 0.1 + i * 0.03 }}
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => handleRecentClick(term)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-full text-xs text-neutral-600 dark:text-neutral-400 transition-all duration-200"
-                            >
-                              <FiClock className="h-3 w-3" />
-                              {term}
-                            </motion.button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* Categories */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.15 }}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <FiGrid className="h-3.5 w-3.5 text-primary-500" />
-                        <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Categories</p>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {QUICK_CATEGORIES.map((cat, idx) => {
-                          const IconComponent = cat.icon;
-                          return (
-                            <motion.button
-                              key={cat.label}
-                              initial={{ opacity: 0, scale: 0.8 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: 0.15 + idx * 0.02 }}
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => cat.label === 'Sale' ? handleSaleClick() : handleCategoryClick(cat.label)}
-                              className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
-                                cat.color
-                              )}
-                            >
-                              <IconComponent className="h-3 w-3" />
-                              {cat.label}
-                            </motion.button>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Footer */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.1 }}
-              className="flex-shrink-0 px-3 py-2 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between text-[10px] text-neutral-400"
-            >
-              <div className="flex items-center gap-3">
-                <span className="flex items-center gap-1"><FiSearch className="h-2.5 w-2.5" /> Search</span>
-                <span className="flex items-center gap-1"><FiTrendingUp className="h-2.5 w-2.5" /> Trending</span>
-                <span className="flex items-center gap-1"><FiGrid className="h-2.5 w-2.5" /> Categories</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <kbd className="px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded text-[9px] font-mono shadow-sm">ESC</kbd>
-                <span>to close</span>
-              </div>
-            </motion.div>
-          </motion.div>
+          </form>
         </div>
-      )}
-    </AnimatePresence>,
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {!showEmptyState ? (
+            <div className="p-3">
+              {loading && results.length === 0 ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex gap-3">
+                      <div className="w-12 h-12 bg-neutral-200 dark:bg-neutral-700 rounded-lg animate-pulse" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4 animate-pulse" />
+                        <div className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2 animate-pulse" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : hasResults ? (
+                <div ref={resultsRef} className="space-y-1">
+                  <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">
+                    {results.length} results
+                  </p>
+                  <div>
+                    {results.map((product, index) => (
+                      <button
+                        key={product._id}
+                        data-index={index}
+                        onClick={() => handleResultClick(product)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-all duration-150 text-left active:scale-98",
+                          index === selectedIndex && "bg-neutral-50 dark:bg-neutral-800/50 ring-1 ring-primary-500/20"
+                        )}
+                      >
+                        <img
+                          src={product.images?.[0] || '/images/placeholder.jpg'}
+                          alt={product.name}
+                          className="w-12 h-12 object-cover rounded-lg bg-neutral-100 dark:bg-neutral-800 flex-shrink-0 transition-transform duration-150 group-hover:scale-105"
+                          loading="lazy"
+                          onError={(e) => { e.target.src = '/images/placeholder.jpg'; }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium dark:text-white truncate">{product.name}</p>
+                          <p className="text-xs text-neutral-500">{product.category}</p>
+                        </div>
+                        <p className="text-sm font-bold bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-transparent flex-shrink-0">
+                          {formatPrice(product.price)}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                  {results.length === MAX_RESULTS && (
+                    <button
+                      onClick={() => performSearch(query)}
+                      className="w-full mt-2 py-2 text-xs font-medium text-primary-600 hover:text-primary-700 text-center hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-all duration-150 active:scale-98"
+                    >
+                      View all results →
+                    </button>
+                  )}
+                </div>
+              ) : !loading && (
+                <div className="py-8 text-center">
+                  <div className="w-12 h-12 bg-neutral-100 dark:bg-neutral-800 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <FiSearch className="h-5 w-5 text-neutral-400" />
+                  </div>
+                  <p className="text-sm font-medium dark:text-white mb-1">No results for "{query}"</p>
+                  <p className="text-xs text-neutral-500">Try a different search term</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-4">
+              {/* Trending */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <FiTrendingUp className="h-4 w-4 text-primary-500" />
+                  <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Trending</p>
+                </div>
+                {trendingSearchesElements}
+              </div>
+
+              {/* Recent */}
+              {recentSearchesElements}
+
+              {/* Categories */}
+              {categoriesElements}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex-shrink-0 px-3 py-2 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between text-[10px] text-neutral-400">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1"><FiSearch className="h-2.5 w-2.5" /> Search</span>
+            <span className="flex items-center gap-1"><FiTrendingUp className="h-2.5 w-2.5" /> Trending</span>
+            <span className="flex items-center gap-1"><FiGrid className="h-2.5 w-2.5" /> Categories</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <kbd className="px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded text-[9px] font-mono shadow-sm">ESC</kbd>
+            <span>to close</span>
+          </div>
+        </div>
+      </div>
+    </div>,
     document.body
   );
 };

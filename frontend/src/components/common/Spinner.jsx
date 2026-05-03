@@ -11,7 +11,7 @@ const Spinner = ({ size = 'md', className }) => {
   return (
     <div
       className={cn(
-        'animate-spin rounded-full border-primary-500/30 border-t-primary-600 dark:border-primary-400/20 dark:border-t-primary-400',
+        'spinner rounded-full border-primary-500/30 border-t-primary-600 dark:border-primary-400/20 dark:border-t-primary-400',
         sizeClasses[size],
         className
       )}
@@ -35,13 +35,14 @@ export const LoadingScreen = () => {
               src="/logo.svg" 
               alt="Furniqo" 
               className="h-8 w-8 object-contain"
+              loading="eager"
               onError={(e) => { e.target.style.display = 'none'; }}
             />
           </div>
         </div>
         
         {/* Loading Text */}
-        <p className="text-sm text-neutral-400 dark:text-neutral-500 animate-pulse">
+        <p className="text-sm text-neutral-400 dark:text-neutral-500 pulse-text">
           Loading...
         </p>
       </div>

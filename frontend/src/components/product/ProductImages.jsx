@@ -1,11 +1,15 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { 
   FiChevronLeft, FiChevronRight, FiZoomIn, FiZoomOut, 
   FiX, FiMaximize2, FiMinimize2, FiPlay, FiPause,
   FiShare2
 } from 'react-icons/fi';
 import { cn } from '../../utils/cn';
+
+// Constants moved outside component
+const MIN_SWIPE_DISTANCE = 50;
+const THUMBNAIL_SCROLL_AMOUNT = 100;
+const PLACEHOLDER_SIZE = 800;
 
 const ProductImages = ({ 
   images, 
@@ -31,7 +35,6 @@ const ProductImages = ({
   const [dragStart, setDragStart] = useState(null);
   const [imageError, setImageError] = useState({});
   
-  const mainImageRef = useRef(null);
   const thumbnailScrollRef = useRef(null);
   const autoPlayTimerRef = useRef(null);
   const fullscreenRef = useRef(null);
@@ -76,7 +79,7 @@ const ProductImages = ({
           toggleFullscreen();
           break;
         case 'z':
-          setIsZoomed(!isZoomed);
+          setIsZoomed(prev => !prev);
           break;
         default:
           break;
@@ -92,7 +95,7 @@ const ProductImages = ({
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
-  }, [isFullscreen, isZoomed]);
+  }, [isFullscreen]);
 
   // Notify parent of image change
   useEffect(() => {
@@ -101,15 +104,13 @@ const ProductImages = ({
 
   // Scroll thumbnail into view
   useEffect(() => {
-    if (thumbnailScrollRef.current) {
-      const thumbnail = thumbnailScrollRef.current.children[selectedImage];
-      if (thumbnail) {
-        thumbnail.scrollIntoView({
-          behavior: 'smooth',
-          block: 'nearest',
-          inline: 'center',
-        });
-      }
+    const thumbnail = thumbnailScrollRef.current?.children[selectedImage];
+    if (thumbnail) {
+      thumbnail.scrollIntoView({
+        behavior: 'instant',
+        block: 'nearest',
+        inline: 'center',
+      });
     }
   }, [selectedImage]);
 
@@ -149,9 +150,8 @@ const ProductImages = ({
     if (!touchStart || !touchEnd) return;
     
     const distance = touchStart - touchEnd;
-    const minSwipeDistance = 50;
     
-    if (Math.abs(distance) > minSwipeDistance) {
+    if (Math.abs(distance) > MIN_SWIPE_DISTANCE) {
       if (distance > 0) {
         nextImage();
       } else {
@@ -169,12 +169,11 @@ const ProductImages = ({
   }, []);
 
   const handleMouseUp = useCallback((e) => {
-    if (!isDragging || !dragStart) return;
+    if (!isDragging || dragStart === null) return;
     
     const distance = dragStart - e.clientX;
-    const minSwipeDistance = 50;
     
-    if (Math.abs(distance) > minSwipeDistance) {
+    if (Math.abs(distance) > MIN_SWIPE_DISTANCE) {
       if (distance > 0) {
         nextImage();
       } else {
@@ -201,7 +200,7 @@ const ProductImages = ({
   }, []);
 
   const handleShare = useCallback(async () => {
-    if (navigator.share) {
+    if (navigator.share && images[selectedImage]) {
       try {
         await navigator.share({
           title: name,
@@ -209,19 +208,27 @@ const ProductImages = ({
           url: images[selectedImage],
         });
       } catch (error) {
-        console.log('Error sharing:', error);
+        // Fail silently - user cancelled or share not supported
       }
     }
   }, [name, images, selectedImage]);
 
-  // Generate placeholder URL for fallback
-  const getPlaceholderUrl = (width = 800, height = 800) => 
-    `https://via.placeholder.com/${width}x${height}?text=No+Image`;
+  // Memoized values
+  const hasMultipleImages = useMemo(() => images?.length > 1, [images]);
+  const currentImage = useMemo(() => 
+    images?.[selectedImage] || `https://via.placeholder.com/${PLACEHOLDER_SIZE}x${PLACEHOLDER_SIZE}?text=No+Image`, 
+    [images, selectedImage]
+  );
 
-  const hasMultipleImages = images && images.length > 1;
-  const currentImage = images && images[selectedImage] 
-    ? images[selectedImage] 
-    : getPlaceholderUrl();
+  // Scroll thumbnails helper
+  const scrollThumbnails = useCallback((direction) => {
+    if (thumbnailScrollRef.current) {
+      thumbnailScrollRef.current.scrollBy({ 
+        left: direction === 'left' ? -THUMBNAIL_SCROLL_AMOUNT : THUMBNAIL_SCROLL_AMOUNT, 
+        behavior: 'smooth' 
+      });
+    }
+  }, []);
 
   return (
     <>
@@ -232,7 +239,7 @@ const ProductImages = ({
           className={cn(
             'relative overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-100 to-neutral-200 dark:from-neutral-800 dark:to-neutral-900 group',
             aspectRatio,
-            isFullscreen ? 'fixed inset-0 z-[200] rounded-none' : ''
+            isFullscreen && 'fixed inset-0 z-[200] rounded-none'
           )}
           onMouseEnter={() => showZoom && setIsZoomed(true)}
           onMouseLeave={() => {
@@ -247,157 +254,119 @@ const ProductImages = ({
           onTouchEnd={handleTouchEnd}
         >
           {/* Loading Spinner */}
-          {!images[selectedImage] && (
+          {!images?.[selectedImage] && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-12 h-12 border-4 border-neutral-300 border-t-primary-600 rounded-full animate-spin" />
             </div>
           )}
 
           {/* Main Image */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={selectedImage}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.05 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
-              className="w-full h-full"
-            >
-              {imageError[selectedImage] ? (
-                <div className="w-full h-full flex items-center justify-center bg-neutral-100 dark:bg-neutral-800">
-                  <div className="text-center">
-                    <div className="text-4xl mb-2">🖼️</div>
-                    <p className="text-neutral-500 dark:text-neutral-400 text-sm">
-                      Failed to load image
-                    </p>
-                  </div>
+          <div className="w-full h-full transition-opacity duration-300">
+            {imageError[selectedImage] ? (
+              <div className="w-full h-full flex items-center justify-center bg-neutral-100 dark:bg-neutral-800">
+                <div className="text-center">
+                  <div className="text-4xl mb-2">🖼️</div>
+                  <p className="text-neutral-500 dark:text-neutral-400 text-sm">
+                    Failed to load image
+                  </p>
                 </div>
-              ) : (
-                <img
-                  src={currentImage}
-                  alt={`${name} - Image ${selectedImage + 1} of ${images.length}`}
-                  className={cn(
-                    'w-full h-full object-cover select-none',
-                    isZoomed && 'cursor-zoom-out',
-                    !isZoomed && showZoom && 'cursor-zoom-in',
-                    isDragging && 'cursor-grabbing'
-                  )}
-                  onError={() => handleImageError(selectedImage)}
-                  draggable={false}
-                />
-              )}
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Zoom Overlay */}
-          <AnimatePresence>
-            {isZoomed && showZoom && !imageError[selectedImage] && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  backgroundImage: `url(${currentImage})`,
-                  backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
-                  backgroundSize: '250%',
-                  backgroundRepeat: 'no-repeat',
-                }}
+              </div>
+            ) : (
+              <img
+                src={currentImage}
+                alt={`${name} - Image ${selectedImage + 1} of ${images.length}`}
+                className={cn(
+                  'w-full h-full object-cover select-none',
+                  isZoomed && 'cursor-zoom-out',
+                  !isZoomed && showZoom && 'cursor-zoom-in',
+                  isDragging && 'cursor-grabbing'
+                )}
+                onError={() => handleImageError(selectedImage)}
+                draggable={false}
+                loading="eager"
               />
             )}
-          </AnimatePresence>
+          </div>
+
+          {/* Zoom Overlay */}
+          {isZoomed && showZoom && !imageError[selectedImage] && (
+            <div 
+              className="absolute inset-0 pointer-events-none transition-opacity duration-200"
+              style={{
+                backgroundImage: `url(${currentImage})`,
+                backgroundPosition: `${zoomPosition.x}% ${zoomPosition.y}%`,
+                backgroundSize: '250%',
+                backgroundRepeat: 'no-repeat',
+              }}
+            />
+          )}
 
           {/* Top Controls Bar */}
           <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between pointer-events-none">
             <div className="flex items-center gap-2 pointer-events-auto">
               {/* Zoom Toggle */}
               {showZoom && !imageError[selectedImage] && (
-                <motion.button
-                  onClick={() => setIsZoomed(!isZoomed)}
-                  className="p-2 rounded-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm text-neutral-700 dark:text-neutral-300 hover:bg-white dark:hover:bg-neutral-800 shadow-lg"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                <button
+                  onClick={() => setIsZoomed(prev => !prev)}
+                  className="p-2 rounded-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm text-neutral-700 dark:text-neutral-300 hover:bg-white dark:hover:bg-neutral-800 shadow-lg transition-all duration-150 active:scale-95"
                   aria-label={isZoomed ? 'Zoom out' : 'Zoom in'}
                 >
-                  {isZoomed ? (
-                    <FiZoomOut className="h-4 w-4" />
-                  ) : (
-                    <FiZoomIn className="h-4 w-4" />
-                  )}
-                </motion.button>
+                  {isZoomed ? <FiZoomOut className="h-4 w-4" /> : <FiZoomIn className="h-4 w-4" />}
+                </button>
               )}
 
               {/* Auto-play Toggle */}
               {hasMultipleImages && (
-                <motion.button
-                  onClick={() => setIsAutoPlaying(!isAutoPlaying)}
-                  className="p-2 rounded-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm text-neutral-700 dark:text-neutral-300 hover:bg-white dark:hover:bg-neutral-800 shadow-lg"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                <button
+                  onClick={() => setIsAutoPlaying(prev => !prev)}
+                  className="p-2 rounded-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm text-neutral-700 dark:text-neutral-300 hover:bg-white dark:hover:bg-neutral-800 shadow-lg transition-all duration-150 active:scale-95"
                   aria-label={isAutoPlaying ? 'Pause slideshow' : 'Play slideshow'}
                 >
-                  {isAutoPlaying ? (
-                    <FiPause className="h-4 w-4" />
-                  ) : (
-                    <FiPlay className="h-4 w-4" />
-                  )}
-                </motion.button>
+                  {isAutoPlaying ? <FiPause className="h-4 w-4" /> : <FiPlay className="h-4 w-4" />}
+                </button>
               )}
             </div>
 
             <div className="flex items-center gap-2 pointer-events-auto">
               {/* Share Button */}
-              {navigator.share && (
-                <motion.button
+              {navigator.share && hasMultipleImages && (
+                <button
                   onClick={handleShare}
-                  className="p-2 rounded-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm text-neutral-700 dark:text-neutral-300 hover:bg-white dark:hover:bg-neutral-800 shadow-lg"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  className="p-2 rounded-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm text-neutral-700 dark:text-neutral-300 hover:bg-white dark:hover:bg-neutral-800 shadow-lg transition-all duration-150 active:scale-95"
                   aria-label="Share image"
                 >
                   <FiShare2 className="h-4 w-4" />
-                </motion.button>
+                </button>
               )}
 
               {/* Fullscreen Toggle */}
-              <motion.button
+              <button
                 onClick={toggleFullscreen}
-                className="p-2 rounded-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm text-neutral-700 dark:text-neutral-300 hover:bg-white dark:hover:bg-neutral-800 shadow-lg"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
+                className="p-2 rounded-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm text-neutral-700 dark:text-neutral-300 hover:bg-white dark:hover:bg-neutral-800 shadow-lg transition-all duration-150 active:scale-95"
                 aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
               >
-                {isFullscreen ? (
-                  <FiMinimize2 className="h-4 w-4" />
-                ) : (
-                  <FiMaximize2 className="h-4 w-4" />
-                )}
-              </motion.button>
+                {isFullscreen ? <FiMinimize2 className="h-4 w-4" /> : <FiMaximize2 className="h-4 w-4" />}
+              </button>
             </div>
           </div>
 
           {/* Navigation Arrows */}
           {showNavigation && hasMultipleImages && (
             <>
-              <motion.button
+              <button
                 onClick={prevImage}
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-110 hover:bg-white dark:hover:bg-neutral-800"
-                whileHover={{ x: -2 }}
-                whileTap={{ scale: 0.95 }}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg opacity-0 transition-all duration-200 hover:scale-110 hover:bg-white dark:hover:bg-neutral-800 group-hover:opacity-100 active:scale-95"
                 aria-label="Previous image"
               >
                 <FiChevronLeft className="h-6 w-6" />
-              </motion.button>
-              <motion.button
+              </button>
+              <button
                 onClick={nextImage}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-110 hover:bg-white dark:hover:bg-neutral-800"
-                whileHover={{ x: 2 }}
-                whileTap={{ scale: 0.95 }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg opacity-0 transition-all duration-200 hover:scale-110 hover:bg-white dark:hover:bg-neutral-800 group-hover:opacity-100 active:scale-95"
                 aria-label="Next image"
               >
                 <FiChevronRight className="h-6 w-6" />
-              </motion.button>
+              </button>
             </>
           )}
 
@@ -419,7 +388,7 @@ const ProductImages = ({
                     setIsAutoPlaying(false);
                   }}
                   className={cn(
-                    'w-2 h-2 rounded-full transition-all duration-300',
+                    'w-2 h-2 rounded-full transition-all duration-200',
                     index === selectedImage
                       ? 'bg-white w-6'
                       : 'bg-white/50 hover:bg-white/75'
@@ -433,12 +402,13 @@ const ProductImages = ({
           {/* Auto-play Progress Bar */}
           {isAutoPlaying && hasMultipleImages && (
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
-              <motion.div
+              <div 
                 key={selectedImage}
-                className="h-full bg-primary-600"
-                initial={{ width: '0%' }}
-                animate={{ width: '100%' }}
-                transition={{ duration: autoPlayInterval / 1000, ease: 'linear' }}
+                className="h-full bg-primary-600 transition-all duration-100"
+                style={{ 
+                  width: '100%',
+                  transition: `width ${autoPlayInterval / 1000}s linear`,
+                }}
               />
             </div>
           )}
@@ -449,23 +419,21 @@ const ProductImages = ({
           <div className="relative">
             <div
               ref={thumbnailScrollRef}
-              className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory"
+              className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide"
             >
               {images.map((image, index) => (
-                <motion.button
+                <button
                   key={index}
                   onClick={() => {
                     setSelectedImage(index);
                     setIsAutoPlaying(false);
                   }}
                   className={cn(
-                    'relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all duration-200 snap-center',
+                    'relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all duration-200 snap-center active:scale-95',
                     index === selectedImage
                       ? 'border-primary-600 dark:border-primary-400 shadow-lg shadow-primary-600/20 scale-105'
-                      : 'border-transparent hover:border-neutral-300 dark:hover:border-neutral-600 opacity-70 hover:opacity-100'
+                      : 'border-transparent hover:border-neutral-300 dark:hover:border-neutral-600 opacity-70 hover:opacity-100 hover:scale-105'
                   )}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
                   aria-label={`View image ${index + 1}`}
                 >
                   {imageError[index] ? (
@@ -484,13 +452,9 @@ const ProductImages = ({
                   
                   {/* Selected Indicator */}
                   {index === selectedImage && (
-                    <motion.div
-                      layoutId="selectedThumbnail"
-                      className="absolute inset-0 bg-primary-600/10"
-                      transition={{ duration: 0.2 }}
-                    />
+                    <div className="absolute inset-0 bg-primary-600/10" />
                   )}
-                </motion.button>
+                </button>
               ))}
             </div>
 
@@ -498,23 +462,15 @@ const ProductImages = ({
             {images.length > 4 && (
               <>
                 <button
-                  onClick={() => {
-                    if (thumbnailScrollRef.current) {
-                      thumbnailScrollRef.current.scrollBy({ left: -100, behavior: 'smooth' });
-                    }
-                  }}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-8 bg-white dark:bg-neutral-800 rounded-full shadow-lg flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+                  onClick={() => scrollThumbnails('left')}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-8 bg-white dark:bg-neutral-800 rounded-full shadow-lg flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200 active:scale-95"
                   aria-label="Scroll thumbnails left"
                 >
                   <FiChevronLeft className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => {
-                    if (thumbnailScrollRef.current) {
-                      thumbnailScrollRef.current.scrollBy({ left: 100, behavior: 'smooth' });
-                    }
-                  }}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 bg-white dark:bg-neutral-800 rounded-full shadow-lg flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+                  onClick={() => scrollThumbnails('right')}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-8 bg-white dark:bg-neutral-800 rounded-full shadow-lg flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200 active:scale-95"
                   aria-label="Scroll thumbnails right"
                 >
                   <FiChevronRight className="h-4 w-4" />
@@ -526,20 +482,29 @@ const ProductImages = ({
       </div>
 
       {/* Fullscreen Overlay Close Button */}
-      <AnimatePresence>
-        {isFullscreen && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            onClick={() => setIsFullscreen(false)}
-            className="fixed top-4 right-4 z-[201] p-3 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-xl shadow-xl hover:bg-white dark:hover:bg-neutral-800"
-            aria-label="Close fullscreen"
-          >
-            <FiX className="h-6 w-6" />
-          </motion.button>
-        )}
-      </AnimatePresence>
+      {isFullscreen && (
+        <button
+          onClick={() => setIsFullscreen(false)}
+          className="fixed top-4 right-4 z-[201] p-3 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-xl shadow-xl hover:bg-white dark:hover:bg-neutral-800 transition-all duration-150 active:scale-95"
+          aria-label="Close fullscreen"
+        >
+          <FiX className="h-6 w-6" />
+        </button>
+      )}
+
+      {/* CSS Styles */}
+      <style>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .active\\:scale-95:active {
+          transform: scale(0.95);
+        }
+      `}</style>
     </>
   );
 };

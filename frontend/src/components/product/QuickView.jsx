@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, memo, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -14,56 +14,234 @@ import { useCart } from '../../store/CartContext';
 import { useWishlist } from '../../store/WishlistContext';
 import { formatPrice, calculateDiscount } from '../../utils/helpers';
 
-const QuickView = ({ product, isOpen, onClose }) => {
+// Fallback image constant
+const FALLBACK_IMAGE = 'https://placehold.co/600x600/eee/999?text=Image+Not+Available';
+
+// Optimized LazyImage component with error handling
+const LazyImage = memo(({ src, alt, className, priority = false }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [srcToLoad, setSrcToLoad] = useState(priority ? src : null);
+  const imgRef = useRef(null);
+  const observerRef = useRef(null);
+
+  useEffect(() => {
+    if (priority) {
+      setSrcToLoad(src);
+      return;
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setSrcToLoad(src);
+            observerRef.current?.disconnect();
+          }
+        });
+      },
+      { rootMargin: '100px', threshold: 0.01 }
+    );
+
+    if (imgRef.current) {
+      observerRef.current.observe(imgRef.current);
+    }
+
+    return () => observerRef.current?.disconnect();
+  }, [src, priority]);
+
+  const handleLoad = useCallback(() => {
+    setIsLoaded(true);
+  }, []);
+
+  const handleError = useCallback(() => {
+    setHasError(true);
+    setIsLoaded(true);
+  }, []);
+
+  const displaySrc = hasError ? FALLBACK_IMAGE : (srcToLoad || undefined);
+
+  return (
+    <div className="relative w-full h-full overflow-hidden bg-neutral-100 dark:bg-neutral-800">
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-gradient-to-r from-neutral-200 via-neutral-300 to-neutral-200 dark:from-neutral-700 dark:via-neutral-600 dark:to-neutral-700 animate-pulse" />
+      )}
+      <img
+        ref={imgRef}
+        src={displaySrc}
+        alt={alt}
+        className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        onLoad={handleLoad}
+        onError={handleError}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+      />
+    </div>
+  );
+});
+
+LazyImage.displayName = 'LazyImage';
+
+// Memoized Thumbnail component with error handling
+const Thumbnail = memo(({ image, alt, index, isSelected, onSelect }) => {
+  const [hasError, setHasError] = useState(false);
+
+  const handleClick = useCallback(() => onSelect(index), [onSelect, index]);
+  const handleError = useCallback(() => {
+    setHasError(true);
+  }, []);
+
+  const displaySrc = hasError ? FALLBACK_IMAGE : image;
+
+  return (
+    <motion.button
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{ duration: 0.1 }}
+      onClick={handleClick}
+      className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all duration-150 ${
+        isSelected
+          ? 'border-primary-600 ring-2 ring-primary-600/20'
+          : 'border-transparent hover:border-neutral-300 dark:hover:border-neutral-600'
+      }`}
+      aria-label={`View image ${index + 1}`}
+      aria-current={isSelected ? 'true' : 'false'}
+    >
+      <img 
+        src={displaySrc} 
+        alt={`${alt} - View ${index + 1}`}
+        className="w-full h-full object-cover"
+        onError={handleError}
+        loading="lazy"
+      />
+    </motion.button>
+  );
+});
+
+Thumbnail.displayName = 'Thumbnail';
+
+// Memoized Feature Item component
+const FeatureItem = memo(({ icon: Icon, text }) => (
+  <div className="text-center">
+    <Icon className="h-5 w-5 mx-auto mb-1 text-neutral-400" />
+    <span className="text-xs text-neutral-500">{text}</span>
+  </div>
+));
+
+FeatureItem.displayName = 'FeatureItem';
+
+// Memoized Quantity Selector component
+const QuantitySelector = memo(({ quantity, onIncrement, onDecrement, min = 1, max }) => (
+  <div className="flex items-center border-2 border-neutral-200 dark:border-neutral-700 rounded-xl">
+    <button
+      onClick={onDecrement}
+      disabled={quantity <= min}
+      className="p-3 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+      aria-label="Decrease quantity"
+    >
+      <FiMinus className="h-4 w-4" />
+    </button>
+    <span className="px-6 font-semibold min-w-[60px] text-center select-none">
+      {quantity}
+    </span>
+    <button
+      onClick={onIncrement}
+      disabled={quantity >= max}
+      className="p-3 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+      aria-label="Increase quantity"
+    >
+      <FiPlus className="h-4 w-4" />
+    </button>
+  </div>
+));
+
+QuantitySelector.displayName = 'QuantitySelector';
+
+// Main QuickView Component
+const QuickView = memo(({ product, isOpen, onClose }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
-  const [imageError, setImageError] = useState({});
   const imageContainerRef = useRef(null);
   const touchStartX = useRef(0);
+  const modalRef = useRef(null);
   
   const { addToCart } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
   
-  // Reset quantity when product changes
+  // Reset state when modal opens/closes
   useEffect(() => {
-    setQuantity(1);
-    setSelectedVariant(null);
-    setSelectedImage(0);
-    setAddedToCart(false);
-    setImageError({});
-  }, [product?._id]);
+    if (isOpen) {
+      setQuantity(1);
+      setSelectedVariant(null);
+      setSelectedImage(0);
+      setAddedToCart(false);
+      setIsAddingToCart(false);
+    }
+  }, [product?._id, isOpen]);
 
-  // Calculate values - moved before conditional return
-  const discount = product ? calculateDiscount(product.price, product.originalPrice) : 0;
-  const currentPrice = product ? (selectedVariant?.price || product.price) : 0;
-  const inStock = product ? (selectedVariant?.inStock !== false && product.inStock) : false;
-  const maxQuantity = product ? (selectedVariant?.stock || product.stock || 99) : 99;
-  const isWishlistedProduct = product ? isWishlisted(product._id) : false;
+  // Memoized calculations
+  const discount = useMemo(() => 
+    product ? calculateDiscount(product.price, product.originalPrice) : 0, 
+  [product]);
+  
+  const currentPrice = useMemo(() => 
+    product ? (selectedVariant?.price || product.price) : 0, 
+  [product, selectedVariant]);
+  
+  const inStock = useMemo(() => 
+    product ? (selectedVariant?.inStock !== false && product.inStock) : false, 
+  [product, selectedVariant]);
+  
+  const maxQuantity = useMemo(() => 
+    product ? (selectedVariant?.stock || product.stock || 99) : 99, 
+  [product, selectedVariant]);
+  
+  const isWishlistedProduct = useMemo(() => 
+    product ? isWishlisted(product._id) : false, 
+  [product, isWishlisted]);
+
+  const savingsAmount = useMemo(() => {
+    if (product?.originalPrice && product.originalPrice > currentPrice) {
+      return product.originalPrice - currentPrice;
+    }
+    return 0;
+  }, [product, currentPrice]);
+
+  const features = useMemo(() => [
+    { icon: FiTruck, text: 'Free Shipping' },
+    { icon: FiShield, text: 'Secure Checkout' },
+    { icon: FiRotateCcw, text: '30-Day Returns' },
+  ], []);
 
   const handleAddToCart = useCallback(async () => {
-    if (!product || isAddingToCart) return;
+    if (!product || isAddingToCart || !inStock) return;
     
     setIsAddingToCart(true);
     try {
       await addToCart(product, quantity, selectedVariant);
       setAddedToCart(true);
       
+      // Vibrate on mobile for feedback
+      if (window.navigator?.vibrate) {
+        window.navigator.vibrate(30);
+      }
+      
       setTimeout(() => {
         onClose();
         setAddedToCart(false);
-      }, 1500);
+      }, 1000);
     } catch (error) {
       console.error('Failed to add to cart:', error);
     } finally {
       setIsAddingToCart(false);
     }
-  }, [product, quantity, selectedVariant, addToCart, onClose, isAddingToCart]);
+  }, [product, quantity, selectedVariant, addToCart, onClose, isAddingToCart, inStock]);
 
   const handleImageNavigation = useCallback((direction) => {
-    if (!product) return;
+    if (!product?.images?.length) return;
     setSelectedImage(prev => {
       if (direction === 'next') {
         return (prev + 1) % product.images.length;
@@ -72,54 +250,75 @@ const QuickView = ({ product, isOpen, onClose }) => {
     });
   }, [product]);
 
-  const handleTouchStart = (e) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
+  const handlePrevImage = useCallback(() => handleImageNavigation('prev'), [handleImageNavigation]);
+  const handleNextImage = useCallback(() => handleImageNavigation('next'), [handleImageNavigation]);
 
-  const handleTouchEnd = (e) => {
+  const handleTouchStart = useCallback((e) => {
+    touchStartX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchEnd = useCallback((e) => {
     const touchEndX = e.changedTouches[0].clientX;
     const diff = touchStartX.current - touchEndX;
     
     if (Math.abs(diff) > 50) {
       handleImageNavigation(diff > 0 ? 'next' : 'prev');
     }
-  };
+  }, [handleImageNavigation]);
 
-  const handleImageError = (index) => {
-    setImageError(prev => ({ ...prev, [index]: true }));
-  };
+  const incrementQuantity = useCallback(() => {
+    setQuantity(prev => Math.min(maxQuantity, prev + 1));
+  }, [maxQuantity]);
 
-  const quantityHandlers = {
-    increment: () => setQuantity(prev => Math.min(maxQuantity, prev + 1)),
-    decrement: () => setQuantity(prev => Math.max(1, prev - 1)),
-  };
+  const decrementQuantity = useCallback(() => {
+    setQuantity(prev => Math.max(1, prev - 1));
+  }, []);
 
-  const features = [
-    { icon: FiTruck, text: 'Free Shipping' },
-    { icon: FiShield, text: 'Secure Checkout' },
-    { icon: FiRotateCcw, text: '30-Day Returns' },
-  ];
+  const handleWishlistToggle = useCallback(() => {
+    if (product) {
+      toggleWishlist(product);
+      // Haptic feedback
+      if (window.navigator?.vibrate) {
+        window.navigator.vibrate(20);
+      }
+    }
+  }, [product, toggleWishlist]);
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'ArrowLeft') handleImageNavigation('prev');
-    if (e.key === 'ArrowRight') handleImageNavigation('next');
-  };
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'ArrowLeft') handlePrevImage();
+    if (e.key === 'ArrowRight') handleNextImage();
+    if (e.key === 'Escape') onClose();
+  }, [handlePrevImage, handleNextImage, onClose]);
+
+  const handleVariantSelect = useCallback((variant) => {
+    setSelectedVariant(variant);
+    setQuantity(1);
+  }, []);
+
+  const handleModalClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
 
   // Conditional return after all hooks
   if (!product) return null;
 
+  const imageCount = product.images?.length || 0;
+  const hasMultipleImages = imageCount > 1;
+  const hasVariants = product.variants?.length > 0;
+
   return (
     <Modal 
       isOpen={isOpen} 
-      onClose={onClose} 
+      onClose={handleModalClose} 
       size="4xl"
       closeOnOverlayClick={true}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
+        ref={modalRef}
+        initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.2 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={{ duration: 0.15 }}
         className="grid md:grid-cols-2 gap-8"
         onKeyDown={handleKeyDown}
         tabIndex={0}
@@ -129,73 +328,48 @@ const QuickView = ({ product, isOpen, onClose }) => {
         {/* Images Section */}
         <div className="space-y-4" ref={imageContainerRef}>
           <div className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-100 dark:bg-neutral-800 group">
-            <motion.img
-              key={selectedImage}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              src={imageError[selectedImage] ? '/placeholder-image.jpg' : product.images?.[selectedImage]}
+            <LazyImage
+              src={product.images?.[selectedImage]}
               alt={product.name}
               className="w-full h-full object-cover"
-              onError={() => handleImageError(selectedImage)}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-              draggable={false}
+              priority={selectedImage === 0}
             />
             
+            {/* Discount Badge */}
+            {discount > 0 && (
+              <div className="absolute top-4 left-4 bg-gradient-to-r from-red-500 to-orange-500 text-white text-sm font-bold px-3 py-1.5 rounded-full shadow-lg z-10">
+                -{discount}% OFF
+              </div>
+            )}
+            
             {/* Image Navigation Arrows */}
-            {product.images?.length > 1 && (
+            {hasMultipleImages && (
               <>
-                <button
-                  onClick={() => handleImageNavigation('prev')}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white dark:hover:bg-neutral-900"
-                  aria-label="Previous image"
-                >
-                  <FiChevronLeft className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => handleImageNavigation('next')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white dark:hover:bg-neutral-900"
-                  aria-label="Next image"
-                >
-                  <FiChevronRight className="h-5 w-5" />
-                </button>
+                <NavButton direction="prev" onClick={handlePrevImage} />
+                <NavButton direction="next" onClick={handleNextImage} />
               </>
             )}
 
             {/* Image Counter */}
-            {product.images?.length > 1 && (
-              <div className="absolute bottom-2 right-2 px-3 py-1 rounded-full bg-black/50 backdrop-blur-sm text-white text-sm">
-                {selectedImage + 1} / {product.images.length}
+            {hasMultipleImages && (
+              <div className="absolute bottom-2 right-2 px-3 py-1 rounded-full bg-black/50 backdrop-blur-sm text-white text-xs z-10">
+                {selectedImage + 1} / {imageCount}
               </div>
             )}
           </div>
 
           {/* Thumbnail Gallery */}
-          {product.images?.length > 1 && (
+          {hasMultipleImages && (
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
               {product.images.map((image, index) => (
-                <motion.button
+                <Thumbnail
                   key={index}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setSelectedImage(index)}
-                  className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
-                    index === selectedImage
-                      ? 'border-primary-600 ring-2 ring-primary-600/20'
-                      : 'border-transparent hover:border-neutral-300 dark:hover:border-neutral-600'
-                  }`}
-                  aria-label={`View image ${index + 1}`}
-                  aria-current={index === selectedImage ? 'true' : 'false'}
-                >
-                  <img 
-                    src={imageError[index] ? '/placeholder-image.jpg' : image} 
-                    alt={`${product.name} - View ${index + 1}`}
-                    className="w-full h-full object-cover"
-                    onError={() => handleImageError(index)}
-                    loading="lazy"
-                  />
-                </motion.button>
+                  image={image}
+                  alt={product.name}
+                  index={index}
+                  isSelected={index === selectedImage}
+                  onSelect={setSelectedImage}
+                />
               ))}
             </div>
           )}
@@ -207,13 +381,13 @@ const QuickView = ({ product, isOpen, onClose }) => {
           <div>
             <Link
               to={`/products/${product.slug}`}
-              className="text-2xl font-bold text-neutral-900 dark:text-white hover:text-primary-600 transition-colors line-clamp-2"
-              onClick={onClose}
+              className="text-2xl font-bold text-neutral-900 dark:text-white hover:text-primary-600 transition-colors duration-150 line-clamp-2"
+              onClick={handleModalClose}
             >
               {product.name}
             </Link>
             
-            <div className="flex items-center gap-3 mt-2">
+            <div className="flex items-center gap-3 mt-2 flex-wrap">
               <Rating 
                 value={product.rating || 4.5} 
                 numReviews={product.numReviews || 0} 
@@ -221,19 +395,15 @@ const QuickView = ({ product, isOpen, onClose }) => {
                 showCount={true}
               />
               {discount > 0 && (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="bg-red-100 dark:bg-red-900/20 text-red-600 text-sm font-medium px-2 py-0.5 rounded-full"
-                >
+                <span className="bg-red-100 dark:bg-red-900/20 text-red-600 text-sm font-medium px-2 py-0.5 rounded-full">
                   Save {discount}%
-                </motion.span>
+                </span>
               )}
             </div>
           </div>
 
           {/* Price */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-3xl font-bold text-primary-600">
               {formatPrice(currentPrice)}
             </span>
@@ -242,30 +412,32 @@ const QuickView = ({ product, isOpen, onClose }) => {
                 <span className="text-lg text-neutral-400 line-through">
                   {formatPrice(product.originalPrice)}
                 </span>
-                <span className="text-sm text-green-600 font-medium">
-                  You save {formatPrice(product.originalPrice - currentPrice)}
-                </span>
+                {savingsAmount > 0 && (
+                  <span className="text-sm text-green-600 font-medium">
+                    Save {formatPrice(savingsAmount)}
+                  </span>
+                )}
               </>
             )}
           </div>
 
           {/* Description */}
-          <p className="text-neutral-600 dark:text-neutral-400 line-clamp-3">
-            {product.description || product.shortDescription || 'No description available.'}
+          <p className="text-neutral-600 dark:text-neutral-400 line-clamp-3 text-sm leading-relaxed">
+            {product.description || product.shortDescription || 'No description available for this product.'}
           </p>
 
           {/* Variants */}
-          {product.variants && product.variants.length > 0 && (
+          {hasVariants && (
             <ProductVariants
               variants={product.variants}
               selectedVariant={selectedVariant}
-              onSelect={setSelectedVariant}
+              onSelect={handleVariantSelect}
             />
           )}
 
           {/* Stock Status */}
           <div className="flex items-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${inStock ? 'bg-green-500' : 'bg-red-500'}`} />
+            <div className={`h-2 w-2 rounded-full ${inStock ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
             <span className={`text-sm font-medium ${inStock ? 'text-green-600' : 'text-red-600'}`}>
               {inStock ? `In Stock (${maxQuantity} available)` : 'Out of Stock'}
             </span>
@@ -273,27 +445,15 @@ const QuickView = ({ product, isOpen, onClose }) => {
 
           {/* Quantity and Add to Cart */}
           <div className="flex items-center gap-4">
-            <div className="flex items-center border-2 border-neutral-200 dark:border-neutral-700 rounded-xl">
-              <button
-                onClick={quantityHandlers.decrement}
-                disabled={quantity <= 1}
-                className="p-3 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Decrease quantity"
-              >
-                <FiMinus className="h-4 w-4" />
-              </button>
-              <span className="px-6 font-semibold min-w-[60px] text-center select-none">
-                {quantity}
-              </span>
-              <button
-                onClick={quantityHandlers.increment}
-                disabled={quantity >= maxQuantity}
-                className="p-3 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Increase quantity"
-              >
-                <FiPlus className="h-4 w-4" />
-              </button>
-            </div>
+            {inStock && (
+              <QuantitySelector
+                quantity={quantity}
+                onIncrement={incrementQuantity}
+                onDecrement={decrementQuantity}
+                min={1}
+                max={maxQuantity}
+              />
+            )}
 
             <Button
               onClick={handleAddToCart}
@@ -306,24 +466,25 @@ const QuickView = ({ product, isOpen, onClose }) => {
               {!inStock 
                 ? 'Out of Stock' 
                 : addedToCart 
-                  ? '✓ Added to Cart!' 
+                  ? '✓ Added!' 
                   : 'Add to Cart'
               }
             </Button>
 
             <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => toggleWishlist(product)}
-              className={`p-3 rounded-xl border-2 transition-colors ${
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ duration: 0.1 }}
+              onClick={handleWishlistToggle}
+              className={`p-3 rounded-xl border-2 transition-all duration-150 ${
                 isWishlistedProduct
                   ? 'border-red-500 text-red-500 bg-red-50 dark:bg-red-900/20'
-                  : 'border-neutral-200 dark:border-neutral-700 hover:border-red-300'
+                  : 'border-neutral-200 dark:border-neutral-700 hover:border-red-300 hover:shadow-md'
               }`}
               aria-label={isWishlistedProduct ? 'Remove from wishlist' : 'Add to wishlist'}
             >
               <FiHeart 
-                className={`h-5 w-5 ${isWishlistedProduct ? 'fill-current' : ''}`} 
+                className={`h-5 w-5 transition-colors duration-150 ${isWishlistedProduct ? 'fill-current' : ''}`} 
               />
             </motion.button>
           </div>
@@ -331,26 +492,25 @@ const QuickView = ({ product, isOpen, onClose }) => {
           {/* Features */}
           <div className="grid grid-cols-3 gap-4 pt-6 border-t border-neutral-200 dark:border-neutral-700">
             {features.map((feature, index) => (
-              <div key={index} className="text-center">
-                <feature.icon className="h-5 w-5 mx-auto mb-1 text-neutral-400" />
-                <span className="text-xs text-neutral-500">{feature.text}</span>
-              </div>
+              <FeatureItem key={index} {...feature} />
             ))}
           </div>
 
           {/* Full Details Link */}
           <Link
             to={`/products/${product.slug}`}
-            onClick={onClose}
-            className="block text-center text-primary-600 hover:text-primary-700 font-medium group"
+            onClick={handleModalClose}
+            className="block text-center text-primary-600 hover:text-primary-700 font-medium text-sm group transition-colors duration-150"
           >
             View Full Details{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1">→</span>
+            <span className="inline-block transition-transform duration-150 group-hover:translate-x-1">→</span>
           </Link>
         </div>
       </motion.div>
     </Modal>
   );
-};
+});
+
+QuickView.displayName = 'QuickView';
 
 export default QuickView;

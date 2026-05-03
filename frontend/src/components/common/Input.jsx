@@ -1,5 +1,4 @@
-import { forwardRef, useState, useId } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { forwardRef, useState, useId, useCallback, useMemo } from 'react';
 import { cn } from '../../utils/cn';
 import { FiEye, FiEyeOff, FiAlertCircle, FiCheck, FiX } from 'react-icons/fi';
 
@@ -36,6 +35,49 @@ const Input = forwardRef(({
   const hasSuccess = !!success;
   const charCount = typeof value === 'string' ? value.length : 0;
 
+  // Memoized handlers
+  const handleFocus = useCallback((e) => {
+    setIsFocused(true);
+    props.onFocus?.(e);
+  }, [props.onFocus]);
+
+  const handleBlur = useCallback((e) => {
+    setIsFocused(false);
+    props.onBlur?.(e);
+  }, [props.onBlur]);
+
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword(prev => !prev);
+  }, []);
+
+  // Memoized container classes
+  const containerRingClass = useMemo(() => {
+    if (hasError) return 'ring-2 ring-red-400 dark:ring-red-500';
+    if (hasSuccess) return 'ring-2 ring-emerald-400 dark:ring-emerald-500';
+    if (isFocused) return 'ring-2 ring-primary-500/30';
+    return 'ring-1 ring-neutral-200 dark:ring-neutral-700 hover:ring-neutral-300 dark:hover:ring-neutral-600';
+  }, [hasError, hasSuccess, isFocused]);
+
+  // Memoized icon classes
+  const iconColorClass = useMemo(() => {
+    if (isFocused) return 'text-primary-500';
+    if (hasError) return 'text-red-400';
+    return 'text-neutral-400';
+  }, [isFocused, hasError]);
+
+  // Memoized input classes
+  const inputClasses = useMemo(() => cn(
+    'w-full bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white',
+    'placeholder-neutral-400 dark:placeholder-neutral-500',
+    'transition-all duration-150 outline-none',
+    'rounded-xl',
+    Icon && 'pl-10',
+    (isPassword || RightIcon || hasError || hasSuccess) && 'pr-10',
+    disabled && 'opacity-50 cursor-not-allowed bg-neutral-50 dark:bg-neutral-800/50',
+    'px-4 py-2.5 text-sm',
+    className
+  ), [Icon, isPassword, RightIcon, hasError, hasSuccess, disabled, className]);
+
   return (
     <div className={cn('space-y-1.5', containerClassName)}>
       {/* Label */}
@@ -50,7 +92,7 @@ const Input = forwardRef(({
           </label>
           {showCharCount && maxLength && (
             <span className={cn(
-              'text-[10px] transition-colors',
+              'text-[10px] transition-colors duration-150',
               charCount > maxLength * 0.9 ? 'text-red-500' : 'text-neutral-400'
             )}>
               {charCount}/{maxLength}
@@ -59,28 +101,15 @@ const Input = forwardRef(({
         </div>
       )}
       
-      {/* Input Container */}
-      <motion.div 
-        className={cn(
-          'relative rounded-xl transition-all duration-200',
-          isFocused && 'ring-2 ring-offset-0',
-          hasError 
-            ? 'ring-2 ring-red-400 dark:ring-red-500' 
-            : hasSuccess 
-              ? 'ring-2 ring-emerald-400 dark:ring-emerald-500'
-              : isFocused 
-                ? 'ring-primary-500/30'
-                : 'ring-1 ring-neutral-200 dark:ring-neutral-700 hover:ring-neutral-300 dark:hover:ring-neutral-600'
-        )}
-      >
+      {/* Input Container - Removed motion */}
+      <div className={cn(
+        'relative rounded-xl transition-all duration-150',
+        containerRingClass
+      )}>
         {/* Left Icon */}
         {Icon && (
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Icon className={cn(
-              'h-4 w-4 transition-colors duration-200',
-              isFocused ? 'text-primary-500' : 'text-neutral-400',
-              hasError && 'text-red-400'
-            )} />
+            <Icon className={cn('h-4 w-4 transition-colors duration-150', iconColorClass)} />
           </div>
         )}
         
@@ -96,25 +125,9 @@ const Input = forwardRef(({
           value={value}
           onChange={onChange}
           maxLength={maxLength}
-          onFocus={(e) => {
-            setIsFocused(true);
-            props.onFocus?.(e);
-          }}
-          onBlur={(e) => {
-            setIsFocused(false);
-            props.onBlur?.(e);
-          }}
-          className={cn(
-            'w-full bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white',
-            'placeholder-neutral-400 dark:placeholder-neutral-500',
-            'transition-all duration-200 outline-none',
-            'rounded-xl',
-            Icon && 'pl-10',
-            (isPassword || RightIcon || hasError || hasSuccess) && 'pr-10',
-            disabled && 'opacity-50 cursor-not-allowed bg-neutral-50 dark:bg-neutral-800/50',
-            'px-4 py-2.5 text-sm',
-            className
-          )}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          className={inputClasses}
           {...props}
         />
         
@@ -122,8 +135,8 @@ const Input = forwardRef(({
         {isPassword && showPasswordToggle && (
           <button
             type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+            onClick={togglePasswordVisibility}
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors duration-150 active:scale-95"
             tabIndex={-1}
             aria-label={showPassword ? 'Hide password' : 'Show password'}
           >
@@ -136,7 +149,7 @@ const Input = forwardRef(({
           <button
             type="button"
             onClick={onRightIconClick}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors"
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors duration-150 active:scale-95"
             tabIndex={-1}
           >
             <RightIcon className="h-4 w-4" />
@@ -150,47 +163,29 @@ const Input = forwardRef(({
           </div>
         )}
 
-        {/* Success Icon */}
+        {/* Success Icon - Removed motion */}
         {hasSuccess && !hasError && !isPassword && !RightIcon && (
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"
-          >
+          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
             <FiCheck className="h-4 w-4 text-emerald-500" />
-          </motion.div>
+          </div>
         )}
-      </motion.div>
+      </div>
       
-      {/* Error Message */}
-      <AnimatePresence>
-        {hasError && (
-          <motion.div
-            initial={{ opacity: 0, y: -5, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: -5, height: 0 }}
-            className="flex items-center gap-1.5 text-red-500 text-xs"
-          >
-            <FiAlertCircle className="h-3 w-3 flex-shrink-0" />
-            <span>{error}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Error Message - Removed AnimatePresence and motion */}
+      {hasError && (
+        <div className="flex items-center gap-1.5 text-red-500 text-xs transition-all duration-150">
+          <FiAlertCircle className="h-3 w-3 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
-      {/* Success Message */}
-      <AnimatePresence>
-        {hasSuccess && (
-          <motion.div
-            initial={{ opacity: 0, y: -5, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: -5, height: 0 }}
-            className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs"
-          >
-            <FiCheck className="h-3 w-3 flex-shrink-0" />
-            <span>{success}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Success Message - Removed AnimatePresence and motion */}
+      {hasSuccess && (
+        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs transition-all duration-150">
+          <FiCheck className="h-3 w-3 flex-shrink-0" />
+          <span>{success}</span>
+        </div>
+      )}
       
       {/* Helper Text */}
       {helperText && !hasError && !hasSuccess && (
