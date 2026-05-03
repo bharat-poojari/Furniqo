@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
@@ -10,22 +10,111 @@ import {
 } from 'react-icons/fi';
 import Newsletter from '../components/layout/Newsletter';
 
+// Optimized LazyImage component
+const LazyImage = React.memo(({ src, alt, className }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const imgRef = useRef(null);
+  const observerRef = useRef(null);
+
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsLoaded(true);
+            observerRef.current?.disconnect();
+          }
+        });
+      },
+      { rootMargin: '100px', threshold: 0.01 }
+    );
+
+    if (imgRef.current) {
+      observerRef.current.observe(imgRef.current);
+    }
+
+    return () => observerRef.current?.disconnect();
+  }, []);
+
+  const fallbackSrc = 'https://placehold.co/600x400/eee/999?text=Image+Not+Available';
+
+  return (
+    <div className="relative w-full h-full overflow-hidden bg-neutral-100 dark:bg-neutral-800">
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-gradient-to-r from-neutral-200 via-neutral-300 to-neutral-200 dark:from-neutral-700 dark:via-neutral-600 dark:to-neutral-700 animate-pulse" />
+      )}
+      <img
+        ref={imgRef}
+        src={hasError ? fallbackSrc : (isLoaded ? src : undefined)}
+        alt={alt}
+        className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        onError={() => setHasError(true)}
+        loading="lazy"
+        decoding="async"
+      />
+    </div>
+  );
+});
+
+LazyImage.displayName = 'LazyImage';
+
+// Optimized Counter component
+const AnimatedCounter = ({ target, suffix = '' }) => {
+  const [count, setCount] = useState(0);
+  const hasAnimated = useRef(false);
+  const elementRef = useRef(null);
+  const observerRef = useRef(null);
+
+  useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasAnimated.current) {
+            hasAnimated.current = true;
+            const duration = 1500;
+            const start = Date.now();
+            const step = () => {
+              const now = Date.now();
+              const progress = Math.min((now - start) / duration, 1);
+              const ease = 1 - Math.pow(1 - progress, 3);
+              setCount(Math.floor(target * ease));
+              if (progress < 1) requestAnimationFrame(step);
+            };
+            requestAnimationFrame(step);
+            observerRef.current?.disconnect();
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    if (elementRef.current) {
+      observerRef.current.observe(elementRef.current);
+    }
+
+    return () => observerRef.current?.disconnect();
+  }, [target]);
+
+  return (
+    <span ref={elementRef}>
+      {count}{suffix}
+    </span>
+  );
+};
+
 const About = () => {
-  const [counters, setCounters] = useState({ 
-    customers: 0, years: 0, countries: 0, satisfaction: 0
-  });
-  const [hoveredCard, setHoveredCard] = useState(null);
   const [activeTimeline, setActiveTimeline] = useState(0);
+  const [hoveredStat, setHoveredStat] = useState(null);
   const testimonialsRef = useRef(null);
   const timelineTimerRef = useRef(null);
   
-  // Scroll animations
+  // Scroll animations - simplified
   const { scrollYProgress } = useScroll();
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0.2]);
-  const heroScale = useTransform(scrollYProgress, [0, 0.5], [1, 0.97]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0.3]);
 
-  // Timeline items with background images
-  const timelineItems = [
+  // Timeline items
+  const timelineItems = useMemo(() => [
     { 
       year: '2009', 
       title: 'The Beginning', 
@@ -85,138 +174,28 @@ const About = () => {
       gradient: 'from-rose-500 to-pink-500',
       bgImage: 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=1200',
       description: 'Future of furniture design with cutting-edge technology, creating smarter, more sustainable furniture solutions.'
-    },
-    { 
-      year: '2026', 
-      title: 'AI Integration', 
-      event: 'Smart furniture & AI design tools', 
-      icon: FiTrendingUp, 
-      color: 'indigo',
-      gradient: 'from-indigo-500 to-purple-600',
-      bgImage: 'https://images.unsplash.com/photo-1581091226033-d5c48150dbaa?w=1200',
-      description: 'Revolutionizing furniture design with AI-powered customization and smart furniture technology for modern living.'
     }
-  ];
+  ], []);
 
-  // Auto-rotate timeline every 4 seconds
+  // Auto-rotate timeline every 5 seconds
   useEffect(() => {
-    const startTimer = () => {
-      timelineTimerRef.current = setInterval(() => {
-        setActiveTimeline((prev) => (prev + 1) % timelineItems.length);
-      }, 4000);
-    };
-    startTimer();
+    timelineTimerRef.current = setInterval(() => {
+      setActiveTimeline((prev) => (prev + 1) % timelineItems.length);
+    }, 5000);
     return () => {
       if (timelineTimerRef.current) clearInterval(timelineTimerRef.current);
     };
   }, [timelineItems.length]);
 
-  // Animate counters
-  useEffect(() => {
-    const animateCounter = (key, target, duration = 1500) => {
-      const start = Date.now();
-      const step = () => {
-        const now = Date.now();
-        const progress = Math.min((now - start) / duration, 1);
-        const ease = 1 - Math.pow(1 - progress, 3);
-        setCounters(prev => ({ ...prev, [key]: Math.floor(target * ease) }));
-        if (progress < 1) requestAnimationFrame(step);
-      };
-      requestAnimationFrame(step);
-    };
-    animateCounter('customers', 75000);
-    animateCounter('years', 17);
-    animateCounter('countries', 45);
-    animateCounter('satisfaction', 100);
-  }, []);
-
   // Testimonial scroll
-  const scrollTestimonials = (dir) => {
+  const scrollTestimonials = useCallback((dir) => {
     if (testimonialsRef.current) {
-      const amount = dir === 'left' ? -340 : 340;
+      const amount = dir === 'left' ? -300 : 300;
       testimonialsRef.current.scrollBy({ left: amount, behavior: 'smooth' });
     }
-  };
+  }, []);
 
-  // Data
-  const trustItems = [
-    { icon: FiShield, label: 'Quality' },
-    { icon: FiTruck, label: 'Free Shipping' },
-    { icon: FiRotateCcw, label: '30-Day Returns' },
-    { icon: FiThumbsUp, label: '98% Satisfied' },
-  ];
-
-  const stats = [
-    { icon: FiUsers, key: 'customers', label: 'Happy Customers', suffix: '+', color: 'from-blue-500 to-cyan-500', desc: 'Worldwide' },
-    { icon: FiAward, key: 'years', label: 'Years Experience', suffix: '+', color: 'from-emerald-500 to-teal-500', desc: 'Expertise' },
-    { icon: FiGlobe, key: 'countries', label: 'Countries', suffix: '+', color: 'from-purple-500 to-pink-500', desc: 'Global reach' },
-    { icon: FiHeart, key: 'satisfaction', label: 'Satisfaction', suffix: '%', color: 'from-rose-500 to-orange-500', desc: 'Happy clients' },
-  ];
-
-  const values = [
-    { icon: FiHeart, title: 'Quality First', desc: 'Premium materials', gradient: 'from-rose-500 to-pink-500' },
-    { icon: FiAward, title: 'Design Excellence', desc: 'Timeless aesthetics', gradient: 'from-blue-500 to-cyan-500' },
-    { icon: FiUsers, title: 'Customer Focus', desc: 'Seamless support', gradient: 'from-emerald-500 to-teal-500' },
-    { icon: FiGlobe, title: 'Sustainability', desc: 'Eco-friendly', gradient: 'from-orange-500 to-amber-500' },
-  ];
-
-  const milestones = [
-    { year: '2009', title: 'Founded', desc: 'Brooklyn', icon: FiCoffee, color: 'amber' },
-    { year: '2014', title: 'First Store', desc: 'Retail', icon: FiMapPin, color: 'blue' },
-    { year: '2018', title: 'Global', desc: '30+ countries', icon: FiGlobe, color: 'purple' },
-    { year: '2024', title: 'Sustainable', desc: 'Eco-friendly', icon: FiFeather, color: 'green' },
-    { year: '2026', title: 'AI Era', desc: 'Smart furniture', icon: FiZap, color: 'indigo' },
-  ];
-
-  const team = [
-    { 
-      name: 'Alexandra Mitchell', 
-      role: 'Founder & CEO', 
-      image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400', 
-      bio: 'Visionary leader with 20+ years of design industry experience. Previously led design teams at top furniture brands.',
-      expertise: 'Strategic Leadership',
-      social: { linkedin: '#', twitter: '#', instagram: '#' }
-    },
-    { 
-      name: 'Marcus Chen', 
-      role: 'Head of Design', 
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400', 
-      bio: 'Award-winning designer with a passion for minimalism and sustainable materials. His work has been featured in Architectural Digest.',
-      expertise: 'Product Design',
-      social: { linkedin: '#', twitter: '#', instagram: '#' }
-    },
-    { 
-      name: 'Emily Rodriguez', 
-      role: 'Creative Director', 
-      image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400', 
-      bio: 'Creative force behind our unique collections with 15+ awards in furniture design. Brings artistic vision to every piece.',
-      expertise: 'Creative Vision',
-      social: { linkedin: '#', twitter: '#', instagram: '#' }
-    },
-  ];
-
-  const testimonials = [
-    { name: 'Sarah Johnson', role: 'Interior Designer', content: 'Furniqo transformed my clients\' homes. Unmatched quality and design!', rating: 5, image: 'https://randomuser.me/api/portraits/women/1.jpg', location: 'New York' },
-    { name: 'Michael Chen', role: 'Homeowner', content: 'Best furniture investment I\'ve made. Exceptional service throughout!', rating: 5, image: 'https://randomuser.me/api/portraits/men/2.jpg', location: 'California' },
-    { name: 'Emma Davis', role: 'Architect', content: 'Sustainable, beautiful, built to last. Perfect for modern projects.', rating: 5, image: 'https://randomuser.me/api/portraits/women/3.jpg', location: 'Texas' },
-    { name: 'David Wilson', role: 'Property Developer', content: 'Consistent quality, stunning designs, incredible value for money.', rating: 5, image: 'https://randomuser.me/api/portraits/men/4.jpg', location: 'Florida' },
-    { name: 'Lisa Anderson', role: 'Home Stager', content: 'Pieces photograph beautifully. Buyers absolutely love them!', rating: 5, image: 'https://randomuser.me/api/portraits/women/5.jpg', location: 'Illinois' },
-    { name: 'James Taylor', role: 'Furniture Blogger', content: 'Attention to detail and customer obsession sets them apart.', rating: 5, image: 'https://randomuser.me/api/portraits/men/6.jpg', location: 'Washington' },
-    { name: 'Maria Garcia', role: 'Interior Decorator', content: 'My secret weapon for creating beautiful spaces. Clients love it!', rating: 5, image: 'https://randomuser.me/api/portraits/women/7.jpg', location: 'Arizona' },
-  ];
-
-  // Animation variants
-  const fadeUp = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] } }
-  };
-
-  const stagger = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.06 } }
-  };
-
-  const getColorClass = (color) => {
+  const getColorClass = useCallback((color) => {
     const map = {
       amber: 'from-amber-500 to-orange-500',
       blue: 'from-blue-500 to-cyan-500',
@@ -228,7 +207,72 @@ const About = () => {
       indigo: 'from-indigo-500 to-purple-600',
     };
     return map[color] || map.blue;
-  };
+  }, []);
+
+  // Data - memoized
+  const trustItems = useMemo(() => [
+    { icon: FiShield, label: 'Quality' },
+    { icon: FiTruck, label: 'Free Shipping' },
+    { icon: FiRotateCcw, label: '30-Day Returns' },
+    { icon: FiThumbsUp, label: '98% Satisfied' },
+  ], []);
+
+  const stats = useMemo(() => [
+    { icon: FiUsers, target: 75000, label: 'Happy Customers', suffix: '+', color: 'from-blue-500 to-cyan-500', desc: 'Worldwide' },
+    { icon: FiAward, target: 17, label: 'Years Experience', suffix: '+', color: 'from-emerald-500 to-teal-500', desc: 'Expertise' },
+    { icon: FiGlobe, target: 45, label: 'Countries', suffix: '+', color: 'from-purple-500 to-pink-500', desc: 'Global reach' },
+    { icon: FiHeart, target: 100, label: 'Satisfaction', suffix: '%', color: 'from-rose-500 to-orange-500', desc: 'Happy clients' },
+  ], []);
+
+  const values = useMemo(() => [
+    { icon: FiHeart, title: 'Quality First', desc: 'Premium materials', gradient: 'from-rose-500 to-pink-500' },
+    { icon: FiAward, title: 'Design Excellence', desc: 'Timeless aesthetics', gradient: 'from-blue-500 to-cyan-500' },
+    { icon: FiUsers, title: 'Customer Focus', desc: 'Seamless support', gradient: 'from-emerald-500 to-teal-500' },
+    { icon: FiGlobe, title: 'Sustainability', desc: 'Eco-friendly', gradient: 'from-orange-500 to-amber-500' },
+  ], []);
+
+  const milestones = useMemo(() => [
+    { year: '2009', title: 'Founded', desc: 'Brooklyn', icon: FiCoffee, color: 'amber' },
+    { year: '2014', title: 'First Store', desc: 'Retail', icon: FiMapPin, color: 'blue' },
+    { year: '2018', title: 'Global', desc: '30+ countries', icon: FiGlobe, color: 'purple' },
+    { year: '2024', title: 'Sustainable', desc: 'Eco-friendly', icon: FiFeather, color: 'green' },
+  ], []);
+
+  const testimonials = useMemo(() => [
+    { name: 'Sarah Johnson', role: 'Interior Designer', content: 'Furniqo transformed my clients\' homes. Unmatched quality and design!', rating: 5, image: 'https://randomuser.me/api/portraits/women/1.jpg', location: 'New York' },
+    { name: 'Michael Chen', role: 'Homeowner', content: 'Best furniture investment I\'ve made. Exceptional service throughout!', rating: 5, image: 'https://randomuser.me/api/portraits/men/2.jpg', location: 'California' },
+    { name: 'Emma Davis', role: 'Architect', content: 'Sustainable, beautiful, built to last. Perfect for modern projects.', rating: 5, image: 'https://randomuser.me/api/portraits/women/3.jpg', location: 'Texas' },
+    { name: 'David Wilson', role: 'Property Developer', content: 'Consistent quality, stunning designs, incredible value for money.', rating: 5, image: 'https://randomuser.me/api/portraits/men/4.jpg', location: 'Florida' },
+    { name: 'Lisa Anderson', role: 'Home Stager', content: 'Pieces photograph beautifully. Buyers absolutely love them!', rating: 5, image: 'https://randomuser.me/api/portraits/women/5.jpg', location: 'Illinois' },
+    { name: 'James Taylor', role: 'Furniture Blogger', content: 'Attention to detail and customer obsession sets them apart.', rating: 5, image: 'https://randomuser.me/api/portraits/men/6.jpg', location: 'Washington' },
+  ], []);
+
+  const team = useMemo(() => [
+    { 
+      name: 'Alexandra Mitchell', 
+      role: 'Founder & CEO', 
+      image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400', 
+      bio: 'Visionary leader with 20+ years of design industry experience.',
+      expertise: 'Strategic Leadership',
+      social: { linkedin: '#', twitter: '#', instagram: '#' }
+    },
+    { 
+      name: 'Marcus Chen', 
+      role: 'Head of Design', 
+      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400', 
+      bio: 'Award-winning designer with a passion for minimalism and sustainable materials.',
+      expertise: 'Product Design',
+      social: { linkedin: '#', twitter: '#', instagram: '#' }
+    },
+    { 
+      name: 'Emily Rodriguez', 
+      role: 'Creative Director', 
+      image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400', 
+      bio: 'Creative force behind our unique collections with 15+ awards in furniture design.',
+      expertise: 'Creative Vision',
+      social: { linkedin: '#', twitter: '#', instagram: '#' }
+    },
+  ], []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 overflow-x-hidden">
@@ -236,21 +280,15 @@ const About = () => {
       {/* ========== HERO SECTION ========== */}
       <section className="relative w-[98%] mx-[1%] my-[1%] rounded-2xl overflow-hidden">
         <motion.div 
-          className="relative min-h-[480px] md:min-h-[550px] lg:min-h-[600px] flex items-center"
-          style={{ opacity: heroOpacity, scale: heroScale }}
+          className="relative min-h-[450px] md:min-h-[550px] flex items-center"
+          style={{ opacity: heroOpacity }}
         >
           <div className="absolute inset-0">
-            <motion.div 
-              className="absolute inset-0"
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ duration: 20, repeat: Infinity, repeatType: 'reverse' }}
-            >
-              <img 
-                src="https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=1920" 
-                alt="Hero" 
-                className="w-full h-full object-cover"
-              />
-            </motion.div>
+            <LazyImage 
+              src="https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=1920" 
+              alt="Hero background"
+              className="w-full h-full object-cover"
+            />
             <div className="absolute inset-0 bg-gradient-to-r from-neutral-950/85 via-neutral-900/75 to-neutral-800/60" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           </div>
@@ -259,23 +297,18 @@ const About = () => {
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.4 }}
               className="max-w-4xl mx-auto text-center"
             >
-              <motion.div 
-                className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-3 py-1 md:px-4 md:py-1.5 mb-4"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 }}
-              >
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-3 py-1 md:px-4 md:py-1.5 mb-4">
                 <FiHeart className="h-3 w-3 text-rose-400" />
                 <span className="text-xs text-white/90">Since 2009 • 75,000+ Customers</span>
-              </motion.div>
+              </div>
 
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
                 Crafting Spaces
                 <br />
-                <span className="bg-gradient-to-r from-primary-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-gradient">
+                <span className="bg-gradient-to-r from-primary-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
                   You'll Love
                 </span>
               </h1>
@@ -285,99 +318,65 @@ const About = () => {
               </p>
 
               <div className="flex flex-wrap gap-3 justify-center">
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Link to="/products" className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl font-semibold text-white shadow-lg text-sm">
-                    Shop Now <FiArrowRight className="h-3 w-3" />
-                  </Link>
-                </motion.div>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Link to="/contact" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-sm rounded-xl font-semibold text-white border border-white/20 text-sm">
-                    Contact Us <FiArrowRight className="h-3 w-3" />
-                  </Link>
-                </motion.div>
+                <Link to="/products" className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl font-semibold text-white shadow-lg text-sm hover:scale-105 transition-transform duration-150">
+                  Shop Now <FiArrowRight className="h-3 w-3" />
+                </Link>
+                <Link to="/contact" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-sm rounded-xl font-semibold text-white border border-white/20 text-sm hover:scale-105 transition-transform duration-150">
+                  Contact Us
+                </Link>
               </div>
 
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="flex flex-wrap justify-center gap-4 sm:gap-6 mt-8 pt-6 border-t border-white/20"
-              >
+              <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mt-8 pt-6 border-t border-white/20">
                 {trustItems.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-1.5 text-white/70 text-xs">
                     <item.icon className="h-3 w-3" />
                     <span>{item.label}</span>
                   </div>
                 ))}
-              </motion.div>
+              </div>
             </motion.div>
           </div>
-
-          <motion.div 
-            className="absolute bottom-4 left-1/2 -translate-x-1/2"
-            animate={{ y: [0, 8, 0] }}
-            transition={{ repeat: Infinity, duration: 1.5 }}
-          >
-            <div className="w-5 h-8 border-2 border-white/40 rounded-full flex justify-center">
-              <motion.div className="w-1 h-2 bg-white rounded-full mt-2" animate={{ y: [0, 10, 0] }} transition={{ repeat: Infinity, duration: 1.5 }} />
-            </div>
-          </motion.div>
         </motion.div>
       </section>
 
       {/* ========== STATS SECTION ========== */}
-      <section className="w-[98%] mx-[1%] my-4 md:my-6">
+      <section className="w-[98%] mx-[1%] my-6">
         <div className="max-w-7xl mx-auto">
-          <motion.div 
-            variants={stagger}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="grid grid-cols-4 gap-1.5 md:gap-3"
-          >
+          <div className="grid grid-cols-4 gap-2 md:gap-4">
             {stats.map((stat, idx) => (
-              <motion.div
+              <div
                 key={idx}
-                variants={fadeUp}
-                whileHover={{ y: -3 }}
-                onHoverStart={() => setHoveredCard(idx)}
-                onHoverEnd={() => setHoveredCard(null)}
-                className="relative bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-xl p-2 md:p-3 text-center shadow-sm border border-neutral-200/50 cursor-pointer"
+                onMouseEnter={() => setHoveredStat(idx)}
+                onMouseLeave={() => setHoveredStat(null)}
+                className="relative bg-white/80 dark:bg-neutral-800/80 backdrop-blur-sm rounded-xl p-2 md:p-4 text-center shadow-sm border border-neutral-200/50 transition-all duration-150 hover:-translate-y-1"
               >
-                <div className={`w-7 h-7 md:w-10 md:h-10 bg-gradient-to-br ${stat.color} rounded-lg flex items-center justify-center mx-auto mb-1`}>
-                  <stat.icon className="h-3.5 w-3.5 md:h-5 md:w-5 text-white" />
+                <div className={`w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br ${stat.color} rounded-lg flex items-center justify-center mx-auto mb-2`}>
+                  <stat.icon className="h-4 w-4 md:h-5 md:w-5 text-white" />
                 </div>
-                <p className="text-sm md:text-lg font-bold text-neutral-900 dark:text-white">
-                  {counters[stat.key]}{stat.suffix}
+                <p className="text-sm md:text-xl font-bold text-neutral-900 dark:text-white">
+                  <AnimatedCounter target={stat.target} suffix={stat.suffix} />
                 </p>
-                <p className="text-[8px] md:text-[10px] text-neutral-500">{stat.label}</p>
-                <AnimatePresence>
-                  {hoveredCard === idx && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="absolute -bottom-5 left-0 right-0 bg-primary-600 text-white text-[8px] py-0.5 rounded-b-xl"
-                    >
-                      {stat.desc}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
+                <p className="text-[10px] md:text-xs text-neutral-500">{stat.label}</p>
+                {hoveredStat === idx && (
+                  <div className="absolute -bottom-4 left-0 right-0 bg-primary-600 text-white text-[8px] py-0.5 rounded-b-xl">
+                    {stat.desc}
+                  </div>
+                )}
+              </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ========== OUR STORY ========== */}
-      <section className="w-[98%] mx-[1%] my-8 md:my-12">
+      <section className="w-[98%] mx-[1%] my-10 md:my-16">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-8 items-center">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.4 }}
             >
               <span className="text-primary-600 font-semibold text-xs uppercase tracking-wider">Our Story</span>
               <h2 className="text-2xl md:text-3xl font-bold mt-2 mb-4">
@@ -386,11 +385,9 @@ const About = () => {
               <div className="space-y-3 text-neutral-600 dark:text-neutral-400 text-sm">
                 <p>Furniqo was born from a simple belief: everyone deserves a beautiful, comfortable home. What started as a small workshop in Brooklyn has grown into a global furniture brand.</p>
                 <p>Every piece is thoughtfully designed and meticulously crafted to last generations.</p>
-                <motion.div whileHover={{ x: 5 }} className="inline-block">
-                  <Link to="/products" className="inline-flex items-center gap-2 text-primary-600 font-semibold text-sm">
-                    Explore Collection <FiArrowRight className="h-3 w-3" />
-                  </Link>
-                </motion.div>
+                <Link to="/products" className="inline-flex items-center gap-2 text-primary-600 font-semibold text-sm hover:gap-3 transition-all duration-150">
+                  Explore Collection <FiArrowRight className="h-3 w-3" />
+                </Link>
               </div>
             </motion.div>
 
@@ -400,39 +397,34 @@ const About = () => {
               viewport={{ once: true }}
               className="grid grid-cols-2 gap-3"
             >
-              <img src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400" alt="Workshop" className="rounded-xl h-40 md:h-48 object-cover shadow-md hover:scale-105 transition duration-500" />
-              <img src="https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=400" alt="Craftsmanship" className="rounded-xl h-40 md:h-48 object-cover shadow-md mt-4 hover:scale-105 transition duration-500" />
+              <LazyImage src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400" alt="Workshop" className="rounded-xl h-40 md:h-48 object-cover shadow-md" />
+              <LazyImage src="https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=400" alt="Craftsmanship" className="rounded-xl h-40 md:h-48 object-cover shadow-md mt-4" />
             </motion.div>
           </div>
         </div>
       </section>
 
       {/* ========== TIMELINE ========== */}
-      <section className="w-[98%] mx-[1%] my-8 md:my-12">
+      <section className="w-[98%] mx-[1%] my-10 md:my-16">
         <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-6"
-          >
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 dark:from-purple-400 dark:to-purple-600 bg-clip-text text-transparent">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 dark:from-purple-400 dark:to-purple-600 bg-clip-text text-transparent">
               Our Journey
             </h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full mx-auto mt-3"></div>
-          </motion.div>
+            <div className="w-24 h-1 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full mx-auto mt-3" />
+          </div>
 
-          <div className="relative rounded-xl overflow-hidden shadow-xl group">
+          <div className="relative rounded-xl overflow-hidden shadow-xl min-h-[400px]">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTimeline}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.4 }}
+                transition={{ duration: 0.3 }}
                 className="absolute inset-0 z-0"
               >
-                <img 
+                <LazyImage 
                   src={timelineItems[activeTimeline].bgImage} 
                   alt={timelineItems[activeTimeline].title}
                   className="w-full h-full object-cover"
@@ -441,49 +433,42 @@ const About = () => {
               </motion.div>
             </AnimatePresence>
 
-            <div className="relative z-10 p-5 md:p-8">
+            <div className="relative z-10 p-6 md:p-8">
               <div className="hidden md:flex justify-between items-center mb-8">
                 {timelineItems.map((item, idx) => (
-                  <motion.button
+                  <button
                     key={idx}
                     onClick={() => setActiveTimeline(idx)}
-                    className="relative flex flex-col items-center group"
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ duration: 0.2 }}
+                    className="relative flex flex-col items-center group transition-all duration-150 hover:scale-105"
                   >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-150 ${
                       activeTimeline === idx 
                         ? `bg-gradient-to-br ${getColorClass(item.color)} text-white shadow-lg` 
                         : 'bg-white/20 backdrop-blur-sm text-white/60 border border-white/30'
                     }`}>
                       <item.icon className="h-4 w-4" />
                     </div>
-                    <span className={`text-xs mt-1 font-medium transition-all duration-200 ${
+                    <span className={`text-xs mt-1 font-medium transition-colors duration-150 ${
                       activeTimeline === idx ? 'text-primary-300' : 'text-white/50'
                     }`}>
                       {item.year}
                     </span>
-                  </motion.button>
+                  </button>
                 ))}
               </div>
 
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTimeline}
-                  initial={{ opacity: 0, y: 15 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -15 }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                  className="text-center py-6 md:py-8"
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.25 }}
+                  className="text-center py-8 md:py-10"
                 >
-                  <motion.div 
-                    className={`w-16 h-16 md:w-20 md:h-20 mx-auto rounded-xl bg-gradient-to-br ${getColorClass(timelineItems[activeTimeline].color)} flex items-center justify-center shadow-lg mb-4`}
-                    initial={{ scale: 0.9 }}
-                    animate={{ scale: 1 }}
-                    transition={{ duration: 0.2 }}
-                  >
+                  <div className={`w-16 h-16 md:w-20 md:h-20 mx-auto rounded-xl bg-gradient-to-br ${getColorClass(timelineItems[activeTimeline].color)} flex items-center justify-center shadow-lg mb-4`}>
                     {React.createElement(timelineItems[activeTimeline].icon, { className: "h-6 w-6 md:h-8 md:w-8 text-white" })}
-                  </motion.div>
+                  </div>
                   
                   <h3 className="text-xl md:text-2xl font-bold text-white mb-1">
                     {timelineItems[activeTimeline].title}
@@ -500,12 +485,12 @@ const About = () => {
                 </motion.div>
               </AnimatePresence>
 
-              <div className="flex justify-center gap-1.5 mt-4">
+              <div className="flex justify-center gap-2 mt-4">
                 {timelineItems.map((_, idx) => (
                   <button
                     key={idx}
                     onClick={() => setActiveTimeline(idx)}
-                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                    className={`h-1.5 rounded-full transition-all duration-200 ${
                       activeTimeline === idx 
                         ? 'w-6 bg-gradient-to-r from-primary-400 to-purple-400' 
                         : 'w-1.5 bg-white/40'
@@ -519,359 +504,194 @@ const About = () => {
       </section>
 
       {/* ========== VALUES ========== */}
-      <section className="w-[98%] mx-[1%] my-8 md:my-12">
+      <section className="w-[98%] mx-[1%] my-10 md:my-16">
         <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-6"
-          >
+          <div className="text-center mb-8">
             <span className="text-primary-600 text-xs uppercase tracking-wider">Core Principles</span>
             <h2 className="text-2xl md:text-3xl font-bold mt-1">Our Values</h2>
-          </motion.div>
+          </div>
 
-          <motion.div 
-            variants={stagger}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4"
-          >
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
             {values.map((val, idx) => (
-              <motion.div
+              <div
                 key={idx}
-                variants={fadeUp}
-                whileHover={{ y: -3 }}
-                className="relative group bg-white dark:bg-neutral-800 rounded-lg p-2.5 md:p-3 text-center shadow-sm border border-neutral-200 dark:border-neutral-700"
+                className="group bg-white dark:bg-neutral-800 rounded-xl p-4 text-center shadow-sm border border-neutral-200 dark:border-neutral-700 transition-all duration-150 hover:-translate-y-1"
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${val.gradient} opacity-0 group-hover:opacity-5 transition duration-300 rounded-lg`} />
-                <div className="w-8 h-8 md:w-10 md:h-10 bg-primary-100 dark:bg-primary-900/30 rounded-lg flex items-center justify-center mx-auto mb-1">
-                  <val.icon className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary-600" />
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-primary-100 dark:bg-primary-900/30 rounded-xl flex items-center justify-center mx-auto mb-2">
+                  <val.icon className="h-5 w-5 text-primary-600" />
                 </div>
-                <h3 className="font-semibold text-xs md:text-sm">{val.title}</h3>
-                <p className="text-[8px] md:text-[10px] text-neutral-500">{val.desc}</p>
-              </motion.div>
+                <h3 className="font-semibold text-sm md:text-base">{val.title}</h3>
+                <p className="text-xs text-neutral-500 mt-1">{val.desc}</p>
+              </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ========== MILESTONES ========== */}
-      <section className="w-[98%] mx-[1%] my-8 md:my-12">
+      <section className="w-[98%] mx-[1%] my-10 md:my-16">
         <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-6"
-          >
+          <div className="text-center mb-8">
             <span className="text-primary-600 text-xs uppercase tracking-wider">Achievements</span>
             <h2 className="text-2xl md:text-3xl font-bold mt-1">Milestones</h2>
-          </motion.div>
+          </div>
 
-          <motion.div 
-            variants={stagger}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            className="grid grid-cols-5 gap-1.5 md:gap-3"
-          >
+          <div className="grid grid-cols-4 gap-3 md:gap-5">
             {milestones.map((m, idx) => (
-              <motion.div
+              <div
                 key={idx}
-                variants={fadeUp}
-                whileHover={{ y: -3 }}
-                className="bg-white dark:bg-neutral-800 rounded-lg p-2 text-center shadow-sm border"
+                className="bg-white dark:bg-neutral-800 rounded-xl p-3 text-center shadow-sm border border-neutral-200 dark:border-neutral-700 transition-all duration-150 hover:-translate-y-1"
               >
-                <div className={`w-7 h-7 md:w-9 md:h-9 mx-auto rounded-lg bg-gradient-to-br ${getColorClass(m.color)} flex items-center justify-center mb-1`}>
-                  <m.icon className="h-3.5 w-3.5 md:h-4 md:w-4 text-white" />
+                <div className={`w-10 h-10 mx-auto rounded-xl bg-gradient-to-br ${getColorClass(m.color)} flex items-center justify-center mb-2`}>
+                  <m.icon className="h-5 w-5 text-white" />
                 </div>
-                <p className="font-bold text-xs md:text-sm">{m.title}</p>
-                <p className="text-[8px] md:text-[10px] text-primary-600 font-semibold">{m.year}</p>
-              </motion.div>
+                <p className="font-bold text-sm md:text-base">{m.title}</p>
+                <p className="text-xs text-primary-600 font-semibold">{m.year}</p>
+              </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* ========== TESTIMONIALS ========== */}
-      <section className="w-[98%] mx-[1%] my-8 md:my-12">
+      <section className="w-[98%] mx-[1%] my-10 md:my-16">
         <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-6"
-          >
+          <div className="text-center mb-8">
             <span className="text-primary-600 text-xs uppercase tracking-wider">Testimonials</span>
             <h2 className="text-2xl md:text-3xl font-bold mt-1">What Customers Say</h2>
-          </motion.div>
+          </div>
 
           <div className="relative">
             <button 
               onClick={() => scrollTestimonials('left')} 
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-neutral-800 rounded-full p-2 shadow-md border hidden md:flex items-center justify-center hover:scale-110 transition"
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-neutral-800 rounded-full p-2 shadow-md border hidden md:flex items-center justify-center hover:scale-110 transition-transform duration-150"
             >
-              <FiChevronLeft className="h-5 w-5 text-neutral-700 dark:text-neutral-300" />
+              <FiChevronLeft className="h-5 w-5" />
             </button>
             
             <div 
               ref={testimonialsRef} 
-              className="flex overflow-x-auto gap-3 pb-3 scrollbar-hide snap-x"
+              className="flex overflow-x-auto gap-4 pb-4 snap-x"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {testimonials.map((t, idx) => (
-                <motion.div
+                <div
                   key={idx}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  whileHover={{ y: -4 }}
-                  className="flex-shrink-0 w-[260px] md:w-[280px] snap-start bg-white dark:bg-neutral-800 rounded-lg p-4 shadow-md border"
+                  className="flex-shrink-0 w-[280px] snap-start bg-white dark:bg-neutral-800 rounded-xl p-5 shadow-md border border-neutral-200 dark:border-neutral-700 transition-all duration-150 hover:-translate-y-1"
                 >
-                  <div className="flex gap-0.5 mb-2">
+                  <div className="flex gap-0.5 mb-3">
                     {[...Array(t.rating)].map((_, i) => <FiStar key={i} className="h-3 w-3 text-yellow-400 fill-current" />)}
                   </div>
-                  <p className="text-xs text-neutral-600 dark:text-neutral-300 italic mb-2 line-clamp-2">"{t.content}"</p>
-                  <div className="flex items-center gap-2">
-                    <img src={t.image} alt={t.name} className="w-7 h-7 rounded-full object-cover" />
+                  <p className="text-sm text-neutral-600 dark:text-neutral-300 italic mb-3">"{t.content}"</p>
+                  <div className="flex items-center gap-3">
+                    <img src={t.image} alt={t.name} className="w-10 h-10 rounded-full object-cover" />
                     <div>
-                      <h4 className="font-semibold text-xs">{t.name}</h4>
-                      <p className="text-[8px] text-primary-500">{t.location}</p>
+                      <h4 className="font-semibold text-sm">{t.name}</h4>
+                      <p className="text-xs text-primary-500">{t.location}</p>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
             </div>
             
             <button 
               onClick={() => scrollTestimonials('right')} 
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-neutral-800 rounded-full p-2 shadow-md border hidden md:flex items-center justify-center hover:scale-110 transition"
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-neutral-800 rounded-full p-2 shadow-md border hidden md:flex items-center justify-center hover:scale-110 transition-transform duration-150"
             >
-              <FiChevronRight className="h-5 w-5 text-neutral-700 dark:text-neutral-300" />
+              <FiChevronRight className="h-5 w-5" />
             </button>
           </div>
-          <div className="text-center mt-3 md:hidden text-[10px] text-neutral-400">← Swipe →</div>
+          <div className="text-center mt-3 md:hidden text-xs text-neutral-400">← Swipe →</div>
         </div>
       </section>
 
-      {/* ========== TEAM - Professional Layout ========== */}
+      {/* ========== TEAM SECTION ========== */}
       <section className="w-[98%] mx-[1%] my-12 md:my-16">
         <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-10"
-          >
+          <div className="text-center mb-10">
             <span className="text-primary-600 text-xs uppercase tracking-wider">Leadership</span>
             <h2 className="text-3xl md:text-4xl font-bold mt-2">Meet Our Team</h2>
             <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-2 max-w-2xl mx-auto">
               Passionate experts dedicated to creating exceptional furniture experiences
             </p>
-          </motion.div>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {team.map((member, idx) => (
-              <motion.div
+              <div
                 key={idx}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.1, duration: 0.5 }}
-                whileHover={{ y: -8 }}
-                className="group relative bg-white dark:bg-neutral-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500"
+                className="group bg-white dark:bg-neutral-800 rounded-2xl overflow-hidden shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
               >
-                {/* Image Container with Overlay */}
                 <div className="relative overflow-hidden h-72">
-                  <img 
+                  <LazyImage 
                     src={member.image} 
                     alt={member.name} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   
-                  {/* Social Links Overlay */}
-                  <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-4 group-hover:translate-y-0">
-                    <a href={member.social.linkedin} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-neutral-700 hover:text-primary-600 transition">
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0">
+                    <a href={member.social.linkedin} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-neutral-700 hover:text-primary-600 transition-colors duration-150">
                       <FiLinkedin className="h-4 w-4" />
                     </a>
-                    <a href={member.social.twitter} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-neutral-700 hover:text-primary-600 transition">
+                    <a href={member.social.twitter} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-neutral-700 hover:text-primary-600 transition-colors duration-150">
                       <FiTwitter className="h-4 w-4" />
                     </a>
-                    <a href={member.social.instagram} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-neutral-700 hover:text-primary-600 transition">
+                    <a href={member.social.instagram} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-neutral-700 hover:text-primary-600 transition-colors duration-150">
                       <FiInstagram className="h-4 w-4" />
                     </a>
                   </div>
                 </div>
                 
-                {/* Content */}
                 <div className="p-6 text-center">
-                  <h3 className="font-bold text-lg md:text-xl text-neutral-900 dark:text-white">
-                    {member.name}
-                  </h3>
+                  <h3 className="font-bold text-lg text-neutral-900 dark:text-white">{member.name}</h3>
                   <p className="text-sm text-primary-600 font-medium mt-1">{member.role}</p>
-                  <div className="mt-2 inline-block px-3 py-1 bg-primary-50 dark:bg-primary-900/30 rounded-full">
-                    <span className="text-[10px] font-medium text-primary-600">{member.expertise}</span>
+                  <div className="mt-3 inline-block px-3 py-1 bg-primary-50 dark:bg-primary-900/30 rounded-full">
+                    <span className="text-xs font-medium text-primary-600">{member.expertise}</span>
                   </div>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-3 leading-relaxed">
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-4 leading-relaxed">
                     {member.bio}
                   </p>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ========== ANIMATED CTA CARD - Premium Design with Enhanced Effects ========== */}
+      {/* ========== CTA SECTION ========== */}
       <section className="w-[98%] mx-[1%] my-12 md:my-16">
         <div className="max-w-5xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="relative rounded-2xl overflow-hidden shadow-2xl cursor-pointer"
-          >
-            {/* Animated Gradient Background */}
-            <motion.div 
-              className="absolute inset-0 bg-gradient-to-r from-primary-600 via-purple-600 to-pink-600"
-              animate={{
-                backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-              }}
-              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-              style={{ backgroundSize: '200% 200%' }}
-            />
+          <div className="relative rounded-2xl overflow-hidden shadow-xl">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary-600 via-purple-600 to-pink-600" />
             
-            {/* Animated Overlay Pattern */}
-            <div className="absolute inset-0 opacity-20">
-              <div className="absolute inset-0" style={{
-                backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
-                backgroundSize: '30px 30px',
-              }} />
-            </div>
+            <div className="absolute inset-0 opacity-20" style={{
+              backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+              backgroundSize: '30px 30px',
+            }} />
 
-            {/* Floating Animated Particles */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              {[...Array(25)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-1.5 h-1.5 bg-white rounded-full"
-                  initial={{ 
-                    x: Math.random() * 100 + '%', 
-                    y: '100%',
-                    scale: Math.random() * 0.5 + 0.5
-                  }}
-                  animate={{ 
-                    y: '-20%', 
-                    opacity: [0, 0.8, 0],
-                    x: `calc(${Math.random() * 100}% + ${(Math.random() - 0.5) * 60}px)`
-                  }}
-                  transition={{ 
-                    duration: 2 + Math.random() * 4, 
-                    repeat: Infinity, 
-                    delay: Math.random() * 5,
-                    ease: "linear"
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* Rotating Gradient Ring Effect */}
-            <motion.div 
-              className="absolute -inset-20 opacity-30 pointer-events-none"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            >
-              <div className="w-full h-full rounded-full bg-gradient-to-r from-transparent via-white to-transparent blur-3xl" />
-            </motion.div>
-
-            {/* Shine Effect on Hover */}
-            <motion.div 
-              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
-              initial={{ x: '-100%' }}
-              whileHover={{ x: '100%' }}
-              transition={{ duration: 0.8, ease: "easeInOut" }}
-              style={{
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
-              }}
-            />
-
-            <div className="relative p-8 md:p-12 text-center z-10">
-              {/* Animated Gift Icon */}
-              <motion.div
-                animate={{ 
-                  rotate: [0, 10, -10, 0],
-                  scale: [1, 1.15, 0.95, 1]
-                }}
-                transition={{ duration: 0.8, delay: 0.2, repeat: Infinity, repeatDelay: 3 }}
-                className="inline-block"
-              >
-                <div className="relative">
-                  <motion.div 
-                    className="absolute inset-0 bg-white/20 rounded-full blur-xl"
-                    animate={{ scale: [1, 1.5, 1] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  />
-                  <FiGift className="h-14 w-14 md:h-20 md:w-20 text-white relative z-10" />
-                </div>
-              </motion.div>
+            <div className="relative p-8 md:p-12 text-center">
+              <div className="inline-block">
+                <FiGift className="h-14 w-14 md:h-20 md:w-20 text-white mx-auto" />
+              </div>
               
-              <motion.h2 
-                className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-3 mt-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-3 mt-4">
                 Ready to Transform Your Space?
-              </motion.h2>
+              </h2>
               
-              <motion.p 
-                className="text-white/85 text-base md:text-lg mb-6"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
+              <p className="text-white/85 text-base md:text-lg mb-6">
                 Get 10% off your first order + free shipping on all items
-              </motion.p>
+              </p>
               
-              {/* CTA Button with Pulsing Effect */}
-              <motion.div
-                whileHover={{ scale: 1.08 }}
-                whileTap={{ scale: 0.95 }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="relative inline-block"
+              <Link 
+                to="/products" 
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-primary-600 rounded-xl font-bold text-base shadow-lg hover:shadow-2xl transition-all duration-150 hover:scale-105"
               >
-                <motion.div 
-                  className="absolute inset-0 bg-white rounded-xl blur-md"
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                />
-                <Link 
-                  to="/products" 
-                  className="relative inline-flex items-center gap-3 px-8 py-3.5 md:px-12 md:py-4 bg-white text-primary-600 rounded-xl font-bold text-base md:text-lg shadow-xl hover:shadow-2xl transition-all duration-300"
-                >
-                  Shop Now 
-                  <motion.span
-                    animate={{ x: [0, 8, 0] }}
-                    transition={{ duration: 1, repeat: Infinity, repeatDelay: 0.5 }}
-                  >
-                    <FiArrowRight className="h-5 w-5" />
-                  </motion.span>
-                </Link>
-              </motion.div>
+                Shop Now 
+                <FiArrowRight className="h-5 w-5" />
+              </Link>
 
-              {/* Trust Badges */}
-              <motion.div 
-                className="flex flex-wrap justify-center gap-4 md:gap-6 mt-6 pt-4 border-t border-white/20"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-              >
+              <div className="flex flex-wrap justify-center gap-4 md:gap-6 mt-6 pt-4 border-t border-white/20">
                 <div className="flex items-center gap-1.5 text-white/80 text-xs">
                   <FiShield className="h-3 w-3" />
                   <span>Secure Checkout</span>
@@ -884,28 +704,13 @@ const About = () => {
                   <FiHeart className="h-3 w-3" />
                   <span>Love It or Return It</span>
                 </div>
-              </motion.div>
+              </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       <Newsletter />
-
-      <style jsx>{`
-        .animate-gradient {
-          background-size: 200% auto;
-          animation: gradient 3s ease infinite;
-        }
-        @keyframes gradient {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
     </div>
   );
 };
