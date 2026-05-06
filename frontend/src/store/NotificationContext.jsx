@@ -67,7 +67,7 @@ export const NotificationProvider = ({ children }) => {
       const notification = prev.find(n => n._id === notificationId);
       const updated = prev.filter(n => n._id !== notificationId);
       if (notification && !notification.read) {
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        setUnreadCount(prevUnread => Math.max(0, prevUnread - 1));
       }
       localStorage.setItem('furniqo_notifications', JSON.stringify(updated));
       return updated;

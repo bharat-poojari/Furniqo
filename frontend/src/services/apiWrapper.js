@@ -15,16 +15,19 @@ class APIWrapper {
       return this.initializationPromise;
     }
 
+    if (this.backendChecked) {
+      return Promise.resolve(!this.useLocalFallback);
+    }
+
     if (this.checkInProgress) {
-      await new Promise(resolve => {
-        const interval = setInterval(() => {
-          if (this.backendChecked || !this.checkInProgress) {
-            clearInterval(interval);
-            resolve();
+      return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (this.backendChecked) {
+            clearInterval(checkInterval);
+            resolve(!this.useLocalFallback);
           }
         }, 50);
       });
-      return !this.useLocalFallback;
     }
 
     this.checkInProgress = true;
@@ -35,24 +38,31 @@ class APIWrapper {
   async checkBackend() {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1500);
+      let timeoutId;
+
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          controller.abort();
+          reject(new Error('Request timeout'));
+        }, 1500);
+      });
 
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-      
-      const response = await fetch(
-        `${apiUrl}/health`,
-        { 
+
+      const response = await Promise.race([
+        fetch(`${apiUrl}/health`, {
           method: 'GET',
           signal: controller.signal,
           headers: {
             'Content-Type': 'application/json',
           }
-        }
-      );
-      
+        }),
+        timeoutPromise
+      ]);
+
       clearTimeout(timeoutId);
       this.useLocalFallback = !response.ok;
-      
+
       if (this.useLocalFallback) {
         console.debug('Backend health check failed, using local data fallback');
       }
@@ -65,8 +75,8 @@ class APIWrapper {
     }
 
     if (this.useLocalFallback) {
-      toast('Running in offline mode', { 
-        icon: '📦', 
+      toast('Running in offline mode', {
+        icon: '📦',
         duration: 2000,
         id: 'offline-toast'
       });
@@ -367,15 +377,15 @@ class APIWrapper {
       if (!currentProduct) {
         return { data: { success: true, data: [] } };
       }
-      
+
       const related = localData.products
-        .filter(p => 
-          p._id !== productId && 
-          (p.category === currentProduct.category || 
+        .filter(p =>
+          p._id !== productId &&
+          (p.category === currentProduct.category ||
            p.style === currentProduct.style)
         )
         .slice(0, limit);
-      
+
       return { data: { success: true, data: related } };
     };
 
@@ -708,7 +718,7 @@ class APIWrapper {
     }
 
     try {
-      const response = await api.contentAPI.getFAQs();
+      const response = await api.contentAPI.getCategories();
       return response;
     } catch (error) {
       return getLocalCategories();

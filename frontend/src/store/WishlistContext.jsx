@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, useCallback, useContext } from 'react';
+import { createContext, useState, useEffect, useCallback, useContext, useRef } from 'react';
 import apiWrapper from '../services/apiWrapper';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
@@ -9,6 +9,10 @@ export const WishlistProvider = ({ children }) => {
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const { isAuthenticated } = useAuth();
+  
+  // Refs to prevent duplicate toasts
+  const toastIdsRef = useRef(new Set());
+  const lastToastTimeRef = useRef({});
 
   useEffect(() => {
     loadWishlist();
@@ -50,23 +54,43 @@ export const WishlistProvider = ({ children }) => {
     }
   };
 
+  const showUniqueToast = (message, type = 'success', options = {}) => {
+    const now = Date.now();
+    const lastTime = lastToastTimeRef.current[message] || 0;
+    
+    // Prevent duplicate toasts within 1 second
+    if (now - lastTime < 1000) {
+      return;
+    }
+    
+    lastToastTimeRef.current[message] = now;
+    
+    if (type === 'success') {
+      toast.success(message, options);
+    } else if (type === 'error') {
+      toast.error(message, options);
+    } else {
+      toast(message, options);
+    }
+  };
+
   const addToWishlist = useCallback(async (product) => {
     setWishlistItems(prev => {
       if (prev.some(item => item._id === product._id)) {
-        toast('Already in your wishlist!', { icon: '💝' });
+        showUniqueToast('Already in your wishlist', 'default', { icon: '💝' });
         return prev;
       }
-      toast.success(`${product.name} added to wishlist!`, { icon: '❤️' });
+      showUniqueToast(`${product.name} added to wishlist`, 'success');
       return [...prev, { ...product, addedAt: new Date().toISOString() }];
     });
   }, []);
 
-  const removeFromWishlist = useCallback((productId) => {
+  const removeFromWishlist = useCallback((productId, skipToast = false) => {
     setWishlistItems(prev => {
       const item = prev.find(i => i._id === productId);
       const updated = prev.filter(item => item._id !== productId);
-      if (item) {
-        toast.success(`${item.name} removed from wishlist`);
+      if (item && !skipToast) {
+        showUniqueToast(`${item.name} removed from wishlist`, 'success');
       }
       return updated;
     });
@@ -85,22 +109,38 @@ export const WishlistProvider = ({ children }) => {
   }, [isWishlisted, addToWishlist, removeFromWishlist]);
 
   const clearWishlist = useCallback(() => {
+    if (wishlistItems.length === 0) {
+      showUniqueToast('Wishlist is already empty', 'default');
+      return;
+    }
     setWishlistItems([]);
-    toast.success('Wishlist cleared');
-  }, []);
+    showUniqueToast('Wishlist cleared', 'success');
+  }, [wishlistItems.length]);
 
   const moveAllToCart = useCallback((addToCartFn) => {
     if (!addToCartFn) {
-      toast.error('Cart function not available');
+      showUniqueToast('Cart function not available', 'error');
       return;
     }
     
+    if (wishlistItems.length === 0) {
+      showUniqueToast('Wishlist is empty', 'default');
+      return;
+    }
+    
+    const itemCount = wishlistItems.length;
+    
+    // Move items to cart without showing individual "removed from wishlist" messages
     wishlistItems.forEach(item => {
-      addToCartFn(item, 1);
+      // Add to cart with skipToast=true to avoid individual cart toasts
+      addToCartFn(item, 1, null, true);
     });
     
+    // Clear wishlist without showing toast for each removal
     setWishlistItems([]);
-    toast.success('All items moved to cart!');
+    
+    // Show single combined success message
+    showUniqueToast(`${itemCount} item${itemCount > 1 ? 's' : ''} moved to cart`, 'success');
   }, [wishlistItems]);
 
   const value = {

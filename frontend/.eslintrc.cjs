@@ -17,5 +17,6 @@ module.exports = {
     'react/prop-types': 'off',
     'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
+    'react-hooks/exhaustive-deps': 'warn',
   },
 }

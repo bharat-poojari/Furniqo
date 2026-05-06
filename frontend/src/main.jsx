@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
+import { Toaster } from 'react-hot-toast';
 import './index.css';
 
 // Initialize API wrapper
@@ -14,6 +15,20 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     navigator.serviceWorker.register('/sw.js').then(
       (registration) => {
         console.log('SW registered: ', registration);
+
+        // Check for updates
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // New content is available - notify user
+                const event = new CustomEvent('swUpdateAvailable');
+                window.dispatchEvent(event);
+              }
+            });
+          }
+        });
       },
       (error) => {
         console.log('SW registration failed: ', error);

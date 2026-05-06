@@ -1,6 +1,5 @@
 import { createContext, useState, useEffect, useCallback, useContext, useMemo } from 'react';
 import apiWrapper from '../services/apiWrapper';
-import toast from 'react-hot-toast';
 import { TAX_RATE, FREE_SHIPPING_THRESHOLD } from '../utils/constants';
 import { useAuth } from './AuthContext';
 
@@ -27,16 +26,23 @@ export const CartProvider = ({ children }) => {
     try {
       const savedCart = localStorage.getItem('furniqo_cart');
       const savedCoupon = localStorage.getItem('furniqo_coupon');
-      
+
       if (savedCart) {
-        setCartItems(JSON.parse(savedCart));
+        const parsed = JSON.parse(savedCart);
+        setCartItems(Array.isArray(parsed) ? parsed : []);
       }
       if (savedCoupon) {
-        setAppliedCoupon(JSON.parse(savedCoupon));
+        try {
+          const parsed = JSON.parse(savedCoupon);
+          setAppliedCoupon(parsed && typeof parsed === 'object' ? parsed : null);
+        } catch {
+          setAppliedCoupon(null);
+        }
       }
     } catch (error) {
       console.error('Error loading cart:', error);
       setCartItems([]);
+      setAppliedCoupon(null);
     }
   };
 
@@ -52,6 +58,18 @@ export const CartProvider = ({ children }) => {
       console.error('Error saving cart:', error);
     }
   };
+
+  // Define getItemPrice first since it's used by other functions
+  const getItemPrice = useCallback((item) => {
+    return item.variant?.price || item.product.price;
+  }, []);
+
+  // Define getSubtotal before it's used in applyCoupon
+  const getSubtotal = useCallback(() => {
+    return cartItems.reduce((total, item) => {
+      return total + getItemPrice(item) * item.quantity;
+    }, 0);
+  }, [cartItems, getItemPrice]);
 
   const addToCart = useCallback(async (product, quantity = 1, variant = null, skipToast = false) => {
     setCartItems(prev => {
@@ -70,38 +88,15 @@ export const CartProvider = ({ children }) => {
         return updated;
       }
 
-      // Only show toast if skipToast is false
-      if (!skipToast) {
-        toast.success(`${product.name} added to cart!`, {
-  icon: (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="9" cy="21" r="1" />
-      <circle cx="20" cy="21" r="1" />
-      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-    </svg>
-  ),
-  duration: 2000,
-});
-      }
-      return [...prev, { 
+      return [...prev, {
         _id: `cart_${Date.now()}`,
-        product, 
-        quantity, 
+        product,
+        quantity,
         variant,
         addedAt: new Date().toISOString(),
       }];
     });
 
-    // Track add to cart
     apiWrapper.trackEvent({
       type: 'add_to_cart',
       productId: product._id,
@@ -112,13 +107,7 @@ export const CartProvider = ({ children }) => {
   }, []);
 
   const removeFromCart = useCallback((itemId) => {
-    setCartItems(prev => {
-      const item = prev.find(i => i._id === itemId);
-      if (item) {
-        toast.success(`${item.product.name} removed from cart`);
-      }
-      return prev.filter(item => item._id !== itemId);
-    });
+    setCartItems(prev => prev.filter(item => item._id !== itemId));
   }, []);
 
   const updateQuantity = useCallback((itemId, quantity) => {
@@ -139,7 +128,6 @@ export const CartProvider = ({ children }) => {
   const clearCart = useCallback(() => {
     setCartItems([]);
     setAppliedCoupon(null);
-    toast.success('Cart cleared');
   }, []);
 
   const applyCoupon = useCallback(async (code) => {
@@ -149,38 +137,25 @@ export const CartProvider = ({ children }) => {
       
       if (response.data.success) {
         setAppliedCoupon(response.data.data);
-        toast.success(`Coupon "${code}" applied!`);
         return true;
       } else {
-        toast.error(response.data.message);
         return false;
       }
     } catch (error) {
-      toast.error('Failed to validate coupon');
+      console.error('Failed to validate coupon:', error);
       return false;
     }
-  }, []);
+  }, [getSubtotal]);
 
   const removeCoupon = useCallback(() => {
     setAppliedCoupon(null);
-    toast.success('Coupon removed');
   }, []);
-
-  const getItemPrice = useCallback((item) => {
-    return item.variant?.price || item.product.price;
-  }, []);
-
-  const getSubtotal = useCallback(() => {
-    return cartItems.reduce((total, item) => {
-      return total + getItemPrice(item) * item.quantity;
-    }, 0);
-  }, [cartItems, getItemPrice]);
 
   const getDiscount = useCallback(() => {
     if (!appliedCoupon) return 0;
-    
+
     const subtotal = getSubtotal();
-    
+
     if (appliedCoupon.type === 'percentage') {
       return Math.min(
         (subtotal * appliedCoupon.discount) / 100,
@@ -189,22 +164,22 @@ export const CartProvider = ({ children }) => {
     } else if (appliedCoupon.type === 'fixed') {
       return appliedCoupon.discount;
     }
-    
+
     return 0;
   }, [appliedCoupon, getSubtotal]);
 
   const getShippingCost = useCallback(() => {
     if (appliedCoupon?.type === 'freeShipping') return 0;
-    
+
     const subtotal = getSubtotal();
     if (subtotal >= FREE_SHIPPING_THRESHOLD && shippingMethod === 'standard') return 0;
-    
+
     const methods = {
       standard: subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 29.99,
       express: 49.99,
       overnight: 79.99,
     };
-    
+
     return methods[shippingMethod] || 0;
   }, [getSubtotal, shippingMethod, appliedCoupon]);
 
@@ -219,7 +194,7 @@ export const CartProvider = ({ children }) => {
     const discount = getDiscount();
     const shipping = getShippingCost();
     const tax = getTax();
-    
+
     return Math.max(0, subtotal - discount + shipping + tax);
   }, [getSubtotal, getDiscount, getShippingCost, getTax]);
 

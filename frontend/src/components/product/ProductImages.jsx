@@ -1,15 +1,22 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { 
-  FiChevronLeft, FiChevronRight, FiZoomIn, FiZoomOut, 
-  FiX, FiMaximize2, FiMinimize2, FiPlay, FiPause,
-  FiShare2
+import {
+  FiChevronLeft,
+  FiChevronRight,
+  FiZoomIn,
+  FiZoomOut,
+  FiX,
+  FiMaximize2,
+  FiMinimize2,
+  FiPlay,
+  FiPause,
+  FiShare2,
 } from 'react-icons/fi';
 import { cn } from '../../utils/cn';
+import { PLACEHOLDER_URL } from '../../utils/constants';
 
 // Constants moved outside component
 const MIN_SWIPE_DISTANCE = 50;
 const THUMBNAIL_SCROLL_AMOUNT = 100;
-const PLACEHOLDER_SIZE = 800;
 
 const ProductImages = ({ 
   images, 
@@ -215,8 +222,8 @@ const ProductImages = ({
 
   // Memoized values
   const hasMultipleImages = useMemo(() => images?.length > 1, [images]);
-  const currentImage = useMemo(() => 
-    images?.[selectedImage] || `https://via.placeholder.com/${PLACEHOLDER_SIZE}x${PLACEHOLDER_SIZE}?text=No+Image`, 
+  const currentImage = useMemo(() =>
+    images?.[selectedImage] || '/placeholder.svg',
     [images, selectedImage]
   );
 

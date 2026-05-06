@@ -193,34 +193,50 @@ const FontLoader = memo(() => (
 
     .canvas-floor { background: #E8E4DC; }
     .canvas-wall { background: #F2EFE8; }
+
+    /* Dark mode overrides */
+    .dark .btn-ghost {
+      border-color: #334155;
+      color: #94a3b8;
+    }
+    .dark .btn-ghost:hover {
+      background: #1e293b;
+      border-color: #475569;
+    }
+    .dark input:focus, .dark textarea:focus {
+      border-color: #3b82f6 !important;
+      box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+    }
+    .dark .canvas-floor { background: #3a3830; }
+    .dark .canvas-wall { background: #2a2824; }
   `}</style>
 ));
 
 FontLoader.displayName = 'FontLoader';
 
-// ─── DESIGN TOKENS — matches primary-blue theme ─────────────────────
-const T = {
-  bg:           '#f8fafc',
-  surface:      '#ffffff',
-  surfaceAlt:   '#f1f5f9',
-  surfaceDeep:  '#e2e8f0',
-  border:       '#e2e8f0',
-  borderMed:    '#cbd5e1',
-  text:         '#0f172a',
-  textMid:      '#334155',
-  textMuted:    '#64748b',
-  textLight:    '#94a3b8',
+// ─── DESIGN TOKENS — matches Blog page theme for dark/light compatibility ─────────────────────
+const getThemeTokens = (isDark) => ({
+  bg:           isDark ? '#0a0a0a' : '#f8fafc',
+  surface:      isDark ? '#171717' : '#ffffff',
+  surfaceAlt:   isDark ? '#262626' : '#f1f5f9',
+  surfaceDeep:  isDark ? '#333333' : '#e2e8f0',
+  border:       isDark ? '#333333' : '#e2e8f0',
+  borderMed:    isDark ? '#444444' : '#cbd5e1',
+  text:         isDark ? '#f5f5f5' : '#0f172a',
+  textMid:      isDark ? '#d4d4d4' : '#334155',
+  textMuted:    isDark ? '#a3a3a3' : '#64748b',
+  textLight:    isDark ? '#737373' : '#94a3b8',
   primary:      '#1d4ed8',
   primaryMed:   '#2563eb',
-  primaryLight: '#eff6ff',
-  primaryBorder:'#bfdbfe',
-  primaryText:  '#1e3a8a',
+  primaryLight: isDark ? '#1e3a8a' : '#eff6ff',
+  primaryBorder: isDark ? '#3b82f6' : '#bfdbfe',
+  primaryText:  isDark ? '#93c5fd' : '#1e3a8a',
   accent:       '#f59e0b',
-  accentLight:  '#fffbeb',
-  accentBorder: '#fcd34d',
+  accentLight:  isDark ? '#451a03' : '#fffbeb',
+  accentBorder: isDark ? '#f59e0b' : '#fcd34d',
   success:      '#10b981',
-  successLight: '#ecfdf5',
-};
+  successLight: isDark ? '#064e3b' : '#ecfdf5',
+});
 
 // ─── MATERIAL PRESETS ─────────────────────────────────────────────────────────
 const MATERIALS = {
@@ -281,10 +297,13 @@ const SolidFace = memo(({ pts, fill, darker, lighter, spec=false, grain=false, g
 SolidFace.displayName = 'SolidFace';
 
 // ─── SVG DEFS (memoized) ─────────────────────────────────────────────────────────────────
-const SVGDefs = memo(({ mat, uid, finishSpec, styleData }) => {
+const SVGDefs = memo(({ mat, uid, finishSpec, styleData, isDark }) => {
   const g = `g_${uid}`;
-  const floorColor = styleData?.roomFloor || '#D8D4CE';
-  const wallColor  = styleData?.roomBg    || '#F0EDEA';
+  // Dark mode adjustments for room colors
+  const floorColor = isDark ? '#3a3830' : (styleData?.roomFloor || '#D8D4CE');
+  const wallColor  = isDark ? '#2a2824' : (styleData?.roomBg    || '#F0EDEA');
+  const accentColor= isDark ? '#5a5040' : (styleData?.roomAccent|| '#B0A898');
+  
   return (
     <defs>
       <pattern id={`${g}_linear`} x="0" y="0" width="100" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(14)">
@@ -354,7 +373,7 @@ const SVGDefs = memo(({ mat, uid, finishSpec, styleData }) => {
       </radialGradient>
       <linearGradient id={`${g}_floor`} x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stopColor={floorColor}/>
-        <stop offset="100%" stopColor={styleData?.roomAccent || '#B0A898'}/>
+        <stop offset="100%" stopColor={accentColor}/>
       </linearGradient>
       <linearGradient id={`${g}_wall`} x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stopColor={wallColor} stopOpacity="1"/>
@@ -367,7 +386,7 @@ const SVGDefs = memo(({ mat, uid, finishSpec, styleData }) => {
 SVGDefs.displayName = 'SVGDefs';
 
 // ─── FURNITURE RENDERER (memoized) ───────────────────────────────────────────────────────
-const FurnitureRenderer = memo(({ type, material, style, finish, rotation, zoom }) => {
+const FurnitureRenderer = memo(({ type, material, style, finish, rotation, zoom, isDark }) => {
   const mat  = MATERIALS[material] || MATERIALS.oak;
   const fin  = FINISHES[finish]   || FINISHES.matte;
   const sty  = STYLES[style]      || STYLES.modern;
@@ -430,7 +449,6 @@ const FurnitureRenderer = memo(({ type, material, style, finish, rotation, zoom 
   const lh = sty.legH, lt = sty.legT;
   const antiqueOp = isAntique ? 0.25 : 0;
 
-  // Render functions with useCallback
   const renderSofa = useCallback(() => {
     const cf = sty.cushF, bh = sty.backH * 1.9;
     const at = sty.legT * 0.7;
@@ -510,7 +528,7 @@ const FurnitureRenderer = memo(({ type, material, style, finish, rotation, zoom 
         ))}
       </g>
     );
-  }, [box, Shadow, mat, matFront, matTop, mat.side, mat.edge, mat.sh, mat.hi, fin.specOp, isGlossy, isGlossy, antiqueOp, lh, lt, sty.cushF, sty.backH, sty.legT, uid, gid]);
+  }, [box, Shadow, mat, matFront, matTop, mat.side, mat.edge, mat.sh, mat.hi, fin.specOp, isGlossy, antiqueOp, lh, lt, sty.cushF, sty.backH, sty.legT, uid, gid]);
 
   const renderBed = useCallback(() => {
     const frameTop = box(-3.8, 0, -2.1, 7.6, 0.7, 4.2);
@@ -593,7 +611,7 @@ const FurnitureRenderer = memo(({ type, material, style, finish, rotation, zoom 
         ))}
       </g>
     );
-  }, [box, Shadow, mat, matFront, matTop, mat.side, mat.edge, mat.sh, mat.hi, fin.specOp, isGlossy, isGlossy, lh, lt, uid, gid]);
+  }, [box, Shadow, mat, matFront, matTop, mat.side, mat.edge, mat.sh, mat.hi, fin.specOp, isGlossy, lh, lt, uid, gid]);
 
   const renderTable = useCallback(() => {
     const lhT = lh * 2.5; const legW = 0.3*lt;
@@ -687,7 +705,7 @@ const FurnitureRenderer = memo(({ type, material, style, finish, rotation, zoom 
         <SolidFace pts={strF.front} fill={matFront}  darker={mat.edge} lighter={mat.hi}/>
         <SolidFace pts={strF.top}   fill={matTop}    darker={mat.edge} lighter={mat.hi}/>
         <SolidFace pts={seat.front}  fill={matFront} darker={mat.edge} lighter={mat.hi} grain grainId={gid} grainOp={0.4}/>
-                <SolidFace pts={seat.right}  fill={mat.side}  darker={mat.edge} lighter={mat.hi}/>
+        <SolidFace pts={seat.right}  fill={mat.side}  darker={mat.edge} lighter={mat.hi}/>
         <SolidFace pts={seat.left}   fill={mat.side}  darker={mat.edge} lighter={mat.hi}/>
         <SolidFace pts={seat.top}    fill={matTop}    darker={mat.edge} lighter={mat.hi} grain grainId={gid} grainOp={0.48} spec={fin.specOp>0}/>
         {isGlossy && <polygon points={seat.top} fill={`url(#g_${uid}_gloss)`} opacity={fin.specOp}/>}
@@ -798,13 +816,13 @@ const FurnitureRenderer = memo(({ type, material, style, finish, rotation, zoom 
   }, [box, Shadow, mat, matFront, matTop, mat.side, mat.edge, mat.sh, mat.hi, fin.specOp, isGlossy, uid, gid]);
 
   const renderers = { sofa:renderSofa, bed:renderBed, table:renderTable, chair:renderChair, cabinet:renderCabinet, desk:renderDesk };
-  const floorColor = sty.roomFloor || '#D8D4CE';
-  const wallColor  = sty.roomBg    || '#F0EDEA';
-  const accentColor= sty.roomAccent|| '#B0A898';
+  const floorColor = isDark ? '#3a3830' : (sty.roomFloor || '#D8D4CE');
+  const wallColor  = isDark ? '#2a2824' : (sty.roomBg    || '#F0EDEA');
+  const accentColor= isDark ? '#5a5040' : (sty.roomAccent|| '#B0A898');
 
   return (
     <svg viewBox="-200 -155 400 315" xmlns="http://www.w3.org/2000/svg" style={{width:'100%',height:'100%',overflow:'visible', contain:'strict'}}>
-      <SVGDefs mat={mat} uid={uid} finishSpec={fin.specOp} styleData={sty}/>
+      <SVGDefs mat={mat} uid={uid} finishSpec={fin.specOp} styleData={sty} isDark={isDark}/>
       <rect x="-200" y="60" width="400" height="100" fill={`url(#g_${uid}_floor)`}/>
       <g opacity="0.06">
         {Array.from({length:12}).map((_,i)=><line key={`h${i}`} x1="-200" y1={60+i*14} x2="200" y2={60+i*14} stroke={accentColor} strokeWidth="0.6" strokeLinecap="round"/>)}
@@ -813,8 +831,8 @@ const FurnitureRenderer = memo(({ type, material, style, finish, rotation, zoom 
       <rect x="-200" y="-155" width="400" height="220" fill={`url(#g_${uid}_wall)`}/>
       <line x1="-200" y1="62" x2="200" y2="62" stroke={accentColor} strokeWidth="0.8" strokeLinecap="round"/>
       <g opacity="0.03">
-        {Array.from({length:18}).map((_,i)=><line key={`wh${i}`} x1="-200" y1={-155+i*22} x2="200" y2={-155+i*22} stroke={T.primary} strokeWidth="0.5" strokeLinecap="round"/>)}
-        {Array.from({length:22}).map((_,i)=><line key={`wv${i}`} x1={-200+i*19} y1="-155" x2={-200+i*19} y2="62" stroke={T.primary} strokeWidth="0.5" strokeLinecap="round"/>)}
+        {Array.from({length:18}).map((_,i)=><line key={`wh${i}`} x1="-200" y1={-155+i*22} x2="200" y2={-155+i*22} stroke={isDark ? '#fff' : '#1d4ed8'} strokeWidth="0.5" strokeLinecap="round"/>)}
+        {Array.from({length:22}).map((_,i)=><line key={`wv${i}`} x1={-200+i*19} y1="-155" x2={-200+i*19} y2="62" stroke={isDark ? '#fff' : '#1d4ed8'} strokeWidth="0.5" strokeLinecap="round"/>)}
       </g>
       {isDistressed && <rect x="-200" y="-155" width="400" height="315" fill="url(#noise)" opacity="0.04"/>}
       {style === 'bohemian' && <circle cx="-80" cy="-100" r="120" fill="#FFB84080" opacity="0.06"/>}
@@ -856,7 +874,8 @@ const Confetti = memo(() => {
 Confetti.displayName = 'Confetti';
 
 // ─── QUOTE MODAL (memoized) ─────────────────────────────────────────────────────────────
-const QuoteModal = memo(({ config, onClose }) => {
+const QuoteModal = memo(({ config, onClose, isDarkTheme }) => {
+  const T = getThemeTokens(isDarkTheme);
   const mat = MATERIALS[config.material] || MATERIALS.oak;
   const sty = STYLES[config.style]       || STYLES.modern;
   const fin = FINISHES[config.finish]    || FINISHES.matte;
@@ -931,7 +950,7 @@ Max 170 words. No bullet points. Warm, human, luxury tone.`;
     width:'100%', background:T.surfaceAlt, border:`1px solid ${T.border}`,
     borderRadius:7, padding:'7px 10px', fontSize:11, color:T.text, outline:'none',
     fontFamily:"'DM Sans',sans-serif", transition:'border-color 0.15s',
-  }), []);
+  }), [T]);
 
   return (
     <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
@@ -1066,7 +1085,8 @@ Max 170 words. No bullet points. Warm, human, luxury tone.`;
 QuoteModal.displayName = 'QuoteModal';
 
 // ─── COLLAPSIBLE SECTION (memoized) ──────────────────────────────────────────────────────
-const Section = memo(({ label, children, defaultOpen=true }) => {
+const Section = memo(({ label, children, defaultOpen=true, isDarkTheme }) => {
+  const T = getThemeTokens(isDarkTheme);
   const [open, setOpen] = useState(defaultOpen);
   const toggle = useCallback(() => setOpen(o => !o), []);
   return (
@@ -1088,16 +1108,19 @@ const Section = memo(({ label, children, defaultOpen=true }) => {
 Section.displayName = 'Section';
 
 // ─── CHIP (memoized) ─────────────────────────────────────────────────────────────────────
-const Chip = memo(({ selected, onClick, children }) => (
-  <button onClick={onClick} className="chip-sm"
-    style={{padding:'3px 6px',borderRadius:5,fontSize:9,fontWeight:selected?600:400,
-      cursor:'pointer',transition:'all 0.12s',outline:'none',fontFamily:"'DM Sans',sans-serif",
-      border:`1px solid ${selected?T.primaryBorder:T.border}`,
-      background:selected?T.primaryLight:T.surface,
-      color:selected?T.primaryText:T.textMid}}>
-    {children}
-  </button>
-));
+const Chip = memo(({ selected, onClick, children, isDarkTheme }) => {
+  const T = getThemeTokens(isDarkTheme);
+  return (
+    <button onClick={onClick} className="chip-sm"
+      style={{padding:'3px 6px',borderRadius:5,fontSize:9,fontWeight:selected?600:400,
+        cursor:'pointer',transition:'all 0.12s',outline:'none',fontFamily:"'DM Sans',sans-serif",
+        border:`1px solid ${selected?T.primaryBorder:T.border}`,
+        background:selected?T.primaryLight:T.surface,
+        color:selected?T.primaryText:T.textMid}}>
+      {children}
+    </button>
+  );
+});
 
 Chip.displayName = 'Chip';
 
@@ -1110,10 +1133,36 @@ export default function CustomFurniture() {
   const [zoom, setZoom] = useState(1);
   const [showQuote, setShowQuote] = useState(false);
   const [spinning, setSpinning] = useState(false);
+  const [isDark, setIsDark] = useState(false);
 
   const dragRef = useRef({ active:false, startX:0, startRot:0 });
   const canvasRef = useRef(null);
 
+  // Listen for dark mode changes from parent (Blog page theme toggle)
+  useEffect(() => {
+    const checkDarkMode = () => {
+      const isDarkMode = document.documentElement.classList.contains('dark') ||
+                         (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      setIsDark(isDarkMode);
+    };
+    
+    checkDarkMode();
+    
+    // Watch for class changes on html element
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    
+    // Also watch for system preference changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    mediaQuery.addEventListener('change', checkDarkMode);
+    
+    return () => {
+      observer.disconnect();
+      mediaQuery.removeEventListener('change', checkDarkMode);
+    };
+  }, []);
+
+  const T = getThemeTokens(isDark);
   const mat = MATERIALS[config.material] || MATERIALS.oak;
   const sty = STYLES[config.style] || STYLES.modern;
   const fin = FINISHES[config.finish] || FINISHES.matte;
@@ -1198,8 +1247,8 @@ export default function CustomFurniture() {
   const finishOpts = useMemo(() => Object.entries(FINISHES).map(([v,f]) => ({v,label:f.label})), []);
   
   const progress = useMemo(() => [config.style, config.material, config.finish].filter(Boolean).length / 3, [config]);
-  const card = useMemo(() => ({ background:T.surface, border:`1px solid ${T.border}`, borderRadius:10 }), []);
-  const canvasBg = sty.roomBg || '#EBE8E0';
+  const card = useMemo(() => ({ background:T.surface, border:`1px solid ${T.border}`, borderRadius:10 }), [T]);
+  const canvasBg = isDark ? '#2a2824' : (sty.roomBg || '#EBE8E0');
 
   return (
     <div style={{background:T.bg,fontFamily:"'DM Sans',sans-serif",width:'100%',overflowX:'hidden'}}>
@@ -1277,19 +1326,19 @@ export default function CustomFurniture() {
                     </button>
                   </div>
 
-                  <Section label="Type">
+                  <Section label="Type" isDarkTheme={isDark}>
                     <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:3,paddingTop:2}}>
-                      {furnitureOpts.map(o=><Chip key={o.v} selected={config.type===o.v} onClick={()=>updateConfig('type',o.v)}>{o.label}</Chip>)}
+                      {furnitureOpts.map(o=><Chip key={o.v} selected={config.type===o.v} onClick={()=>updateConfig('type',o.v)} isDarkTheme={isDark}>{o.label}</Chip>)}
                     </div>
                   </Section>
 
-                  <Section label="Style">
+                  <Section label="Style" isDarkTheme={isDark}>
                     <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:3,paddingTop:2}}>
-                      {styleOpts.map(o=><Chip key={o.v} selected={config.style===o.v} onClick={()=>updateConfig('style',o.v)}>{o.label}</Chip>)}
+                      {styleOpts.map(o=><Chip key={o.v} selected={config.style===o.v} onClick={()=>updateConfig('style',o.v)} isDarkTheme={isDark}>{o.label}</Chip>)}
                     </div>
                   </Section>
 
-                  <Section label="Material">
+                  <Section label="Material" isDarkTheme={isDark}>
                     <div className="mat-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:3,paddingTop:2}}>
                       {matOpts.map(o=>(
                         <button key={o.v} onClick={()=>updateConfig('material',o.v)}
@@ -1303,15 +1352,15 @@ export default function CustomFurniture() {
                     </div>
                   </Section>
 
-                  <Section label="Finish">
+                  <Section label="Finish" isDarkTheme={isDark}>
                     <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:3,paddingTop:2}}>
                       {finishOpts.map(o=>(
-                        <Chip key={o.v} selected={config.finish===o.v} onClick={()=>updateConfig('finish',o.v)}>{o.label}</Chip>
+                        <Chip key={o.v} selected={config.finish===o.v} onClick={()=>updateConfig('finish',o.v)} isDarkTheme={isDark}>{o.label}</Chip>
                       ))}
                     </div>
                   </Section>
 
-                  <Section label="Dimensions" defaultOpen={false}>
+                  <Section label="Dimensions" defaultOpen={false} isDarkTheme={isDark}>
                     <input type="text" value={config.dimensions} onChange={e=>updateConfig('dimensions',e.target.value)}
                       placeholder='e.g. 72" × 36" × 30"' style={{width:'100%',background:T.surfaceAlt,border:`1px solid ${T.border}`, borderRadius:5,padding:'4px 6px',fontSize:9,color:T.text,outline:'none',marginTop:2}}/>
                   </Section>
@@ -1374,7 +1423,7 @@ export default function CustomFurniture() {
 
             <div ref={canvasRef} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
               className="canvas-h" style={{height:320,cursor:isDragging?'grabbing':'grab',position:'relative',background:canvasBg,overflow:'hidden',userSelect:'none',transition:'background 0.4s'}}>
-              <FurnitureRenderer type={config.type} material={config.material} style={config.style} finish={config.finish} rotation={rotation} zoom={zoom}/>
+              <FurnitureRenderer type={config.type} material={config.material} style={config.style} finish={config.finish} rotation={rotation} zoom={zoom} isDark={isDark}/>
               <div style={{position:'absolute',top:6,left:8,background:'rgba(255,255,255,0.7)',backdropFilter:'blur(6px)',borderRadius:5,padding:'1px 5px'}}>
                 <span style={{fontSize:7,color:T.textMuted}}>{sty.name} room</span>
               </div>
@@ -1410,7 +1459,7 @@ export default function CustomFurniture() {
         </div>
       </div>
 
-      <AnimatePresence>{showQuote && <QuoteModal config={config} onClose={()=>setShowQuote(false)}/>}</AnimatePresence>
+      <AnimatePresence>{showQuote && <QuoteModal config={config} onClose={()=>setShowQuote(false)} isDarkTheme={isDark}/>}</AnimatePresence>
     </div>
   );
 }

@@ -134,13 +134,16 @@ const Alert = ({
   );
 };
 
-// AlertContainer component for managing multiple alerts - Optimized with memo
+// AlertContainer component for managing multiple alerts - Only shows max 2 alerts
 export const AlertContainer = React.memo(({ alerts, onDismiss }) => {
   if (!alerts || alerts.length === 0) return null;
 
+  // Only show the latest 2 alerts
+  const visibleAlerts = alerts.slice(-2);
+
   return (
     <div className="alert-container">
-      {alerts.map((alert) => (
+      {visibleAlerts.map((alert) => (
         <Alert
           key={alert.id}
           id={alert.id}
@@ -159,7 +162,7 @@ export const AlertContainer = React.memo(({ alerts, onDismiss }) => {
 
 AlertContainer.displayName = 'AlertContainer';
 
-// CSS styles - Inlined but can be moved to external CSS
+// CSS styles - Updated for better animation with replacing alerts
 const styles = `
   /* Alert Container - for stacking multiple alerts */
   .alert-container {
@@ -200,6 +203,11 @@ const styles = `
     animation: slideOut 0.3s ease-in forwards;
   }
 
+  /* Stack animation for replacing alerts */
+  .alert-container .alert:first-child {
+    animation: shiftUp 0.3s ease-out forwards;
+  }
+
   @keyframes slideIn {
     from {
       opacity: 0;
@@ -219,6 +227,17 @@ const styles = `
     to {
       opacity: 0;
       transform: translateX(100%);
+    }
+  }
+
+  @keyframes shiftUp {
+    from {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateY(-20px);
+      opacity: 0.7;
     }
   }
 
@@ -415,7 +434,7 @@ const styles = `
   }
 `;
 
-// Hook for managing alert state in components - Optimized
+// Hook for managing alert state in components - With max 2 alerts limit
 export const useAlert = () => {
   const [alerts, setAlerts] = useState([]);
   const nextIdRef = useRef(0);
@@ -424,7 +443,14 @@ export const useAlert = () => {
     const id = alert.id || `alert-${Date.now()}-${nextIdRef.current++}`;
     const newAlert = { ...alert, id };
     
-    setAlerts(prev => [...prev, newAlert]);
+    setAlerts(prev => {
+      // If we already have 2 alerts, remove the oldest one
+      if (prev.length >= 2) {
+        return [...prev.slice(1), newAlert];
+      }
+      return [...prev, newAlert];
+    });
+    
     return id;
   }, []);
 
@@ -441,6 +467,7 @@ export const useAlert = () => {
       type: 'success',
       title,
       message,
+      autoClose: 3000,
       ...options
     });
   }, [addAlert]);
@@ -450,6 +477,7 @@ export const useAlert = () => {
       type: 'error',
       title,
       message,
+      autoClose: 5000,
       ...options
     });
   }, [addAlert]);
@@ -459,6 +487,7 @@ export const useAlert = () => {
       type: 'warning',
       title,
       message,
+      autoClose: 4000,
       ...options
     });
   }, [addAlert]);
@@ -468,6 +497,7 @@ export const useAlert = () => {
       type: 'info',
       title,
       message,
+      autoClose: 3000,
       ...options
     });
   }, [addAlert]);

@@ -7,6 +7,44 @@ export const SUPPORT_EMAIL = 'support@furniqo.com';
 export const PHONE_NUMBER = '+1 (555) 987-6543';
 export const ADDRESS = '123 Design District, New York, NY 10001';
 
+// Z-index scale for consistent layering
+export const Z_INDEX = {
+  dropdown: 40,
+  sticky: 45,
+  fixed: 50,
+  drawer: 50,
+  modal: 50,
+  popover: 60,
+  tooltip: 70,
+  toast: 80,
+  splash: 100,
+};
+
+// Animation constants
+export const ANIMATION = {
+  AUTO_PLAY_INTERVAL: 3000,
+  MIN_SWIPE_DISTANCE: 50,
+  THUMBNAIL_SCROLL_AMOUNT: 100,
+  TOAST_DURATION: 2000,
+  SPINNER_SPEED: 800,
+};
+
+// Pagination
+export const PAGINATION = {
+  PRODUCTS_PER_PAGE: 12,
+  RELATED_PRODUCTS_LIMIT: 10,
+  FEATURED_LIMIT: 8,
+  TRENDING_LIMIT: 8,
+};
+
+// Cart
+export const FREE_SHIPPING_THRESHOLD = 200;
+export const TAX_RATE = 0.0825;
+
+// Image
+export const PLACEHOLDER_SIZE = 800;
+export const PLACEHOLDER_URL = '/placeholder.svg';
+
 export const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest Arrivals' },
   { value: 'price-low', label: 'Price: Low to High' },
@@ -92,24 +130,24 @@ export const ORDER_STATUS_COLORS = {
 };
 
 export const SHIPPING_METHODS = [
-  { 
-    id: 'standard', 
-    name: 'Standard Shipping', 
-    price: 0, 
+  {
+    id: 'standard',
+    name: 'Standard Shipping',
+    price: 0,
     days: '5-7 business days',
     description: 'Free on orders over $200',
   },
-  { 
-    id: 'express', 
-    name: 'Express Shipping', 
-    price: 29.99, 
+  {
+    id: 'express',
+    name: 'Express Shipping',
+    price: 29.99,
     days: '2-3 business days',
     description: 'Priority handling and delivery',
   },
-  { 
-    id: 'overnight', 
-    name: 'Overnight Shipping', 
-    price: 49.99, 
+  {
+    id: 'overnight',
+    name: 'Overnight Shipping',
+    price: 49.99,
     days: 'Next business day',
     description: 'Order by 2 PM for next day delivery',
   },
@@ -122,9 +160,6 @@ export const SHIPPING_METHODS = [
   },
 ];
 
-export const TAX_RATE = 0.0825;
-export const FREE_SHIPPING_THRESHOLD = 200;
-
 export const SOCIAL_LINKS = {
   facebook: 'https://facebook.com/furniqo',
   instagram: 'https://instagram.com/furniqo',
@@ -136,9 +171,9 @@ export const SOCIAL_LINKS = {
 export const NAV_LINKS = [
   { path: '/', label: 'Home' },
   { path: '/products', label: 'Shop' },
-  { 
+  {
     label: 'Categories',
-    children: FILTER_OPTIONS.categories.map(cat => ({
+    children: FILTER_OPTIONS.categories.map((cat) => ({
       path: `/products?category=${encodeURIComponent(cat.value)}`,
       label: `${cat.icon} ${cat.label}`,
     })),

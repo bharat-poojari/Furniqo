@@ -11,7 +11,11 @@ const DYNAMIC_CACHE = 'furniqo-dynamic-v2';
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+      return cache.addAll(STATIC_ASSETS).catch((error) => {
+        console.warn('Failed to cache some static assets:', error);
+        // Continue installation even if some assets fail
+        return Promise.resolve();
+      });
     })
   );
   self.skipWaiting();
@@ -32,9 +36,9 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  
+
   if (request.method !== 'GET') return;
-  
+
   if (request.url.includes('/api/')) {
     event.respondWith(networkFirst(request));
   } else {
@@ -45,7 +49,7 @@ self.addEventListener('fetch', (event) => {
 async function cacheFirst(request) {
   const cachedResponse = await caches.match(request);
   if (cachedResponse) return cachedResponse;
-  
+
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
@@ -54,10 +58,18 @@ async function cacheFirst(request) {
     }
     return networkResponse;
   } catch (error) {
-    return new Response('Offline - Please check your connection', {
-      status: 503,
-      statusText: 'Service Unavailable',
-    });
+    // Return a proper JSON error response
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: 'You are offline',
+      }),
+      {
+        status: 503,
+        statusText: 'Service Unavailable',
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 }
 
@@ -71,11 +83,17 @@ async function networkFirst(request) {
     return networkResponse;
   } catch (error) {
     const cachedResponse = await caches.match(request);
-    return cachedResponse || new Response(JSON.stringify({ 
-      success: false, 
-      message: 'You are offline' 
-    }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return (
+      cachedResponse ||
+      new Response(
+        JSON.stringify({
+          success: false,
+          message: 'You are offline',
+        }),
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    );
   }
 }

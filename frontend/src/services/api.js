@@ -181,6 +181,7 @@ export const searchAPI = {
 
 // Content API
 export const contentAPI = {
+  getCategories: () => api.get('/content/categories'),
   getBlogPosts: (params = {}) => api.get('/content/blog', { params }),
   getBlogPost: (slug) => api.get(`/content/blog/${slug}`),
   getFAQs: () => api.get('/content/faqs'),

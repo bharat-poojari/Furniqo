@@ -191,7 +191,7 @@ const QuickViewModal = ({ product, isOpen, onClose, onAddToCart, isWishlisted, o
                 <div className="space-y-2">
                   <div className="relative overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-800">
                     <img
-                      src={product.images?.[selectedImage] || 'https://via.placeholder.com/400x400?text=No+Image'}
+                      src={product.images?.[selectedImage] || '/placeholder.svg'}
                       alt={product.name}
                       className="w-full aspect-square object-cover"
                       loading="lazy"
@@ -382,13 +382,13 @@ const RelatedProductsHorizontal = ({ productId, category, onAddToCart, onQuickVi
             return (
               <div key={product._id} className="w-32 sm:w-36 flex-shrink-0">
                 <div className="group relative bg-white dark:bg-neutral-800 rounded-lg overflow-hidden shadow hover:shadow-md transition-all border border-neutral-200 dark:border-neutral-700">
-                  <Link to={`/products/${product.slug}`} className="relative overflow-hidden bg-neutral-100 aspect-square block">
-                    <img
-                      src={product.images?.[0] || '/images/placeholder.jpg'}
-                      alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      loading="lazy"
-                    />
+                   <Link to={`/products/${product.slug}`} className="relative overflow-hidden bg-neutral-100 aspect-square block">
+                     <img
+                       src={product.images?.[0] || '/placeholder.svg'}
+                       alt={product.name}
+                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                       loading="lazy"
+                     />
                     {discount > 0 && (
                       <div className="absolute top-1 left-1 bg-red-500 text-white text-[8px] font-bold px-1 py-0.5 rounded-sm shadow">
                         -{discount}%
@@ -564,6 +564,33 @@ const ProductDetail = () => {
   const inWishlist = useMemo(() => {
     return product ? isWishlisted(product._id) : false;
   }, [product, isWishlisted]);
+
+  // Generate breadcrumb items from the product data
+  const breadcrumbItems = useMemo(() => {
+    const items = [
+      { label: 'Home', href: '/' },
+      { label: 'Products', href: '/products' }
+    ];
+    
+    // Add category if available
+    if (product?.category) {
+      const categoryName = typeof product.category === 'object' ? product.category.name : product.category;
+      const categorySlug = typeof product.category === 'object' && product.category.slug 
+        ? product.category.slug 
+        : categoryName.toLowerCase().replace(/\s+/g, '-');
+      items.push({ 
+        label: categoryName, 
+        href: `/products?category=${categorySlug}` 
+      });
+    }
+    
+    // Add current product (no href for current item)
+    if (product?.name) {
+      items.push({ label: product.name });
+    }
+    
+    return items;
+  }, [product]);
   
   const inStock = useMemo(() => {
     if (selectedVariant) return selectedVariant.stock > 0;
@@ -694,7 +721,7 @@ const ProductDetail = () => {
 
             {/* SKU & Category - Smaller text */}
             <div className="flex flex-wrap items-center gap-2 text-[10px] text-neutral-500">
-              <span>SKU: {product.sku || product._id?.slice(-8).toUpperCase()}</span>
+              <span>SKU: {product.sku || (product._id || '').slice(-8).toUpperCase()}</span>
               {product.category && (
                 <span className="flex items-center gap-0.5">
                   <FiTag className="h-2.5 w-2.5" />

@@ -1,10 +1,11 @@
 // src/App.jsx
 import { lazy, Suspense, useEffect } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom'; // Remove BrowserRouter import
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AnimatePresence } from 'framer-motion';
 import { AppProvider } from './store/AppProvider';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import AppUpdateBanner from './components/common/AppUpdateBanner';
 import Layout from './components/layout/Layout';
 
 // Simple loading spinner
@@ -124,6 +125,8 @@ function App() {
           </Suspense>
         </AnimatePresence>
         {/* REMOVED closing </Router> tag */}
+        {/* SW Update Banner */}
+        <AppUpdateBanner />
       </AppProvider>
     </ErrorBoundary>
   );

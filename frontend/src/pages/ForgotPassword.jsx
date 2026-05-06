@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  FiMail, 
-  FiArrowLeft, 
-  FiSend, 
-  FiCheckCircle, 
-  FiAlertCircle, 
-  FiLock, 
+import {
+  FiMail,
+  FiArrowLeft,
+  FiSend,
+  FiCheckCircle,
+  FiAlertCircle,
+  FiLock,
   FiClock,
   FiShield,
   FiRefreshCw,
 } from 'react-icons/fi';
-import { useAuth } from '../store/AuthContext';
 import { validateEmail } from '../utils/validators';
 import toast from 'react-hot-toast';
 
@@ -22,15 +21,14 @@ const ForgotPassword = () => {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
-  
-  const { forgotPassword } = useAuth();
+
   const navigate = useNavigate();
 
   useEffect(() => {
     let timer;
     if (resendTimer > 0) {
       timer = setInterval(() => {
-        setResendTimer(prev => {
+        setResendTimer((prev) => {
           if (prev <= 1) return 0;
           return prev - 1;
         });
@@ -41,7 +39,7 @@ const ForgotPassword = () => {
 
   const handleChange = (e) => {
     setEmail(e.target.value);
-    if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
+    if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
   };
 
   const validateForm = () => {
@@ -60,9 +58,9 @@ const ForgotPassword = () => {
     if (!validateForm()) return;
 
     setLoading(true);
-    
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       setSubmitted(true);
       toast.success('Reset link sent to your email!');
       setResendTimer(60);
@@ -75,10 +73,10 @@ const ForgotPassword = () => {
 
   const handleResend = async () => {
     if (resendTimer > 0 || loading) return;
-    
+
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       toast.success('Reset link resent!');
       setResendTimer(60);
     } catch (error) {
@@ -101,17 +99,17 @@ const ForgotPassword = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-primary-50/30 dark:from-neutral-950 dark:via-neutral-900 dark:to-primary-900/10 flex items-center justify-center px-[1%] py-[1%]">
-      
+
       {/* Background Decor */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <motion.div
           animate={{ x: [0, 40, 0], y: [0, -30, 0] }}
-          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
           className="absolute -top-20 -left-20 w-80 h-80 bg-primary-400/10 rounded-full blur-[100px]"
         />
         <motion.div
           animate={{ x: [0, -30, 0], y: [0, 40, 0] }}
-          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
           className="absolute -bottom-20 -right-20 w-80 h-80 bg-purple-400/10 rounded-full blur-[100px]"
         />
       </div>
@@ -133,9 +131,9 @@ const ForgotPassword = () => {
                     whileHover={{ scale: 1.05 }}
                     className="relative"
                   >
-                    <img 
-                      src="/logo.svg" 
-                      alt="Furniqo" 
+                    <img
+                      src="/logo.svg"
+                      alt="Furniqo"
                       className="h-9 w-9 object-contain transition-all duration-300 group-hover:scale-105"
                       onError={(e) => {
                         e.target.style.display = 'none';
@@ -147,7 +145,7 @@ const ForgotPassword = () => {
                     Furniqo
                   </span>
                 </Link>
-                
+
                 <motion.h1
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -188,8 +186,8 @@ const ForgotPassword = () => {
                         placeholder="your@email.com"
                         autoFocus
                         className={`w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border-2 transition-all duration-200 ${
-                          errors.email 
-                            ? 'border-red-400 dark:border-red-500 bg-red-50/30 dark:bg-red-900/10' 
+                          errors.email
+                            ? 'border-red-400 dark:border-red-500 bg-red-50/30 dark:bg-red-900/10'
                             : 'border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-600 focus:border-primary-500'
                         } focus:outline-none focus:ring-4 focus:ring-primary-500/10 dark:text-white placeholder-neutral-400`}
                       />
@@ -213,9 +211,26 @@ const ForgotPassword = () => {
                     className="w-full px-4 py-2.5 text-sm font-semibold bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:bg-primary-400 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary-500/20"
                   >
                     {loading ? (
-                      <motion.svg animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="h-4 w-4" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      <motion.svg
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
                       </motion.svg>
                     ) : (
                       <>
@@ -256,9 +271,16 @@ const ForgotPassword = () => {
 
               {/* Footer Link */}
               <p className="text-center text-xs text-neutral-500 mt-4">
-                Don't have an account?{' '}
-                <Link to="/signup" className="text-primary-600 hover:text-primary-700 font-semibold transition-colors">
-                  Create one
+                Remember your password?{' '}
+                <Link
+                  to="/login"
+                  className="text-primary-600 hover:text-primary-700 font-semibold transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleBackToLogin();
+                  }}
+                >
+                  Sign in
                 </Link>
               </p>
             </motion.div>
@@ -273,9 +295,9 @@ const ForgotPassword = () => {
             >
               {/* Logo */}
               <Link to="/" className="inline-flex items-center gap-2.5 mb-6 group">
-                <img 
-                  src="/logo.svg" 
-                  alt="Furniqo" 
+                <img
+                  src="/logo.svg"
+                  alt="Furniqo"
                   className="h-9 w-9 object-contain transition-all duration-300 group-hover:scale-105"
                   onError={(e) => {
                     e.target.style.display = 'none';
@@ -290,7 +312,7 @@ const ForgotPassword = () => {
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
                 className="relative w-16 h-16 mx-auto mb-4"
               >
                 <motion.div
@@ -351,9 +373,26 @@ const ForgotPassword = () => {
                   className="w-full px-4 py-2.5 text-sm font-semibold bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 disabled:text-neutral-500 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary-500/20"
                 >
                   {loading ? (
-                    <motion.svg animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    <motion.svg
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
                     </motion.svg>
                   ) : (
                     <>
@@ -362,7 +401,7 @@ const ForgotPassword = () => {
                     </>
                   )}
                 </motion.button>
-                
+
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -386,7 +425,10 @@ const ForgotPassword = () => {
               {/* Contact Link */}
               <p className="text-xs text-neutral-400 mt-4">
                 Still need help?{' '}
-                <Link to="/contact" className="text-primary-600 hover:text-primary-700 font-medium">
+                <Link
+                  to="/contact"
+                  className="text-primary-600 hover:text-primary-700 font-medium"
+                >
                   Contact Support
                 </Link>
               </p>
