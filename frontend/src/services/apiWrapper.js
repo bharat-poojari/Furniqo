@@ -74,14 +74,6 @@ class APIWrapper {
       this.checkInProgress = false;
     }
 
-    if (this.useLocalFallback) {
-      toast('Running in offline mode', {
-        icon: '📦',
-        duration: 2000,
-        id: 'offline-toast'
-      });
-    }
-
     return !this.useLocalFallback;
   }
 
