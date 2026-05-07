@@ -1,5 +1,7 @@
+// src/pages/CustomFurniture.jsx
 import React, { useState, useCallback, useRef, useEffect, memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from '../store/ThemeContext';
 
 // ─── SVG Icons (memoized) ────────────────────────────────────────────────────────────────
 const Icons = {
@@ -50,57 +52,6 @@ const Icons = {
       <line x1="7" y1="6" x2="7" y2="4" /><line x1="12" y1="6" x2="12" y2="4" /><line x1="17" y1="6" x2="17" y2="4" />
     </svg>
   )),
-  check: memo(() => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  )),
-  star: memo(() => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  )),
-  rotate: memo(() => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  )),
-  reset: memo(() => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-      <path d="M3 3v5h5" />
-    </svg>
-  )),
-  arrowRight: memo(() => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="5" y1="12" x2="19" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
-    </svg>
-  )),
-  close: memo(() => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  )),
-  user: memo(() => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  )),
-  mail: memo(() => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="4" width="20" height="16" rx="2" />
-      <path d="m22 7-10 7L2 7" />
-    </svg>
-  )),
-  phone: memo(() => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
-    </svg>
-  )),
 };
 
 // ─── FONTS (static, no re-renders) ─────────────────────────────────────────────────────────────────
@@ -109,10 +60,11 @@ const FontLoader = memo(() => (
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { margin: 0; padding: 0; width: 100%; overflow-x: hidden; }
-    body { font-family: 'DM Sans', sans-serif; background: #f8fafc; color: #0f172a; }
+    body { font-family: 'DM Sans', sans-serif; }
     ::-webkit-scrollbar { width: 3px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+    .dark ::-webkit-scrollbar-thumb { background: #404040; }
 
     .cf-layout {
       display: flex;
@@ -167,7 +119,7 @@ const FontLoader = memo(() => (
     .success-pop { animation: success-pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards; }
 
     .btn-primary {
-      background: #1d4ed8;
+      background: #9333ea;
       color: #fff;
       border: none;
       border-radius: 7px;
@@ -177,36 +129,31 @@ const FontLoader = memo(() => (
       transition: all 0.15s;
       letter-spacing: 0.01em;
     }
-    .btn-primary:hover { background: #1e40af; }
+    .btn-primary:hover { background: #7e22ce; }
     .btn-primary:active { transform: scale(0.98); }
     .btn-ghost {
       background: none;
-      border: 1px solid #e2e8f0;
+      border: 1px solid #e5e5e5;
       border-radius: 5px;
       font-family: 'DM Sans', sans-serif;
       cursor: pointer;
-      color: #64748b;
+      color: #737373;
       transition: all 0.12s;
     }
-    .btn-ghost:hover { background: #f1f5f9; border-color: #cbd5e1; }
-    input:focus, textarea:focus { outline: none; border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59,130,246,0.1); }
+    .btn-ghost:hover { background: #f5f5f5; border-color: #d4d4d4; }
+    .dark .btn-ghost {
+      border-color: #404040;
+      color: #a3a3a3;
+    }
+    .dark .btn-ghost:hover {
+      background: #262626;
+      border-color: #525252;
+    }
+    input:focus, textarea:focus { outline: none; border-color: #9333ea !important; box-shadow: 0 0 0 2px rgba(147,51,234,0.1); }
+    .dark input:focus, .dark textarea:focus { box-shadow: 0 0 0 2px rgba(147,51,234,0.2); }
 
     .canvas-floor { background: #E8E4DC; }
     .canvas-wall { background: #F2EFE8; }
-
-    /* Dark mode overrides */
-    .dark .btn-ghost {
-      border-color: #334155;
-      color: #94a3b8;
-    }
-    .dark .btn-ghost:hover {
-      background: #1e293b;
-      border-color: #475569;
-    }
-    .dark input:focus, .dark textarea:focus {
-      border-color: #3b82f6 !important;
-      box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
-    }
     .dark .canvas-floor { background: #3a3830; }
     .dark .canvas-wall { background: #2a2824; }
   `}</style>
@@ -214,23 +161,23 @@ const FontLoader = memo(() => (
 
 FontLoader.displayName = 'FontLoader';
 
-// ─── DESIGN TOKENS — matches Blog page theme for dark/light compatibility ─────────────────────
+// ─── DESIGN TOKENS — uses theme-aware colors ─────────────────────────────────────────────────────
 const getThemeTokens = (isDark) => ({
-  bg:           isDark ? '#0a0a0a' : '#f8fafc',
+  bg:           isDark ? '#0a0a0a' : '#fafafa',
   surface:      isDark ? '#171717' : '#ffffff',
-  surfaceAlt:   isDark ? '#262626' : '#f1f5f9',
-  surfaceDeep:  isDark ? '#333333' : '#e2e8f0',
-  border:       isDark ? '#333333' : '#e2e8f0',
-  borderMed:    isDark ? '#444444' : '#cbd5e1',
-  text:         isDark ? '#f5f5f5' : '#0f172a',
-  textMid:      isDark ? '#d4d4d4' : '#334155',
-  textMuted:    isDark ? '#a3a3a3' : '#64748b',
-  textLight:    isDark ? '#737373' : '#94a3b8',
-  primary:      '#1d4ed8',
-  primaryMed:   '#2563eb',
-  primaryLight: isDark ? '#1e3a8a' : '#eff6ff',
-  primaryBorder: isDark ? '#3b82f6' : '#bfdbfe',
-  primaryText:  isDark ? '#93c5fd' : '#1e3a8a',
+  surfaceAlt:   isDark ? '#262626' : '#f5f5f5',
+  surfaceDeep:  isDark ? '#333333' : '#e5e5e5',
+  border:       isDark ? '#404040' : '#e5e5e5',
+  borderMed:    isDark ? '#525252' : '#d4d4d4',
+  text:         isDark ? '#f5f5f5' : '#171717',
+  textMid:      isDark ? '#d4d4d4' : '#525252',
+  textMuted:    isDark ? '#a3a3a3' : '#737373',
+  textLight:    isDark ? '#737373' : '#a3a3a3',
+  primary:      '#9333ea',
+  primaryMed:   '#a855f7',
+  primaryLight: isDark ? '#3b0764' : '#faf5ff',
+  primaryBorder: isDark ? '#9333ea' : '#e9d5ff',
+  primaryText:  isDark ? '#d8b4fe' : '#6b21a8',
   accent:       '#f59e0b',
   accentLight:  isDark ? '#451a03' : '#fffbeb',
   accentBorder: isDark ? '#f59e0b' : '#fcd34d',
@@ -299,7 +246,6 @@ SolidFace.displayName = 'SolidFace';
 // ─── SVG DEFS (memoized) ─────────────────────────────────────────────────────────────────
 const SVGDefs = memo(({ mat, uid, finishSpec, styleData, isDark }) => {
   const g = `g_${uid}`;
-  // Dark mode adjustments for room colors
   const floorColor = isDark ? '#3a3830' : (styleData?.roomFloor || '#D8D4CE');
   const wallColor  = isDark ? '#2a2824' : (styleData?.roomBg    || '#F0EDEA');
   const accentColor= isDark ? '#5a5040' : (styleData?.roomAccent|| '#B0A898');
@@ -831,8 +777,8 @@ const FurnitureRenderer = memo(({ type, material, style, finish, rotation, zoom,
       <rect x="-200" y="-155" width="400" height="220" fill={`url(#g_${uid}_wall)`}/>
       <line x1="-200" y1="62" x2="200" y2="62" stroke={accentColor} strokeWidth="0.8" strokeLinecap="round"/>
       <g opacity="0.03">
-        {Array.from({length:18}).map((_,i)=><line key={`wh${i}`} x1="-200" y1={-155+i*22} x2="200" y2={-155+i*22} stroke={isDark ? '#fff' : '#1d4ed8'} strokeWidth="0.5" strokeLinecap="round"/>)}
-        {Array.from({length:22}).map((_,i)=><line key={`wv${i}`} x1={-200+i*19} y1="-155" x2={-200+i*19} y2="62" stroke={isDark ? '#fff' : '#1d4ed8'} strokeWidth="0.5" strokeLinecap="round"/>)}
+        {Array.from({length:18}).map((_,i)=><line key={`wh${i}`} x1="-200" y1={-155+i*22} x2="200" y2={-155+i*22} stroke={isDark ? '#fff' : '#9333ea'} strokeWidth="0.5" strokeLinecap="round"/>)}
+        {Array.from({length:22}).map((_,i)=><line key={`wv${i}`} x1={-200+i*19} y1="-155" x2={-200+i*19} y2="62" stroke={isDark ? '#fff' : '#9333ea'} strokeWidth="0.5" strokeLinecap="round"/>)}
       </g>
       {isDistressed && <rect x="-200" y="-155" width="400" height="315" fill="url(#noise)" opacity="0.04"/>}
       {style === 'bohemian' && <circle cx="-80" cy="-100" r="120" fill="#FFB84080" opacity="0.06"/>}
@@ -846,7 +792,7 @@ FurnitureRenderer.displayName = 'FurnitureRenderer';
 
 // ─── CONFETTI (memoized) ─────────────────────────────────────────────────────────────────
 const Confetti = memo(() => {
-  const colors = ['#1d4ed8','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899'];
+  const colors = ['#9333ea','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899'];
   const pieces = Array.from({length:18}, (_,i) => ({
     id: i,
     color: colors[i % colors.length],
@@ -1133,34 +1079,12 @@ export default function CustomFurniture() {
   const [zoom, setZoom] = useState(1);
   const [showQuote, setShowQuote] = useState(false);
   const [spinning, setSpinning] = useState(false);
-  const [isDark, setIsDark] = useState(false);
+  
+  // Use the theme from your existing ThemeContext
+  const { isDark } = useTheme();
 
   const dragRef = useRef({ active:false, startX:0, startRot:0 });
   const canvasRef = useRef(null);
-
-  // Listen for dark mode changes from parent (Blog page theme toggle)
-  useEffect(() => {
-    const checkDarkMode = () => {
-      const isDarkMode = document.documentElement.classList.contains('dark') ||
-                         (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      setIsDark(isDarkMode);
-    };
-    
-    checkDarkMode();
-    
-    // Watch for class changes on html element
-    const observer = new MutationObserver(checkDarkMode);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    
-    // Also watch for system preference changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    mediaQuery.addEventListener('change', checkDarkMode);
-    
-    return () => {
-      observer.disconnect();
-      mediaQuery.removeEventListener('change', checkDarkMode);
-    };
-  }, []);
 
   const T = getThemeTokens(isDark);
   const mat = MATERIALS[config.material] || MATERIALS.oak;
