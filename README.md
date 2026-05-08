@@ -2,7 +2,7 @@
 
 <div align="center">
   
-  ![Furniqo Logo](https://via.placeholder.com/128x128?text=Furniqo) <!-- Replace with your actual logo URL -->
+  ![Furniqo Logo](https://via.placeholder.com/128x128?text=Furniqo)
 
   ### 🌟 Immersive 3D Shopping Experience
 
@@ -35,7 +35,6 @@
 - [📄 License](#-license)
 - [👤 Contact](#-contact)
 
-
 ## 🛋️ Overview
 
 **Furniqo** is a premium furniture e-commerce platform that redefines online shopping through immersive 3D product visualization. Built with a modern React stack, it offers a seamless, responsive experience that bridges the gap between digital browsing and physical product evaluation.
@@ -46,7 +45,6 @@
 - **Dark Mode Ready** - Eye-friendly interface for any lighting condition
 - **Smooth Animations** - Framer Motion powers delightful micro-interactions
 - **Production Optimized** - Code splitting, lazy loading, and efficient state management
-
 
 ## ✨ Features
 
@@ -80,7 +78,6 @@
 | **State Persistence** | Zustand stores with localStorage sync |
 | **API Caching** | Intelligent request deduplication |
 | **Lazy Loading** | On-demand component loading for performance |
-
 
 ## 🛠️ Tech Stack
 
@@ -129,7 +126,6 @@
 | **Razorpay** | Indian payment gateway |
 | **Stripe** | International payment processing |
 
-
 ## 🚀 Getting Started
 
 ### ✅ **Prerequisites**
@@ -146,8 +142,6 @@ cd furniqo/frontend
 
 # 2. Install dependencies
 npm install
-# or
-yarn install
 
 # 3. Set up environment variables (see below)
 cp .env.example .env
@@ -187,23 +181,21 @@ npm run dev
 
 # Open your browser to:
 # http://localhost:3000
-You should see the Furniqo homepage with the 3D hero section and product listings.
-
 📁 Project Structure
 text
 frontend/
-├── 📂 public/                      # Static assets (favicons, robots.txt, etc.)
+├── 📂 public/                      # Static assets
 │   ├── 📂 models/                  # 3D model files (.glb, .gltf)
 │   └── 📂 images/                  # Static images
 │
 ├── 📂 src/
 │   ├── 📂 components/              # Reusable UI components
-│   │   ├── 📂 ui/                  # Basic UI primitives (Button, Card, Modal)
-│   │   ├── 📂 layout/              # Layout components (Header, Footer, Sidebar)
+│   │   ├── 📂 ui/                  # Basic UI primitives
+│   │   ├── 📂 layout/              # Layout components
 │   │   ├── 📂 product/             # Product-specific components
-│   │   └── 📂 3d/                  # Three.js components (ModelViewer, Scene)
+│   │   └── 📂 3d/                  # Three.js components
 │   │
-│   ├── 📂 pages/                   # Page components (route-level)
+│   ├── 📂 pages/                   # Page components
 │   │   ├── 📄 Home.jsx
 │   │   ├── 📄 Shop.jsx
 │   │   ├── 📄 ProductDetail.jsx
@@ -226,24 +218,24 @@ frontend/
 │   │   └── 📄 uiStore.js
 │   │
 │   ├── 📂 services/                # API service functions
-│   │   ├── 📄 api.js               # Axios instance configuration
+│   │   ├── 📄 api.js
 │   │   ├── 📄 productService.js
 │   │   ├── 📄 orderService.js
 │   │   └── 📄 authService.js
 │   │
 │   ├── 📂 utils/                   # Utility functions
-│   │   ├── 📄 formatters.js        # Price, date, etc. formatting
-│   │   ├── 📄 validators.js        # Form validation rules
-│   │   └── 📄 constants.js         # App-wide constants
+│   │   ├── 📄 formatters.js
+│   │   ├── 📄 validators.js
+│   │   └── 📄 constants.js
 │   │
-│   ├── 📂 data/                    # Static/mock data (for development)
+│   ├── 📂 data/                    # Static/mock data
 │   │   └── 📄 products.json
 │   │
 │   ├── 📂 styles/                  # Global styles
-│   │   └── 📄 globals.css          # Tailwind imports + custom CSS
+│   │   └── 📄 globals.css
 │   │
-│   ├── 📄 App.jsx                  # Main app component with routing
-│   ├── 📄 main.jsx                 # Entry point (ReactDOM render)
+│   ├── 📄 App.jsx                  # Main app component
+│   ├── 📄 main.jsx                 # Entry point
 │   └── 📄 routes.jsx               # Route definitions
 │
 ├── 📄 index.html                   # HTML template
@@ -254,34 +246,19 @@ frontend/
 ├── 📄 .eslintrc.cjs                # ESLint configuration
 ├── 📄 .env.example                 # Environment variables template
 ├── 📄 vercel.json                  # Vercel deployment configuration
-└── 📄 README.md                    # Documentation (this file)
-🔑 Key Files Explained
-File	Purpose
-main.jsx	Entry point, wraps app with providers (Router, Theme, Toast)
-App.jsx	Main component, defines layout structure and route mounting
-vite.config.js	Vite configuration with aliases, plugins, and proxy settings
-tailwind.config.js	Custom theme extensions (colors, fonts, animations)
-store/*.js	Zustand stores with persistence and devtools middleware
+└── 📄 README.md                    # Documentation
 🎨 Development Guidelines
 📝 Code Style & Conventions
 Component Structure
 
 jsx
-// Follow this pattern for all components
 import React from 'react';
 import { motion } from 'framer-motion';
 
 const ComponentName = ({ prop1, prop2 }) => {
-  // Hooks at the top
   const { state, action } = useStore();
-  
-  // Derived state
-  const computedValue = useMemo(() => {}, []);
-  
-  // Event handlers
   const handleClick = () => {};
   
-  // Render
   return <div>...</div>;
 };
 
@@ -292,8 +269,6 @@ Use Tailwind CSS for all styling
 
 Extend theme in tailwind.config.js for custom values
 
-Avoid inline styles unless absolutely necessary
-
 Use clsx for conditional className joining
 
 State Management
@@ -302,15 +277,11 @@ Zustand for global state (auth, cart, wishlist, UI)
 
 Local state with useState for component-specific data
 
-URL state for shareable/deep-linkable data
-
 API Calls
 
 All API calls go through services/*.js
 
 Use the configured Axios instance with interceptors
-
-Handle loading and error states in components
 
 Performance
 
@@ -318,18 +289,6 @@ Lazy load routes using React.lazy()
 
 Use React.memo() for expensive components
 
-Implement useCallback and useMemo appropriately
-
-🧪 Testing (Coming Soon)
-bash
-# Run unit tests
-npm run test
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run E2E tests
-npm run test:e2e
 📝 Commit Messages
 Follow the Conventional Commits format:
 
@@ -344,7 +303,7 @@ test: add cart store unit tests
 chore: update dependencies
 🚢 Deployment
 🌐 Vercel Deployment (Recommended)
-The project includes a vercel.json configuration for seamless deployment:
+The project includes a vercel.json configuration:
 
 json
 {
@@ -357,17 +316,7 @@ Steps to deploy:
 
 Push to GitHub/GitLab/Bitbucket
 
-bash
-git add .
-git commit -m "Ready for production"
-git push origin main
 Import project on Vercel
-
-Go to vercel.com
-
-Click "Add New Project"
-
-Import your repository
 
 Framework Preset: Vite
 
@@ -375,32 +324,16 @@ Add environment variables (from .env)
 
 Click "Deploy"
 
-Automatic Deployments
-
-Every push to main branch triggers a deployment
-
-Preview deployments for PRs
-
 🔧 Manual Build
 bash
 # Create production build
 npm run build
 
-# The build output is in the `dist` directory
-# You can serve it with any static file server:
-
-# Using Vite preview
+# Preview the build
 npm run preview
 
-# Using serve (install globally first)
+# Or serve with any static file server
 npx serve -s dist
-
-# Using nginx, Apache, or any CDN
-📊 Environment-Specific Configurations
-Environment	API_URL	Features Enabled
-Development	http://localhost:5000/api/v1	Full logging, hot reload
-Staging	https://staging-api.furniqo.com/api/v1	Test payments, error tracking
-Production	https://api.furniqo.com/api/v1	Live payments, full monitoring
 ✅ Pre-Deployment Checklist
 All environment variables configured
 
@@ -418,20 +351,7 @@ Analytics events verified
 
 Payment gateways in production mode
 
-SSL certificate valid (automatic with Vercel)
-
-📈 Post-Deployment Monitoring
-Sentry - Track and resolve runtime errors
-
-Google Analytics - Monitor user behavior
-
-Vercel Analytics - Core Web Vitals monitoring
-
-Checkly - Scheduled API endpoint tests
-
 🤝 Contributing
-Contributions are welcome! Please follow these guidelines:
-
 📋 Contribution Guidelines
 Fork the repository
 
@@ -450,14 +370,7 @@ Include browser and OS details
 
 Provide steps to reproduce
 
-Attach screenshots or recordings when possible
-
-💡 Feature Requests
-Check existing issues first
-
-Provide clear use cases and benefits
-
-Consider implementation approach
+Attach screenshots when possible
 
 📄 License
 This project is private and proprietary software.
@@ -470,8 +383,6 @@ Copyright (c) 2026 Furniqo
 Unauthorized copying, distribution, modification, or use of this software,
 via any medium, is strictly prohibited without explicit written permission
 from the copyright holder.
-For licensing inquiries, please contact the development team.
-
 👤 Contact
 <div align="center">
 Furniqo Development Team
@@ -487,8 +398,6 @@ Documentation: docs.furniqo.com
 Issues: GitHub Issues
 
 Email: support@furniqo.com
-
-Status Page: status.furniqo.com
 
 🌟 Browser Support
 Browser	Minimum Version
