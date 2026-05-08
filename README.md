@@ -2,7 +2,7 @@
 
 <div align="center">
   
-  ![Furniqo Logo](https://via.placeholder.com/128x128?text=Furniqo)
+  ![Furniqo Logo](https://raw.githubusercontent.com/bharat-poojari/main/Furniqo/frontend/public/logo.svg)
 
   ### 🌟 Immersive 3D Shopping Experience
 
