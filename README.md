@@ -13,42 +13,49 @@
   [![Vite](https://img.shields.io/badge/Vite-5.0-646CFF?style=for-the-badge&logo=vite)](https://vitejs.dev/)
   
   <p align="center">
-    <a href="#-features"><strong>Features</strong></a> •
-    <a href="#-tech-stack"><strong>Tech Stack</strong></a> •
-    <a href="#-getting-started"><strong>Getting Started</strong></a> •
-    <a href="#-project-structure"><strong>Structure</strong></a> •
-    <a href="#-development"><strong>Development</strong></a> •
-    <a href="#-deployment"><strong>Deployment</strong></a>
+    <a href="#features"><strong>Features</strong></a> •
+    <a href="#tech-stack"><strong>Tech Stack</strong></a> •
+    <a href="#getting-started"><strong>Getting Started</strong></a> •
+    <a href="#project-structure"><strong>Structure</strong></a> •
+    <a href="#development"><strong>Development</strong></a> •
+    <a href="#deployment"><strong>Deployment</strong></a>
   </p>
 </div>
 
+---
+
 ## 📋 Table of Contents
 
-- [🛋️ Overview](#️-overview)
-- [✨ Features](#-features)
-- [🛠️ Tech Stack](#️-tech-stack)
-- [🚀 Getting Started](#-getting-started)
-- [📁 Project Structure](#-project-structure)
-- [🎨 Development Guidelines](#-development-guidelines)
-- [🚢 Deployment](#-deployment)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
-- [👤 Contact](#-contact)
+- [Overview](#overview)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
+- [Development Guidelines](#development-guidelines)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
 
-## 🛋️ Overview
+---
+
+## Overview
 
 **Furniqo** is a premium furniture e-commerce platform that redefines online shopping through immersive 3D product visualization. Built with a modern React stack, it offers a seamless, responsive experience that bridges the gap between digital browsing and physical product evaluation.
 
-### 🎯 Key Benefits
+### Key Benefits
+
 - **Immersive 3D Views** - Examine furniture from every angle before purchase
 - **Lightning Fast** - Vite-powered builds for near-instant page loads
 - **Dark Mode Ready** - Eye-friendly interface for any lighting condition
 - **Smooth Animations** - Framer Motion powers delightful micro-interactions
 - **Production Optimized** - Code splitting, lazy loading, and efficient state management
 
-## ✨ Features
+---
 
-### 🚀 **Core Capabilities**
+## Features
+
+### Core Capabilities
 
 | Feature | Description | Status |
 |---------|-------------|--------|
@@ -62,14 +69,15 @@
 | **📦 Order Tracking** | Real-time order status updates | ✅ |
 | **⭐ Reviews & Ratings** | User-generated product feedback system | ✅ |
 
-### 🎨 **Advanced Features**
+### Advanced Features
+
 - **Smooth Page Transitions** - Animated route changes with Framer Motion
 - **Toast Notifications** - Non-intrusive feedback system
 - **Form Validation** - Robust client-side validation for all forms
 - **Error Tracking** - Sentry integration for production error monitoring
 - **Analytics** - Google Analytics for user behavior insights
 
-### 🔧 **Technical Capabilities**
+### Technical Capabilities
 
 | Operation | Description |
 |-----------|-------------|
@@ -79,9 +87,11 @@
 | **API Caching** | Intelligent request deduplication |
 | **Lazy Loading** | On-demand component loading for performance |
 
-## 🛠️ Tech Stack
+---
 
-### 📊 **Core Framework & Libraries**
+## Tech Stack
+
+### Core Framework & Libraries
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
@@ -92,7 +102,7 @@
 | **Zustand** | 4.5 | State management |
 | **Framer Motion** | 11.0 | Animations |
 
-### 🎨 **3D Graphics**
+### 3D Graphics
 
 | Library | Version | Purpose |
 |---------|---------|---------|
@@ -100,7 +110,7 @@
 | **@react-three/fiber** | 8.15 | React renderer for Three.js |
 | **@react-three/drei** | 9.92 | Useful Three.js helpers |
 
-### 🔧 **Utilities & Services**
+### Utilities & Services
 
 | Library | Version | Purpose |
 |---------|---------|---------|
@@ -111,7 +121,7 @@
 | **date-fns** | 3.3 | Date formatting |
 | **clsx** | 2.1 | Conditional className utility |
 
-### 📈 **Analytics & Monitoring**
+### Analytics & Monitoring
 
 | Service | Purpose |
 |---------|---------|
@@ -119,21 +129,23 @@
 | **Google Analytics** | User behavior analytics |
 | **Algolia** | Instant search and filtering |
 
-### 💳 **Payments**
+### Payments
 
 | Service | Purpose |
 |---------|---------|
 | **Razorpay** | Indian payment gateway |
 | **Stripe** | International payment processing |
 
-## 🚀 Getting Started
+---
 
-### ✅ **Prerequisites**
+## Getting Started
+
+### Prerequisites
 
 - **Node.js** >= 18.0.0
 - **npm** or **yarn** or **pnpm**
 
-### 📦 **Installation**
+### Installation
 
 ```bash
 # 1. Clone the repository
@@ -145,10 +157,13 @@ npm install
 
 # 3. Set up environment variables (see below)
 cp .env.example .env
-🔐 Environment Variables
-Create a .env file in the frontend directory:
+```
 
-env
+### Environment Variables
+
+Create a `.env` file in the `frontend` directory:
+
+```env
 # API Configuration
 VITE_API_URL=http://localhost:5000/api/v1
 
@@ -168,21 +183,34 @@ VITE_GA_TRACKING_ID=G-XXXXXXXXXX
 # App Configuration
 VITE_APP_URL=http://localhost:3000
 VITE_APP_ENV=development
-⚡ Available Scripts
-Command	Description	Port
-npm run dev	Start development server	http://localhost:3000
-npm run build	Create production build	dist/ directory
-npm run preview	Preview production build	http://localhost:4173
-npm run lint	Run ESLint for code quality	-
-🎯 First Run
-bash
+```
+
+### Available Scripts
+
+| Command | Description | Port |
+|---------|-------------|------|
+| `npm run dev` | Start development server | http://localhost:3000 |
+| `npm run build` | Create production build | `dist/` directory |
+| `npm run preview` | Preview production build | http://localhost:4173 |
+| `npm run lint` | Run ESLint for code quality | - |
+
+### First Run
+
+```bash
 # Start the development server
 npm run dev
 
 # Open your browser to:
 # http://localhost:3000
-📁 Project Structure
-text
+```
+
+You should see the Furniqo homepage with the 3D hero section and product listings.
+
+---
+
+## Project Structure
+
+```
 frontend/
 ├── 📂 public/                      # Static assets
 │   ├── 📂 models/                  # 3D model files (.glb, .gltf)
@@ -190,12 +218,12 @@ frontend/
 │
 ├── 📂 src/
 │   ├── 📂 components/              # Reusable UI components
-│   │   ├── 📂 ui/                  # Basic UI primitives
-│   │   ├── 📂 layout/              # Layout components
+│   │   ├── 📂 ui/                  # Basic UI primitives (Button, Card, Modal)
+│   │   ├── 📂 layout/              # Layout components (Header, Footer, Sidebar)
 │   │   ├── 📂 product/             # Product-specific components
-│   │   └── 📂 3d/                  # Three.js components
+│   │   └── 📂 3d/                  # Three.js components (ModelViewer, Scene)
 │   │
-│   ├── 📂 pages/                   # Page components
+│   ├── 📂 pages/                   # Page components (route-level)
 │   │   ├── 📄 Home.jsx
 │   │   ├── 📄 Shop.jsx
 │   │   ├── 📄 ProductDetail.jsx
@@ -218,24 +246,24 @@ frontend/
 │   │   └── 📄 uiStore.js
 │   │
 │   ├── 📂 services/                # API service functions
-│   │   ├── 📄 api.js
+│   │   ├── 📄 api.js               # Axios instance configuration
 │   │   ├── 📄 productService.js
 │   │   ├── 📄 orderService.js
 │   │   └── 📄 authService.js
 │   │
 │   ├── 📂 utils/                   # Utility functions
-│   │   ├── 📄 formatters.js
-│   │   ├── 📄 validators.js
-│   │   └── 📄 constants.js
+│   │   ├── 📄 formatters.js        # Price, date, etc. formatting
+│   │   ├── 📄 validators.js        # Form validation rules
+│   │   └── 📄 constants.js         # App-wide constants
 │   │
-│   ├── 📂 data/                    # Static/mock data
+│   ├── 📂 data/                    # Static/mock data (for development)
 │   │   └── 📄 products.json
 │   │
 │   ├── 📂 styles/                  # Global styles
-│   │   └── 📄 globals.css
+│   │   └── 📄 globals.css          # Tailwind imports + custom CSS
 │   │
-│   ├── 📄 App.jsx                  # Main app component
-│   ├── 📄 main.jsx                 # Entry point
+│   ├── 📄 App.jsx                  # Main app component with routing
+│   ├── 📄 main.jsx                 # Entry point (ReactDOM render)
 │   └── 📄 routes.jsx               # Route definitions
 │
 ├── 📄 index.html                   # HTML template
@@ -246,53 +274,138 @@ frontend/
 ├── 📄 .eslintrc.cjs                # ESLint configuration
 ├── 📄 .env.example                 # Environment variables template
 ├── 📄 vercel.json                  # Vercel deployment configuration
-└── 📄 README.md                    # Documentation
-🎨 Development Guidelines
-📝 Code Style & Conventions
-Component Structure
+└── 📄 README.md                    # Documentation (this file)
+```
 
-jsx
+### Key Files Explained
+
+| File | Purpose |
+|------|---------|
+| `main.jsx` | Entry point, wraps app with providers (Router, Theme, Toast) |
+| `App.jsx` | Main component, defines layout structure and route mounting |
+| `vite.config.js` | Vite configuration with aliases, plugins, and proxy settings |
+| `tailwind.config.js` | Custom theme extensions (colors, fonts, animations) |
+| `store/*.js` | Zustand stores with persistence and devtools middleware |
+
+---
+
+## Development Guidelines
+
+### Code Style & Conventions
+
+**1. Component Structure**
+
+```jsx
 import React from 'react';
 import { motion } from 'framer-motion';
 
 const ComponentName = ({ prop1, prop2 }) => {
+  // Hooks at the top
   const { state, action } = useStore();
+  
+  // Derived state
+  const computedValue = useMemo(() => {}, []);
+  
+  // Event handlers
   const handleClick = () => {};
   
-  return <div>...</div>;
+  // Render
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      {/* Component content */}
+    </motion.div>
+  );
 };
 
 export default ComponentName;
-Styling Rules
+```
 
-Use Tailwind CSS for all styling
+**2. Styling Rules**
 
-Extend theme in tailwind.config.js for custom values
+- Use Tailwind CSS for all styling
+- Extend theme in `tailwind.config.js` for custom values
+- Avoid inline styles unless absolutely necessary
+- Use `clsx` for conditional className joining
 
-Use clsx for conditional className joining
+```jsx
+import clsx from 'clsx';
 
-State Management
+<div className={clsx(
+  'base-class',
+  isActive && 'active-class',
+  isDisabled && 'opacity-50'
+)}>
+```
 
-Zustand for global state (auth, cart, wishlist, UI)
+**3. State Management**
 
-Local state with useState for component-specific data
+```jsx
+// Zustand store example
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
-API Calls
+const useCartStore = create(
+  persist(
+    (set, get) => ({
+      items: [],
+      addItem: (item) => set((state) => ({ 
+        items: [...state.items, item] 
+      })),
+      removeItem: (id) => set((state) => ({ 
+        items: state.items.filter(item => item.id !== id) 
+      })),
+    }),
+    { name: 'cart-storage' }
+  )
+);
+```
 
-All API calls go through services/*.js
+**4. API Calls**
 
-Use the configured Axios instance with interceptors
+```jsx
+// services/api.js
+import axios from 'axios';
 
-Performance
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  timeout: 10000,
+});
 
-Lazy load routes using React.lazy()
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-Use React.memo() for expensive components
+export default api;
+```
 
-📝 Commit Messages
-Follow the Conventional Commits format:
+**5. Performance Optimization**
 
-text
+- Lazy load routes using `React.lazy()`
+- Use `React.memo()` for expensive components
+- Implement `useCallback` and `useMemo` appropriately
+- Use code splitting for large bundles
+
+```jsx
+// Lazy load route components
+const ProductDetail = React.lazy(() => import('./pages/ProductDetail'));
+
+// Memoize expensive components
+export default React.memo(ExpensiveComponent);
+```
+
+### Commit Messages
+
+Follow the [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+```bash
 feat: add 3D product viewer
 fix: resolve cart persistence issue
 docs: update README with deployment guide
@@ -301,81 +414,144 @@ refactor: extract product card component
 perf: implement image lazy loading
 test: add cart store unit tests
 chore: update dependencies
-🚢 Deployment
-🌐 Vercel Deployment (Recommended)
-The project includes a vercel.json configuration:
+```
 
-json
+---
+
+## Deployment
+
+### Vercel Deployment (Recommended)
+
+The project includes a `vercel.json` configuration:
+
+```json
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "devCommand": "npm run dev",
   "installCommand": "npm install"
 }
-Steps to deploy:
+```
 
-Push to GitHub/GitLab/Bitbucket
+**Steps to deploy:**
 
-Import project on Vercel
+1. Push to GitHub/GitLab/Bitbucket
+```bash
+git add .
+git commit -m "Ready for production"
+git push origin main
+```
 
-Framework Preset: Vite
+2. Import project on [Vercel](https://vercel.com)
+   - Click "Add New Project"
+   - Import your repository
+   - Framework Preset: Vite
+   - Add environment variables (from `.env`)
+   - Click "Deploy"
 
-Add environment variables (from .env)
+3. Automatic Deployments
+   - Every push to `main` branch triggers a deployment
+   - Preview deployments for PRs
 
-Click "Deploy"
+### Manual Build
 
-🔧 Manual Build
-bash
+```bash
 # Create production build
 npm run build
 
-# Preview the build
+# Preview the build locally
 npm run preview
 
 # Or serve with any static file server
 npx serve -s dist
-✅ Pre-Deployment Checklist
-All environment variables configured
 
-API endpoints pointing to production
+# Using Python HTTP server
+python -m http.server 3000 --directory dist
+```
 
-3D models optimized and compressed
+### Environment-Specific Configurations
 
-Images optimized (use WebP format)
+| Environment | API_URL | Features Enabled |
+|-------------|---------|------------------|
+| Development | `http://localhost:5000/api/v1` | Full logging, hot reload |
+| Staging | `https://staging-api.furniqo.com/api/v1` | Test payments, error tracking |
+| Production | `https://api.furniqo.com/api/v1` | Live payments, full monitoring |
 
-Lighthouse score > 90
+### Pre-Deployment Checklist
 
-Error boundaries tested
+- [ ] All environment variables configured
+- [ ] API endpoints pointing to production
+- [ ] 3D models optimized and compressed
+- [ ] Images optimized (use WebP format)
+- [ ] Lighthouse score > 90
+- [ ] Error boundaries tested
+- [ ] Analytics events verified
+- [ ] Payment gateways in production mode
+- [ ] SSL certificate valid (automatic with Vercel)
 
-Analytics events verified
+### Post-Deployment Monitoring
 
-Payment gateways in production mode
+- **Sentry** - Track and resolve runtime errors
+- **Google Analytics** - Monitor user behavior
+- **Vercel Analytics** - Core Web Vitals monitoring
 
-🤝 Contributing
-📋 Contribution Guidelines
-Fork the repository
+---
 
-Create a feature branch (git checkout -b feature/amazing-feature)
+## Contributing
 
-Commit your changes (git commit -m 'feat: add amazing feature')
+### Contribution Guidelines
 
-Push to branch (git push origin feature/amazing-feature)
+1. Fork the repository
+2. Create a feature branch
+```bash
+git checkout -b feature/amazing-feature
+```
 
-Open a Pull Request
+3. Commit your changes
+```bash
+git commit -m 'feat: add amazing feature'
+```
 
-🐛 Reporting Issues
-Use the GitHub Issues page
+4. Push to the branch
+```bash
+git push origin feature/amazing-feature
+```
 
-Include browser and OS details
+5. Open a Pull Request
 
-Provide steps to reproduce
+### Reporting Issues
 
-Attach screenshots when possible
+- Use the [GitHub Issues](https://github.com/your-org/furniqo/issues) page
+- Include browser and OS details
+- Provide steps to reproduce
+- Attach screenshots or recordings when possible
 
-📄 License
-This project is private and proprietary software.
+### Feature Requests
 
-text
+- Check existing issues first
+- Clearly describe the feature and use case
+- Consider implementation approach
+
+---
+
+## Browser Support
+
+| Browser | Minimum Version |
+|---------|-----------------|
+| Chrome | Latest 2 versions |
+| Firefox | Latest 2 versions |
+| Safari | Latest 2 versions |
+| Edge | Latest 2 versions |
+
+*3D features require WebGL support*
+
+---
+
+## License
+
+This project is **private and proprietary** software.
+
+```
 PROPRIETARY SOFTWARE
 
 Copyright (c) 2026 Furniqo
@@ -383,38 +559,44 @@ Copyright (c) 2026 Furniqo
 Unauthorized copying, distribution, modification, or use of this software,
 via any medium, is strictly prohibited without explicit written permission
 from the copyright holder.
-👤 Contact
+```
+
+For licensing inquiries, please contact the development team.
+
+---
+
+## Contact
+
 <div align="center">
-Furniqo Development Team
-https://img.shields.io/badge/Website-furniqo.com-blue?style=for-the-badge&logo=vercel
-https://img.shields.io/badge/Email-support%2540furniqo.com-red?style=for-the-badge&logo=gmail
-https://img.shields.io/badge/Twitter-@furniqo-1DA1F2?style=for-the-badge&logo=twitter
-https://img.shields.io/badge/LinkedIn-Furniqo-0077B5?style=for-the-badge&logo=linkedin
+
+### Furniqo Development Team
+
+[![Website](https://img.shields.io/badge/Website-furniqo.com-blue?style=for-the-badge&logo=vercel)](https://furniqo.com)
+[![Email](https://img.shields.io/badge/Email-support%40furniqo.com-red?style=for-the-badge&logo=gmail)](mailto:support@furniqo.com)
+[![Twitter](https://img.shields.io/badge/Twitter-@furniqo-1DA1F2?style=for-the-badge&logo=twitter)](https://twitter.com/furniqo)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Furniqo-0077B5?style=for-the-badge&logo=linkedin)](https://linkedin.com/company/furniqo)
 
 </div>
-📞 Support
-Documentation: docs.furniqo.com
 
-Issues: GitHub Issues
+### Support
 
-Email: support@furniqo.com
+- **Documentation**: [docs.furniqo.com](https://docs.furniqo.com)
+- **Issues**: [GitHub Issues](https://github.com/your-org/furniqo/issues)
+- **Email**: support@furniqo.com
+- **Status Page**: [status.furniqo.com](https://status.furniqo.com)
 
-🌟 Browser Support
-Browser	Minimum Version
-Chrome	Latest 2 versions
-Firefox	Latest 2 versions
-Safari	Latest 2 versions
-Edge	Latest 2 versions
-3D features require WebGL support
+---
 
 <div align="center">
-🛋️ Transform Your Space. Digitally.
-https://img.shields.io/badge/Made%2520with-React-61DAFB?style=for-the-badge&logo=react
-https://img.shields.io/badge/3D-Powered-000000?style=for-the-badge&logo=three.js
-https://img.shields.io/badge/Built%2520with-Vite-646CFF?style=for-the-badge&logo=vite
 
-© 2026 Furniqo. All rights reserved.
+### 🛋️ Transform Your Space. Digitally.
 
-Experience furniture like never before — in stunning 3D.
+[![Made with React](https://img.shields.io/badge/Made%20with-React-61DAFB?style=for-the-badge&logo=react)](https://reactjs.org/)
+[![3D Powered](https://img.shields.io/badge/3D-Powered-000000?style=for-the-badge&logo=three.js)](https://threejs.org/)
+[![Built with Vite](https://img.shields.io/badge/Built%20with-Vite-646CFF?style=for-the-badge&logo=vite)](https://vitejs.dev/)
+
+**© 2026 Furniqo. All rights reserved.**
+
+*Experience furniture like never before — in stunning 3D.*
 
 </div>
