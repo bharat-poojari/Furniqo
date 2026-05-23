@@ -18,7 +18,7 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Add timestamp to prevent caching
+    // Add timestamp to prevent caching for GET requests
     if (config.method === 'get') {
       config.params = {
         ...config.params,
@@ -48,13 +48,13 @@ api.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('furniqo_refresh_token');
         if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+          const response = await axios.post(`${API_BASE_URL}/users/refresh-token`, {
             refreshToken,
           });
           
-          const { token } = response.data.data;
-          localStorage.setItem('furniqo_token', token);
-          originalRequest.headers.Authorization = `Bearer ${token}`;
+          const { accessToken } = response.data.data;
+          localStorage.setItem('furniqo_token', accessToken);
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           
           return api(originalRequest);
         }
@@ -71,20 +71,27 @@ api.interceptors.response.use(
   }
 );
 
-// Product API
+// Product API - Fixed to use filtering instead of non-existent endpoints
 export const productAPI = {
+  // Main product endpoints
   getAll: (params = {}) => api.get('/products', { params }),
   getOne: (slug) => api.get(`/products/${slug}`),
-  getById: (id) => api.get(`/products/id/${id}`),
-  getFeatured: (limit = 8) => api.get('/products/featured', { params: { limit } }),
-  getTrending: (limit = 8) => api.get('/products/trending', { params: { limit } }),
-  getBestSellers: (limit = 8) => api.get('/products/bestsellers', { params: { limit } }),
-  getNewArrivals: (limit = 8) => api.get('/products/new-arrivals', { params: { limit } }),
-  getOnSale: (limit = 12) => api.get('/products/on-sale', { params: { limit } }),
+  getById: (id) => api.get(`/products/${id}`),
+  
+  // Filtered product endpoints (using the main endpoint with filters)
+  getFeatured: (limit = 8) => api.get('/products', { params: { featured: 'true', limit } }),
+  getTrending: (limit = 8) => api.get('/products', { params: { trending: 'true', limit } }),
+  getBestSellers: (limit = 8) => api.get('/products', { params: { bestSeller: 'true', limit } }),
+  getNewArrivals: (limit = 8) => api.get('/products', { params: { newArrival: 'true', limit } }),
+  getOnSale: (limit = 12) => api.get('/products', { params: { onSale: 'true', limit } }),
+  
+  // Additional endpoints
   getRelated: (productId, limit = 4) => api.get(`/products/${productId}/related`, { params: { limit } }),
   getRecommended: (limit = 6) => api.get('/products/recommended', { params: { limit } }),
-  search: (query, params = {}) => api.get('/products/search', { params: { q: query, ...params } }),
-  getByCategory: (category, params = {}) => api.get(`/products/category/${category}`, { params }),
+  search: (query, params = {}) => api.get('/products', { params: { search: query, ...params } }),
+  getByCategory: (category, params = {}) => api.get('/products', { params: { category, ...params } }),
+  
+  // Admin endpoints
   uploadImage: (formData) => api.post('/products/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
@@ -95,15 +102,17 @@ export const productAPI = {
 
 // Auth API
 export const authAPI = {
-  login: (credentials) => api.post('/auth/login', credentials),
-  signup: (userData) => api.post('/auth/signup', userData),
-  logout: () => api.post('/auth/logout'),
-  getProfile: () => api.get('/auth/profile'),
-  updateProfile: (data) => api.put('/auth/profile', data),
-  changePassword: (passwords) => api.put('/auth/change-password', passwords),
-  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
-  resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
-  verifyEmail: (token) => api.post('/auth/verify-email', { token }),
+  login: (credentials) => api.post('/users/login', credentials),
+  signup: (userData) => api.post('/users/register', userData),
+  refreshToken: (refreshToken) => api.post('/users/refresh-token', { refreshToken }),
+  logout: (refreshToken) => api.post('/users/logout', refreshToken ? { refreshToken } : {}),
+  getProfile: () => api.get('/users/profile'),
+  updateProfile: (data) => api.put('/users/profile', data),
+  changePassword: (passwords) => api.put('/users/change-password', passwords),
+  forgotPassword: (email) => api.post('/users/forgot-password', { email }),
+  sendOTP: (email) => api.post('/users/forgot-password', { email }),
+  resetPassword: (token, password) => api.post('/users/reset-password', { token, newPassword: password }),
+  verifyEmail: (token) => api.get(`/users/verify-email/${token}`),
   googleLogin: (token) => api.post('/auth/google', { token }),
   facebookLogin: (token) => api.post('/auth/facebook', { token }),
   getAddresses: () => api.get('/auth/addresses'),
@@ -115,23 +124,22 @@ export const authAPI = {
 // Cart API
 export const cartAPI = {
   getCart: () => api.get('/cart'),
-  addItem: (productId, quantity = 1, variant = null) => api.post('/cart/items', { productId, quantity, variant }),
-  updateItem: (itemId, quantity) => api.put(`/cart/items/${itemId}`, { quantity }),
-  removeItem: (itemId) => api.delete(`/cart/items/${itemId}`),
-  clearCart: () => api.delete('/cart'),
-  applyCoupon: (code) => api.post('/cart/coupon', { code }),
-  removeCoupon: () => api.delete('/cart/coupon'),
-  getShippingEstimate: (address) => api.post('/cart/shipping-estimate', address),
+  addItem: (productId, quantity = 1, variant = null) => api.post('/cart/add', { productId, quantity, variant }),
+  updateItem: (itemId, quantity) => api.put(`/cart/update/${itemId}`, { quantity }),
+  removeItem: (itemId) => api.delete(`/cart/remove/${itemId}`),
+  clearCart: () => api.delete('/cart/clear'),
+  syncCart: (items) => api.post('/cart/sync', { items }),
 };
 
 // Wishlist API
 export const wishlistAPI = {
   getWishlist: () => api.get('/wishlist'),
-  addItem: (productId) => api.post('/wishlist', { productId }),
-  removeItem: (productId) => api.delete(`/wishlist/${productId}`),
+  addItem: (productId) => api.post('/wishlist/add', { productId }),
+  removeItem: (productId) => api.delete(`/wishlist/remove/${productId}`),
   isWishlisted: (productId) => api.get(`/wishlist/check/${productId}`),
-  moveToCart: (productId) => api.post(`/wishlist/move-to-cart/${productId}`),
-  clearWishlist: () => api.delete('/wishlist'),
+  moveToCart: (productIds) => api.post('/wishlist/move-to-cart', {
+    productIds: Array.isArray(productIds) ? productIds : [productIds],
+  }),
 };
 
 // Order API
@@ -181,13 +189,14 @@ export const searchAPI = {
 
 // Content API
 export const contentAPI = {
-  getCategories: () => api.get('/content/categories'),
-  getBlogPosts: (params = {}) => api.get('/content/blog', { params }),
-  getBlogPost: (slug) => api.get(`/content/blog/${slug}`),
-  getFAQs: () => api.get('/content/faqs'),
-  getPolicies: () => api.get('/content/policies'),
-  getTestimonials: () => api.get('/content/testimonials'),
-  getRooms: () => api.get('/content/rooms'),
+  getCategories: () => api.get('/categories'),
+  getBlogPosts: (params = {}) => api.get('/blog', { params }),
+  getBlogPost: (slug) => api.get(`/blog/${slug}`),
+  getFAQs: () => api.get('/faqs'),
+  getPolicies: () => api.get('/policies'),
+  getTestimonials: () => api.get('/testimonials'),
+  getRooms: () => api.get('/rooms'),
+  getHeroSlides: () => api.get('/hero-slides'),
 };
 
 // Payment API

@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiChevronDown, FiCheck, FiRefreshCw, FiX, FiStar, FiSliders } from 'react-icons/fi';
 import { cn } from '../../utils/cn';
+import apiWrapper from '../../services/apiWrapper';
 
 const SORT_OPTIONS = [
   { value: 'featured', label: 'Featured' },
@@ -11,21 +12,6 @@ const SORT_OPTIONS = [
   { value: 'rating', label: 'Highest Rated' },
   { value: 'discount', label: 'Biggest Discount' },
 ];
-
-// Memoized filter options outside component to prevent recreation
-const FILTER_OPTIONS = {
-  categories: ['Living Room', 'Bedroom', 'Dining', 'Office', 'Outdoor', 'Lighting', 'Decor', 'Storage'],
-  materials: ['Wood', 'Metal', 'Glass', 'Fabric', 'Leather', 'Marble'],
-  colors: [
-    { value: 'black', label: 'Black', hex: '#1a1a1a' },
-    { value: 'white', label: 'White', hex: '#ffffff' },
-    { value: 'brown', label: 'Brown', hex: '#8b4513' },
-    { value: 'gray', label: 'Gray', hex: '#808080' },
-    { value: 'blue', label: 'Blue', hex: '#4169e1' },
-    { value: 'green', label: 'Green', hex: '#2e8b57' },
-    { value: 'red', label: 'Red', hex: '#dc2626' },
-  ],
-};
 
 // Memoized filter section component
 const FilterSection = memo(({ title, isOpen, onToggle, children }) => (
@@ -162,7 +148,7 @@ const Radio = memo(({ checked, onChange, children }) => (
 
 Radio.displayName = 'Radio';
 
-const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSort, totalResults, onToggle, isMobile }) => {
+const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSort, totalResults, onToggle, isMobile, isDesktopOpen = false, onDesktopToggle }) => {
   const [localPriceRange, setLocalPriceRange] = useState({ min: filters.minPrice ?? '', max: filters.maxPrice ?? '' });
   const [openSections, setOpenSections] = useState({
     sort: true,
@@ -173,19 +159,140 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
     material: true,
     color: true,
   });
+  const [filterOptions, setFilterOptions] = useState({
+    categories: [],
+    materials: [],
+    colors: [],
+  });
+  const [loadingFilters, setLoadingFilters] = useState(true);
   const priceTimeoutRef = useRef(null);
   const scrollContainerRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const isMountedRef = useRef(true);
 
-  // Handle body scroll for mobile
+  // Fetch filter options from API
   useEffect(() => {
-    if (isMobile && scrollContainerRef.current) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [isMobile]);
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      setLoadingFilters(true);
+      
+      try {
+        const categoriesResponse = await apiWrapper.getCategories();
+        let categoriesData = [];
+        if (categoriesResponse?.data?.success && categoriesResponse.data.data) {
+          categoriesData = categoriesResponse.data.data.map(cat => cat.name);
+        } else if (Array.isArray(categoriesResponse)) {
+          categoriesData = categoriesResponse.map(cat => cat.name);
+        } else if (categoriesResponse?.data && Array.isArray(categoriesResponse.data)) {
+          categoriesData = categoriesResponse.data.map(cat => cat.name);
+        }
+        
+        const productsResponse = await apiWrapper.getProducts({ limit: 100 });
+        let productsData = [];
+        if (productsResponse?.data?.success && productsResponse.data.data) {
+          productsData = productsResponse.data.data;
+        } else if (Array.isArray(productsResponse)) {
+          productsData = productsResponse;
+        } else if (productsResponse?.data && Array.isArray(productsResponse.data)) {
+          productsData = productsResponse.data;
+        }
+        
+        const materialsSet = new Set();
+        const colorsSet = new Set();
+        
+        productsData.forEach(product => {
+          if (product.material) {
+            materialsSet.add(product.material);
+          }
+          if (product.color) {
+            colorsSet.add(product.color);
+          }
+        });
+        
+        const colorMap = {
+          'black': { value: 'black', label: 'Black', hex: '#1a1a1a' },
+          'white': { value: 'white', label: 'White', hex: '#ffffff' },
+          'brown': { value: 'brown', label: 'Brown', hex: '#8b4513' },
+          'gray': { value: 'gray', label: 'Gray', hex: '#808080' },
+          'grey': { value: 'gray', label: 'Gray', hex: '#808080' },
+          'blue': { value: 'blue', label: 'Blue', hex: '#4169e1' },
+          'green': { value: 'green', label: 'Green', hex: '#2e8b57' },
+          'red': { value: 'red', label: 'Red', hex: '#dc2626' },
+          'yellow': { value: 'yellow', label: 'Yellow', hex: '#eab308' },
+          'purple': { value: 'purple', label: 'Purple', hex: '#9333ea' },
+          'pink': { value: 'pink', label: 'Pink', hex: '#ec4899' },
+          'orange': { value: 'orange', label: 'Orange', hex: '#f97316' },
+          'beige': { value: 'beige', label: 'Beige', hex: '#f5f5dc' },
+          'navy': { value: 'navy', label: 'Navy', hex: '#1e3a8a' },
+          'gold': { value: 'gold', label: 'Gold', hex: '#d4af37' },
+          'silver': { value: 'silver', label: 'Silver', hex: '#c0c0c0' },
+        };
+        
+        const colorsArray = Array.from(colorsSet)
+          .map(color => {
+            const colorKey = color?.toLowerCase();
+            return colorMap[colorKey] || { value: colorKey, label: color, hex: '#999' };
+          })
+          .filter(c => c.value);
+        
+        if (isMountedRef.current) {
+          setFilterOptions({
+            categories: categoriesData.length > 0 ? categoriesData : [
+              'Living Room', 'Bedroom', 'Dining', 'Office', 'Outdoor', 'Lighting', 'Decor', 'Storage'
+            ],
+            materials: Array.from(materialsSet).length > 0 ? Array.from(materialsSet) : [
+              'Wood', 'Metal', 'Glass', 'Fabric', 'Leather', 'Marble'
+            ],
+            colors: colorsArray.length > 0 ? colorsArray : [
+              { value: 'black', label: 'Black', hex: '#1a1a1a' },
+              { value: 'white', label: 'White', hex: '#ffffff' },
+              { value: 'brown', label: 'Brown', hex: '#8b4513' },
+              { value: 'gray', label: 'Gray', hex: '#808080' },
+              { value: 'blue', label: 'Blue', hex: '#4169e1' },
+              { value: 'green', label: 'Green', hex: '#2e8b57' },
+              { value: 'red', label: 'Red', hex: '#dc2626' },
+            ],
+          });
+        }
+      } catch (error) {
+        if (isMountedRef.current && error.name !== 'AbortError') {
+          console.warn('Failed to fetch filter options, using defaults:', error);
+          setFilterOptions({
+            categories: ['Living Room', 'Bedroom', 'Dining', 'Office', 'Outdoor', 'Lighting', 'Decor', 'Storage'],
+            materials: ['Wood', 'Metal', 'Glass', 'Fabric', 'Leather', 'Marble'],
+            colors: [
+              { value: 'black', label: 'Black', hex: '#1a1a1a' },
+              { value: 'white', label: 'White', hex: '#ffffff' },
+              { value: 'brown', label: 'Brown', hex: '#8b4513' },
+              { value: 'gray', label: 'Gray', hex: '#808080' },
+              { value: 'blue', label: 'Blue', hex: '#4169e1' },
+              { value: 'green', label: 'Green', hex: '#2e8b57' },
+              { value: 'red', label: 'Red', hex: '#dc2626' },
+            ],
+          });
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setLoadingFilters(false);
+        }
+      }
+    };
+    
+    fetchFilterOptions();
+  }, []);
 
   // Sync local price range with props
   useEffect(() => {
@@ -220,25 +327,43 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
       updatedValues = [...currentValues, value];
     }
     onFilterChange({ ...filters, [type]: updatedValues.length > 0 ? updatedValues : undefined });
-  }, [filters, onFilterChange]);
+    // Auto-close desktop filter after applying
+    if (!isMobile && onDesktopToggle) {
+      setTimeout(() => onDesktopToggle(), 100);
+    }
+  }, [filters, onFilterChange, isMobile, onDesktopToggle]);
 
   const handleRadioChange = useCallback((type, value) => {
     onFilterChange({ ...filters, [type]: filters[type] === value ? undefined : value });
-  }, [filters, onFilterChange]);
+    // Auto-close desktop filter after applying
+    if (!isMobile && onDesktopToggle) {
+      setTimeout(() => onDesktopToggle(), 100);
+    }
+  }, [filters, onFilterChange, isMobile, onDesktopToggle]);
 
   const handleSortSelect = useCallback((value) => {
     onSortChange(value);
-  }, [onSortChange]);
+    // Auto-close desktop filter after sorting
+    if (!isMobile && onDesktopToggle) {
+      setTimeout(() => onDesktopToggle(), 100);
+    }
+  }, [onSortChange, isMobile, onDesktopToggle]);
 
   const handleInStockToggle = useCallback(() => {
     onFilterChange({ ...filters, inStock: !filters.inStock ? true : undefined });
-  }, [filters, onFilterChange]);
+    if (!isMobile && onDesktopToggle) {
+      setTimeout(() => onDesktopToggle(), 100);
+    }
+  }, [filters, onFilterChange, isMobile, onDesktopToggle]);
 
   const handleResetFilters = useCallback(() => {
     setLocalPriceRange({ min: '', max: '' });
     onFilterChange({});
     if (onSortChange) onSortChange('featured');
-  }, [onFilterChange, onSortChange]);
+    if (!isMobile && onDesktopToggle) {
+      setTimeout(() => onDesktopToggle(), 100);
+    }
+  }, [onFilterChange, onSortChange, isMobile, onDesktopToggle]);
 
   const toggleSection = useCallback((section) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -247,9 +372,9 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
   // Memoized active filter count
   const activeCount = useMemo(() => {
     let count = 0;
-    if (filters.categories?.length) count++;
-    if (filters.materials?.length) count++;
-    if (filters.colors?.length) count++;
+    if (filters.categories?.length) count += filters.categories.length;
+    if (filters.materials?.length) count += filters.materials.length;
+    if (filters.colors?.length) count += filters.colors.length;
     if (filters.minPrice || filters.maxPrice) count++;
     if (filters.minRating) count++;
     if (filters.minDiscount) count++;
@@ -257,7 +382,6 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
     return count;
   }, [filters]);
 
-  // Memoized rating options
   const ratingOptions = useMemo(() => [4, 3, 2], []);
   const discountOptions = useMemo(() => [20, 30, 40, 50], []);
 
@@ -279,7 +403,7 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
         onToggle={() => toggleSection('categories')}
       >
         <div className="space-y-2">
-          {FILTER_OPTIONS.categories.map(category => (
+          {filterOptions.categories.map(category => (
             <Checkbox 
               key={category}
               checked={(filters.categories || []).includes(category)} 
@@ -374,7 +498,7 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
         onToggle={() => toggleSection('material')}
       >
         <div className="space-y-2">
-          {FILTER_OPTIONS.materials.map(material => (
+          {filterOptions.materials.map(material => (
             <Checkbox 
               key={material}
               checked={(filters.materials || []).includes(material)} 
@@ -392,7 +516,7 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
         onToggle={() => toggleSection('color')}
       >
         <div className="flex flex-wrap gap-3 pb-2">
-          {FILTER_OPTIONS.colors.map(color => {
+          {filterOptions.colors.map(color => {
             const isSelected = (filters.colors || []).includes(color.value);
             return (
               <button 
@@ -414,76 +538,132 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
         </div>
       </FilterSection>
     </>
-  ), [filters, openSections, localPriceRange, handleCheckboxChange, handleRadioChange, handleInStockToggle, handlePriceInputChange, toggleSection]);
+  ), [filters, openSections, localPriceRange, filterOptions, handleCheckboxChange, handleRadioChange, handleInStockToggle, handlePriceInputChange, toggleSection]);
 
-  // Desktop version
+  // Desktop version - Filter Toggle Button and Overlay Panel
   if (!isMobile) {
     return (
-      <div className="w-full">
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 shadow-sm overflow-hidden flex flex-col">
-          {/* Fixed Header */}
-          <div className="flex-shrink-0 bg-white dark:bg-neutral-900">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/50">
-              <div className="flex items-center gap-2">
-                <FiSliders className="h-4 w-4 text-neutral-600 dark:text-neutral-400" />
-                <span className="text-sm font-semibold text-neutral-900 dark:text-white">Filters</span>
-                {activeCount > 0 && (
-                  <span className="text-xs bg-primary-500 text-white px-2 py-0.5 rounded-full">{activeCount}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {activeCount > 0 && (
-                  <button 
-                    onClick={handleResetFilters} 
-                    className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1 transition-colors duration-150"
-                  >
-                    <FiRefreshCw className="h-3 w-3" />Reset
-                  </button>
-                )}
-                {onToggle && (
-                  <button 
-                    onClick={onToggle} 
-                    className="p-1.5 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition-colors duration-150"
-                    aria-label="Close filters"
-                  >
-                    <FiX className="h-4 w-4 text-neutral-500" />
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Scrollable Content */}
-          <div 
-            ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto overscroll-contain"
-            style={{ scrollbarWidth: 'thin' }}
-          >
-            {/* Sort Section */}
-            <div className="px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
-              <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2 block">Sort By</label>
-              <SortDropdown currentSort={currentSort} onSortSelect={handleSortSelect} />
-            </div>
-
-            {filterContent}
-          </div>
-
-          {/* Fixed Footer */}
-          {totalResults !== undefined && (
-            <div className="flex-shrink-0 bg-white dark:bg-neutral-900 border-t border-neutral-100 dark:border-neutral-800 px-4 py-3">
-              <div className="text-center">
-                <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                  {totalResults} {totalResults === 1 ? 'product' : 'products'} found
-                </span>
-              </div>
-            </div>
+      <>
+        {/* Filter Toggle Button */}
+        <button
+          onClick={onDesktopToggle}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-full shadow-lg hover:shadow-xl transition-all duration-150 lg:hidden"
+        >
+          <FiSliders className="h-4 w-4" />
+          <span className="text-sm font-medium">Filters</span>
+          {activeCount > 0 && (
+            <span className="text-xs bg-primary-500 text-white px-2 py-0.5 rounded-full">{activeCount}</span>
           )}
-        </div>
-      </div>
+        </button>
+
+        {/* Desktop Filter Button - Visible on larger screens */}
+        <button
+          onClick={onDesktopToggle}
+          className="hidden lg:flex fixed top-24 right-6 z-40 items-center gap-2 px-4 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-md hover:shadow-lg transition-all duration-150"
+        >
+          <FiSliders className="h-4 w-4" />
+          <span className="text-sm font-medium">Filters</span>
+          {activeCount > 0 && (
+            <span className="text-xs bg-primary-500 text-white px-2 py-0.5 rounded-full">{activeCount}</span>
+          )}
+        </button>
+
+        {/* Overlay */}
+        <AnimatePresence>
+          {isDesktopOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+                onClick={onDesktopToggle}
+              />
+              
+              {/* Filter Panel - Slides from right */}
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'tween', duration: 0.25 }}
+                className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white dark:bg-neutral-900 shadow-2xl z-50 flex flex-col"
+              >
+                {/* Header */}
+                <div className="flex-shrink-0 flex items-center justify-between px-4 py-4 border-b border-neutral-200 dark:border-neutral-800">
+                  <div className="flex items-center gap-2">
+                    <FiSliders className="h-5 w-5 text-primary-600" />
+                    <h2 className="text-lg font-bold text-neutral-900 dark:text-white">Filters</h2>
+                    {activeCount > 0 && (
+                      <span className="text-xs bg-primary-500 text-white px-2 py-0.5 rounded-full">{activeCount}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {activeCount > 0 && (
+                      <button 
+                        onClick={handleResetFilters} 
+                        className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-primary-50"
+                      >
+                        <FiRefreshCw className="h-3 w-3" />Reset
+                      </button>
+                    )}
+                    <button 
+                      onClick={onDesktopToggle} 
+                      className="p-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                    >
+                      <FiX className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Scrollable Content with Custom Scrollbar */}
+                <div 
+                  ref={scrollContainerRef}
+                  className="flex-1 overflow-y-auto overscroll-contain custom-scrollbar"
+                >
+                  {/* Sort Section */}
+                  <div className="px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
+                    <label className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2 block">Sort By</label>
+                    <SortDropdown currentSort={currentSort} onSortSelect={handleSortSelect} />
+                  </div>
+
+                  {loadingFilters ? (
+                    <div className="p-4 space-y-3">
+                      {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="animate-pulse">
+                          <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-24 mb-2" />
+                          <div className="space-y-2">
+                            {[1, 2, 3].map(j => (
+                              <div key={j} className="h-4 bg-neutral-100 dark:bg-neutral-800 rounded w-full" />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    filterContent
+                  )}
+                </div>
+
+                {/* Footer with Results Count */}
+                {totalResults !== undefined && (
+                  <div className="flex-shrink-0 border-t border-neutral-100 dark:border-neutral-800 px-4 py-3 bg-white dark:bg-neutral-900">
+                    <div className="text-center">
+                      <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                        {totalResults.toLocaleString()} {totalResults === 1 ? 'product' : 'products'} found
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </>
     );
   }
 
-  // Mobile version
+  // Mobile version - Full screen drawer
   return (
     <div className="fixed inset-0 z-50 bg-white dark:bg-neutral-900 flex flex-col">
       {/* Mobile Header */}
@@ -507,8 +687,7 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
       {/* Scrollable Content */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto overscroll-contain"
-        style={{ WebkitOverflowScrolling: 'touch' }}
+        className="flex-1 overflow-y-auto overscroll-contain custom-scrollbar"
       >
         {/* Sort Section */}
         <div className="px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
@@ -516,7 +695,22 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
           <SortDropdown currentSort={currentSort} onSortSelect={handleSortSelect} />
         </div>
 
-        {filterContent}
+        {loadingFilters ? (
+          <div className="p-4 space-y-3">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="animate-pulse">
+                <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-24 mb-2" />
+                <div className="space-y-2">
+                  {[1, 2, 3].map(j => (
+                    <div key={j} className="h-4 bg-neutral-100 dark:bg-neutral-800 rounded w-full" />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          filterContent
+        )}
       </div>
 
       {/* Mobile Footer Actions */}

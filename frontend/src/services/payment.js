@@ -30,6 +30,8 @@ export const initializeRazorpay = async (orderData) => {
       try {
         const verifyResponse = await apiWrapper.createOrder({
           ...orderData,
+          shippingAddress: orderData.shippingAddress || orderData.shipping,
+          paymentMethod: orderData.paymentMethod || orderData.payment?.brand || 'Visa',
           paymentId: response.razorpay_payment_id,
           razorpayOrderId: response.razorpay_order_id,
           razorpaySignature: response.razorpay_signature,

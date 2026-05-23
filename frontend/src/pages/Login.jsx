@@ -2,16 +2,33 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import LoginForm from '../components/auth/LoginForm';
+import { useAuth } from '../store/AuthContext';
+import { useCart } from '../store/CartContext';
+import { useWishlist } from '../store/WishlistContext';
+import toast from 'react-hot-toast';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login, isAuthenticated, loading: authLoading } = useAuth();
+  const { syncCartAfterLogin } = useCart();
+  const { syncWishlistAfterLogin } = useWishlist();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const handleLoginSuccess = () => {
-    // Small delay to allow any success UI to show, then full page refresh and redirect
-    setTimeout(() => {
-      // Use replace to avoid back button issues and force full page reload
-      window.location.replace('/');
-    }, 300);
+  // Redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, authLoading, navigate]);
+
+  const handleLoginSuccess = async () => {
+    setIsLoggingIn(true);
+    try {
+      toast.success('Login successful!');
+      navigate('/', { replace: true });
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   const handleForgotPassword = () => {
@@ -83,6 +100,8 @@ const Login = () => {
           <LoginForm
             onSuccess={handleLoginSuccess}
             onForgotPassword={handleForgotPassword}
+            login={login}
+            isLoading={isLoggingIn}
           />
         </motion.div>
 

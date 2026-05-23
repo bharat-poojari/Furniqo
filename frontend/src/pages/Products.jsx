@@ -2,11 +2,10 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FiArrowUp, FiRefreshCw, FiAlertCircle, FiGrid, FiList, FiX
+  FiRefreshCw, FiAlertCircle, FiGrid, FiList, FiX
 } from 'react-icons/fi';
 import ProductGrid from '../components/product/ProductGrid';
 import ProductFilters from '../components/product/ProductFilters';
-import Pagination from '../components/common/Pagination';
 import { useDebounce } from '../hooks/useDebounce';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import apiWrapper from '../services/apiWrapper';
@@ -14,48 +13,63 @@ import apiWrapper from '../services/apiWrapper';
 const ITEMS_PER_PAGE = 12;
 
 // Helper function to normalize API responses
-const normalizeProductsResponse = (response) => {
-  // Case 1: response.data.data exists
-  if (response?.data?.data && Array.isArray(response.data.data)) {
+const normalizeProductsResponse = (axiosResponse) => {
+  const responseData = axiosResponse?.data;
+  
+  if (!responseData) {
+    return { products: [], total: 0, pages: 1, currentPage: 1 };
+  }
+  
+  if (responseData?.success === true && Array.isArray(responseData.data)) {
     return {
-      products: response.data.data,
-      total: response.data.pagination?.total || response.data.data.length,
-      pages: response.data.pagination?.pages || Math.ceil(response.data.data.length / ITEMS_PER_PAGE)
+      products: responseData.data,
+      total: responseData.pagination?.total || responseData.data.length,
+      pages: responseData.pagination?.pages || Math.ceil((responseData.pagination?.total || responseData.data.length) / ITEMS_PER_PAGE),
+      currentPage: responseData.pagination?.page || 1
     };
   }
   
-  // Case 2: response.data exists and is array
-  if (response?.data && Array.isArray(response.data)) {
+  if (responseData?.data?.success === true && Array.isArray(responseData.data.data)) {
     return {
-      products: response.data,
-      total: response.data.length,
-      pages: Math.ceil(response.data.length / ITEMS_PER_PAGE)
+      products: responseData.data.data,
+      total: responseData.data.pagination?.total || responseData.data.data.length,
+      pages: responseData.data.pagination?.pages || Math.ceil((responseData.data.pagination?.total || responseData.data.data.length) / ITEMS_PER_PAGE),
+      currentPage: responseData.data.pagination?.page || 1
     };
   }
   
-  // Case 3: response is array directly
-  if (Array.isArray(response)) {
+  if (Array.isArray(responseData)) {
     return {
-      products: response,
-      total: response.length,
-      pages: Math.ceil(response.length / ITEMS_PER_PAGE)
+      products: responseData,
+      total: responseData.length,
+      pages: 1,
+      currentPage: 1
     };
   }
   
-  // Case 4: response.data.data doesn't exist but .data has .data property
-  if (response?.data?.data && !Array.isArray(response.data.data)) {
+  if (responseData?.data && Array.isArray(responseData.data)) {
     return {
-      products: response.data.data.products || [],
-      total: response.data.data.total || 0,
-      pages: response.data.data.pages || 1
+      products: responseData.data,
+      total: responseData.data.length,
+      pages: 1,
+      currentPage: 1
     };
   }
   
-  // Default fallback
+  if (responseData?.products && Array.isArray(responseData.products)) {
+    return {
+      products: responseData.products,
+      total: responseData.total || responseData.products.length,
+      pages: responseData.pages || 1,
+      currentPage: responseData.page || 1
+    };
+  }
+  
   return {
     products: [],
     total: 0,
-    pages: 1
+    pages: 1,
+    currentPage: 1
   };
 };
 
@@ -63,53 +77,48 @@ const normalizeProductsResponse = (response) => {
 const mapFiltersToAPI = (filters, sort) => {
   const apiParams = {};
   
-  // Map categories → category (API expects single category or comma-separated)
   if (filters.categories?.length) {
     apiParams.category = filters.categories.join(',');
   }
   
-  // Map materials → material
   if (filters.materials?.length) {
     apiParams.material = filters.materials.join(',');
   }
   
-  // Map colors → color
   if (filters.colors?.length) {
     apiParams.color = filters.colors.join(',');
   }
   
-  // Price range
-  if (filters.minPrice !== undefined && filters.minPrice !== '') {
+  if (filters.minPrice !== undefined && filters.minPrice !== '' && filters.minPrice !== null) {
     apiParams.minPrice = filters.minPrice;
   }
-  if (filters.maxPrice !== undefined && filters.maxPrice !== '') {
+  if (filters.maxPrice !== undefined && filters.maxPrice !== '' && filters.maxPrice !== null) {
     apiParams.maxPrice = filters.maxPrice;
   }
   
-  // Rating
   if (filters.minRating) {
     apiParams.minRating = filters.minRating;
   }
   
-  // Discount
   if (filters.minDiscount) {
     apiParams.minDiscount = filters.minDiscount;
   }
   
-  // Stock
   if (filters.inStock) {
     apiParams.inStock = true;
   }
   
-  // Search
   if (filters.search) {
     apiParams.search = filters.search;
   }
   
-  // Map sort: UI format → API format
   let apiSort = sort;
-  if (sort === 'price-asc') apiSort = 'price-low';
-  if (sort === 'price-desc') apiSort = 'price-high';
+  if (sort === 'price-asc') apiSort = 'price_asc';
+  if (sort === 'price-desc') apiSort = 'price_desc';
+  if (sort === 'featured') apiSort = 'featured';
+  if (sort === 'newest') apiSort = 'newest';
+  if (sort === 'rating') apiSort = 'rating';
+  if (sort === 'discount') apiSort = 'discount';
   
   apiParams.sort = apiSort;
   
@@ -120,21 +129,28 @@ const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useMediaQuery('(max-width: 1024px)');
   const gridRef = useRef(null);
+  const observerRef = useRef(null);
+  const loadingMoreRef = useRef(false);
   const abortControllerRef = useRef(null);
   const isMountedRef = useRef(true);
-  const isFetchingRef = useRef(false);
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({});
   const [sort, setSort] = useState(() => searchParams.get('sort') || 'featured');
-  const [currentPage, setCurrentPage] = useState(() => parseInt(searchParams.get('page')) || 1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const page = parseInt(searchParams.get('page'));
+    return isNaN(page) || page < 1 ? 1 : page;
+  });
   const [totalPages, setTotalPages] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('productViewMode') || 'grid');
-  const [showFilters, setShowFilters] = useState(!isMobile);
+  const [isDesktopFilterOpen, setIsDesktopFilterOpen] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const debouncedFilters = useDebounce(filters, 300);
 
@@ -152,7 +168,6 @@ const Products = () => {
     return count;
   }, [filters]);
 
-  // Memoized has active filters
   const hasActiveFilters = useMemo(() => activeFiltersCount > 0 || sort !== 'featured', [activeFiltersCount, sort]);
 
   // Cleanup on unmount
@@ -163,6 +178,9 @@ const Products = () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
     };
   }, []);
 
@@ -171,58 +189,82 @@ const Products = () => {
     localStorage.setItem('productViewMode', viewMode);
   }, [viewMode]);
 
-  // Handle mobile filters visibility
-  useEffect(() => {
-    setShowFilters(!isMobile);
-  }, [isMobile]);
-
-  // Sync URL params to filters (only on mount and URL changes)
+  // Sync URL params to filters
   useEffect(() => {
     const category = searchParams.get('category');
     const search = searchParams.get('search');
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
-    const brand = searchParams.get('brand');
     const inStock = searchParams.get('inStock');
     const sortParam = searchParams.get('sort');
-    const pageParam = searchParams.get('page');
 
     const urlFilters = {};
     if (category) urlFilters.categories = category.split(',');
     if (search) urlFilters.search = search;
     if (minPrice) urlFilters.minPrice = parseInt(minPrice);
     if (maxPrice) urlFilters.maxPrice = parseInt(maxPrice);
-    if (brand) urlFilters.brands = brand.split(',');
     if (inStock === 'true') urlFilters.inStock = true;
     
     if (sortParam && sortParam !== sort) {
       setSort(sortParam);
     }
     
-    if (pageParam && parseInt(pageParam) !== currentPage) {
-      setCurrentPage(parseInt(pageParam));
-    }
-
     setFilters(prev => ({ ...prev, ...urlFilters }));
-  }, []); // Empty deps - only run on mount
+  }, []);
 
-  // Fetch products when dependencies change
+  // Reset and fetch products when filters or sort change
   useEffect(() => {
-    fetchProducts();
-  }, [debouncedFilters, sort, currentPage]);
+    // Reset state when filters change
+    setProducts([]);
+    setCurrentPage(1);
+    setHasMore(true);
+    setInitialLoadComplete(false);
+    fetchProducts(1, true);
+  }, [debouncedFilters, sort]);
 
-  const fetchProducts = async () => {
-    if (!isMountedRef.current || isFetchingRef.current) return;
+  // Setup intersection observer for infinite scroll
+  useEffect(() => {
+    if (!initialLoadComplete || loadingMore || !hasMore) return;
     
-    // Cancel previous request
+    const loadMoreTrigger = document.getElementById('load-more-trigger');
+    if (!loadMoreTrigger) return;
+    
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        const firstEntry = entries[0];
+        if (firstEntry.isIntersecting && hasMore && !loadingMore && !loading) {
+          loadMoreProducts();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+    
+    observerRef.current.observe(loadMoreTrigger);
+    
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [initialLoadComplete, loadingMore, hasMore, loading]);
+
+  const fetchProducts = async (page, isInitial = false) => {
+    if (!isMountedRef.current) return;
+    if (loadingMoreRef.current && !isInitial) return;
+    
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     
     abortControllerRef.current = new AbortController();
-    isFetchingRef.current = true;
     
-    setLoading(true);
+    if (isInitial) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+      loadingMoreRef.current = true;
+    }
+    
     setError(null);
     
     try {
@@ -230,7 +272,7 @@ const Products = () => {
       
       const params = {
         ...apiParams,
-        page: currentPage,
+        page: page,
         limit: ITEMS_PER_PAGE,
       };
       
@@ -238,41 +280,64 @@ const Products = () => {
       
       if (!isMountedRef.current) return;
       
-      // Normalize the response
       const normalized = normalizeProductsResponse(response);
+      const newProducts = normalized.products || [];
+      const total = normalized.total || 0;
+      const pages = normalized.pages || 1;
       
-      setProducts(normalized.products);
-      setTotalPages(normalized.pages);
-      setTotalResults(normalized.total);
+      if (isInitial) {
+        setProducts(newProducts);
+      } else {
+        setProducts(prev => [...prev, ...newProducts]);
+      }
+      
+      setTotalResults(total);
+      setTotalPages(pages);
+      setHasMore(page < pages);
+      setCurrentPage(page);
       
     } catch (err) {
       if (isMountedRef.current && err.name !== 'AbortError' && err.name !== 'CanceledError') {
         console.error('Error fetching products:', err);
-        setError('Failed to load products. Please try again.');
-        setProducts([]);
-        setTotalResults(0);
+        if (isInitial) {
+          setError('Failed to load products. Please try again.');
+        }
       }
     } finally {
       if (isMountedRef.current) {
-        setLoading(false);
-        isFetchingRef.current = false;
+        if (isInitial) {
+          setLoading(false);
+          setInitialLoadComplete(true);
+        } else {
+          setLoadingMore(false);
+          loadingMoreRef.current = false;
+        }
       }
     }
   };
 
+  const loadMoreProducts = useCallback(() => {
+    if (!hasMore || loadingMore || loading) return;
+    const nextPage = currentPage + 1;
+    if (nextPage <= totalPages) {
+      fetchProducts(nextPage, false);
+    }
+  }, [hasMore, loadingMore, loading, currentPage, totalPages]);
+
   const handleRetry = useCallback(() => {
-    fetchProducts();
-  }, [filters, sort, currentPage]);
+    setProducts([]);
+    setCurrentPage(1);
+    setHasMore(true);
+    fetchProducts(1, true);
+  }, [filters, sort]);
 
   const handleFilterChange = useCallback((newFilters) => {
     setFilters(newFilters);
     setCurrentPage(1);
     
-    // Update URL params
     const params = new URLSearchParams();
     if (newFilters.categories?.length) params.set('category', newFilters.categories.join(','));
     if (newFilters.search) params.set('search', newFilters.search);
-    if (newFilters.brands?.length) params.set('brand', newFilters.brands.join(','));
     if (newFilters.minPrice) params.set('minPrice', newFilters.minPrice.toString());
     if (newFilters.maxPrice) params.set('maxPrice', newFilters.maxPrice.toString());
     if (newFilters.inStock) params.set('inStock', 'true');
@@ -280,11 +345,12 @@ const Products = () => {
     
     setSearchParams(params, { replace: true });
     setShowMobileFilters(false);
+    // Close desktop filter panel after applying filters
+    setIsDesktopFilterOpen(false);
   }, [sort, setSearchParams]);
 
   const handleSortChange = useCallback((newSort) => {
     setSort(newSort);
-    setCurrentPage(1);
     
     const params = new URLSearchParams(searchParams);
     if (newSort !== 'featured') {
@@ -292,44 +358,18 @@ const Products = () => {
     } else {
       params.delete('sort');
     }
-    params.delete('page');
     
     setSearchParams(params, { replace: true });
+    // Close desktop filter panel after sorting
+    setIsDesktopFilterOpen(false);
   }, [searchParams, setSearchParams]);
-
-  const handlePageChange = useCallback((page) => {
-    setCurrentPage(page);
-    
-    const params = new URLSearchParams(searchParams);
-    params.set('page', page.toString());
-    setSearchParams(params, { replace: true });
-    
-    // Smooth scroll to top on page change
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [searchParams, setSearchParams]);
-
-  const scrollToTop = useCallback(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
 
   const clearAllFilters = useCallback(() => {
     setFilters({});
     setSort('featured');
-    setCurrentPage(1);
     setSearchParams({}, { replace: true });
+    setIsDesktopFilterOpen(false);
   }, [setSearchParams]);
-
-  // Track scroll position for back to top button
-  const [isScrolled, setIsScrolled] = useState(false);
-  
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 300);
-    };
-    
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   return (
     <div className="bg-white dark:bg-neutral-950 min-h-screen w-full overflow-x-hidden">
@@ -405,33 +445,8 @@ const Products = () => {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Desktop Filters - Sticky on left side */}
-          {!isMobile && showFilters && (
-            <div className="w-full lg:w-80 flex-shrink-0">
-              <div className="sticky top-24">
-                <ProductFilters
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  onSortChange={handleSortChange}
-                  currentSort={sort}
-                  totalResults={totalResults}
-                  onToggle={() => setShowFilters(false)}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Main Content */}
+          {/* Main Content - Always visible */}
           <div ref={gridRef} className="flex-1 min-w-0 w-full">
-            {!isMobile && !showFilters && (
-              <button
-                onClick={() => setShowFilters(true)}
-                className="mb-4 hidden lg:inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-primary-600 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-primary-300 transition-colors"
-              >
-                Show Filters
-              </button>
-            )}
-
             {/* Error State */}
             {error && (
               <div className="mb-4 p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
@@ -454,8 +469,6 @@ const Products = () => {
               loading={loading}
               error={error}
               totalProducts={totalResults}
-              currentPage={currentPage}
-              totalPages={totalPages}
               viewMode={viewMode}
               sortBy={sort}
               onSortChange={handleSortChange}
@@ -469,21 +482,45 @@ const Products = () => {
               onRetry={handleRetry}
             />
 
-            {/* Pagination */}
-            {totalPages > 1 && !loading && (
-              <div className="mt-8 mb-4 sm:mb-8 flex justify-center pb-8">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                  siblingCount={isMobile ? 0 : 1}
-                  size={isMobile ? "sm" : "md"}
-                  showFirstLast={!isMobile}
-                />
+            {/* Loading More Indicator */}
+            {loadingMore && (
+              <div className="flex justify-center items-center py-8">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-8 h-8 border-3 border-neutral-200 dark:border-neutral-700 border-t-primary-600 rounded-full animate-spin" />
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">Loading more products...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Load More Trigger Element */}
+            {!loading && !loadingMore && hasMore && products.length > 0 && (
+              <div id="load-more-trigger" className="h-10 w-full" />
+            )}
+
+            {/* End of Products Message */}
+            {!loading && !hasMore && products.length > 0 && (
+              <div className="text-center py-8">
+                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                  You've reached the end! 
+                </p>
               </div>
             )}
           </div>
         </div>
+
+        {/* Desktop Filters - Overlay Panel */}
+        {!isMobile && (
+          <ProductFilters
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onSortChange={handleSortChange}
+            currentSort={sort}
+            totalResults={totalResults}
+            isMobile={false}
+            isDesktopOpen={isDesktopFilterOpen}
+            onDesktopToggle={() => setIsDesktopFilterOpen(prev => !prev)}
+          />
+        )}
 
         {/* Mobile Filters Drawer */}
         <AnimatePresence>
@@ -532,17 +569,6 @@ const Products = () => {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Scroll to Top Button */}
-        {isScrolled && (
-          <button
-            onClick={scrollToTop}
-            className="fixed bottom-6 right-6 p-2.5 sm:p-3 bg-primary-600 text-white rounded-full shadow-lg shadow-primary-500/30 hover:bg-primary-700 z-40 transition-colors"
-            aria-label="Scroll to top"
-          >
-            <FiArrowUp className="h-4 w-4 sm:h-5 sm:w-5" />
-          </button>
-        )}
       </div>
     </div>
   );

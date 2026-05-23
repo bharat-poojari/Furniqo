@@ -67,9 +67,9 @@ const Header = () => {
   const [isCategoryClicked, setIsCategoryClicked] = useState(false);
   const [avatar, setAvatar] = useState(null);
   
-  const { isAuthenticated, user, logout } = useAuth();
-  const { cartItems, getCartCount, getSubtotal } = useCart();
-  const { wishlistItems } = useWishlist();
+  const { isAuthenticated, user, logout, loading: authLoading } = useAuth();
+  const { cartItems, getCartCount, getSubtotal, loading: cartLoading, fetchCart } = useCart();
+  const { wishlistItems, fetchWishlist, loading: wishlistLoading } = useWishlist();
   const { isDark, toggleTheme } = useTheme();
   const { unreadCount } = useNotifications();
   const { scrollPosition } = useScrollPosition();
@@ -89,6 +89,14 @@ const Header = () => {
     const savedAvatar = localStorage.getItem('userAvatar');
     if (savedAvatar) setAvatar(savedAvatar);
   }, [user]);
+
+  // Fetch cart and wishlist when authenticated
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      fetchCart();
+      fetchWishlist();
+    }
+  }, [isAuthenticated, authLoading, fetchCart, fetchWishlist]);
 
   useEffect(() => {
     setIsScrolled(scrollPosition > 30);
@@ -156,7 +164,6 @@ const Header = () => {
   const handleLogoClick = useCallback((e) => {
     e.preventDefault();
     if (location.pathname === '/') {
-      // Force reload for home page refresh
       window.location.reload();
     } else {
       navigateWithOptimization('/');
@@ -196,6 +203,9 @@ const Header = () => {
       if (item.product?.images && Array.isArray(item.product.images) && item.product.images[0]) {
         return item.product.images[0];
       }
+      if (item.images && Array.isArray(item.images) && item.images[0]) {
+        return item.images[0];
+      }
       return 'https://via.placeholder.com/64x64?text=No+Image';
     } catch (error) {
       return 'https://via.placeholder.com/64x64?text=No+Image';
@@ -204,7 +214,7 @@ const Header = () => {
 
   const getProductPrice = useCallback((item) => {
     try {
-      return (item.variant?.price || item.product?.price || 0).toFixed(2);
+      return (item.variant?.price || item.product?.price || item.price || 0).toFixed(2);
     } catch (error) {
       return '0.00';
     }
@@ -212,16 +222,21 @@ const Header = () => {
 
   const getProductName = useCallback((item) => {
     try {
-      return item.product?.name || 'Unknown Product';
+      return item.product?.name || item.name || 'Unknown Product';
     } catch (error) {
       return 'Unknown Product';
     }
   }, []);
 
-  const handleLogout = useCallback(() => {
-    logout();
-    setShowUserMenu(false);
-    navigateWithOptimization('/');
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+      setShowUserMenu(false);
+      navigateWithOptimization('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      navigateWithOptimization('/');
+    }
   }, [logout, navigateWithOptimization]);
 
   // Memoized categories data
@@ -329,7 +344,7 @@ const Header = () => {
       >
         <div className="w-full px-[1%] sm:px-[1.5%]">
           <div className="flex items-center justify-between h-14 lg:h-16">
-            {/* Logo - Optimized for instant response */}
+            {/* Logo */}
             <div 
               onClick={handleLogoClick}
               className="flex items-center gap-2.5 flex-shrink-0 group cursor-pointer active:scale-95 transition-transform duration-100"
@@ -365,7 +380,7 @@ const Header = () => {
               </div>
             </div>
 
-            {/* Desktop Navigation - Removed framer-motion */}
+            {/* Desktop Navigation */}
             {isDesktop && (
               <nav className="hidden lg:flex items-center gap-1">
                 <button
@@ -391,7 +406,7 @@ const Header = () => {
                   Shop
                 </button>
                 
-                {/* Categories Dropdown - Simplified, removed AnimatePresence */}
+                {/* Categories Dropdown */}
                 <div 
                   className="relative"
                   ref={categoryMenuRef}
@@ -527,7 +542,7 @@ const Header = () => {
               </nav>
             )}
 
-            {/* Right Actions - Optimized */}
+            {/* Right Actions */}
             <div className="flex items-center gap-1 lg:gap-1.5">
               {/* Search Toggle */}
               <button
@@ -568,7 +583,7 @@ const Header = () => {
                 )}
               </button>
 
-              {/* Cart - Simplified preview */}
+              {/* Cart */}
               <div 
                 className="relative" 
                 ref={cartPreviewRef}
@@ -589,7 +604,7 @@ const Header = () => {
                   )}
                 </button>
                 
-                {/* Cart Preview Dropdown - Simplified, removed framer-motion */}
+                {/* Cart Preview Dropdown */}
                 {showCartPreview && (
                   <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-neutral-900 rounded-2xl shadow-hard border border-neutral-200 dark:border-neutral-800 z-50 transition-all duration-150">
                     <div className="p-4">
@@ -684,7 +699,7 @@ const Header = () => {
                 )}
               </button>
 
-              {/* User Menu - Simplified */}
+              {/* User Menu */}
               <div className="relative" ref={userMenuRef}>
                 {isAuthenticated ? (
                   <>

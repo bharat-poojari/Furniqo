@@ -1,13 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SignupForm from '../components/auth/SignupForm';
+import { useAuth } from '../store/AuthContext';
+import toast from 'react-hot-toast';
 
 const Signup = () => {
   const navigate = useNavigate();
+  const { register, isAuthenticated, loading: authLoading } = useAuth();
+  const [isSigningUp, setIsSigningUp] = useState(false);
 
-  const handleSignupSuccess = () => {
-    setTimeout(() => navigate('/', { replace: true }), 500);
+  // Redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, authLoading, navigate]);
+
+  const handleSignupSuccess = async () => {
+    setIsSigningUp(true);
+    try {
+      toast.success('Account created successfully!');
+      navigate('/', { replace: true });
+    } finally {
+      setIsSigningUp(false);
+    }
   };
 
   const handleSwitchToLogin = () => {
@@ -75,6 +92,8 @@ const Signup = () => {
           <SignupForm
             onSuccess={handleSignupSuccess}
             onSwitchToLogin={handleSwitchToLogin}
+            register={register}
+            isLoading={isSigningUp}
           />
         </motion.div>
 

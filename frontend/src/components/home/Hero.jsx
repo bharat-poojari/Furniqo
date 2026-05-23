@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiArrowRight, FiChevronLeft, FiChevronRight, FiPause, FiPlay } from 'react-icons/fi';
-import { heroSlides } from '../../data/data';
+import { heroSlides as mockHeroSlides } from '../../data/data';
 import { cn } from '../../utils/cn';
+import apiWrapper from '../../services/apiWrapper';
 
 // Optimized LazyImage Component
 const LazyImage = ({ src, alt, priority = false }) => {
@@ -98,10 +99,46 @@ const Hero = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [direction, setDirection] = useState(0);
+  const [heroSlides, setHeroSlides] = useState([]);
+  const [loading, setLoading] = useState(true);
   const intervalRef = useRef(null);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Fetch hero slides from API first, fallback to mock data
+  useEffect(() => {
+    const fetchHeroSlides = async () => {
+      setLoading(true);
+      try {
+        const response = await apiWrapper.getHeroSlides();
+        let slidesData = [];
+        
+        if (response?.data?.success && response.data.data) {
+          slidesData = response.data.data;
+        } else if (response?.success && response?.data) {
+          slidesData = response.data;
+        } else if (Array.isArray(response)) {
+          slidesData = response;
+        } else if (response?.data && Array.isArray(response.data)) {
+          slidesData = response.data;
+        }
+        
+        if (slidesData && slidesData.length > 0) {
+          setHeroSlides(slidesData);
+        } else {
+          setHeroSlides(mockHeroSlides);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch hero slides from API, using mock data:', error);
+        setHeroSlides(mockHeroSlides);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchHeroSlides();
+  }, []);
 
   // Detect mobile for layout adjustments
   useEffect(() => {
@@ -114,16 +151,19 @@ const Hero = () => {
   }, []);
 
   const nextSlide = useCallback(() => {
+    if (!heroSlides.length) return;
     setDirection(1);
     setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
-  }, []);
+  }, [heroSlides.length]);
 
   const prevSlide = useCallback(() => {
+    if (!heroSlides.length) return;
     setDirection(-1);
     setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
-  }, []);
+  }, [heroSlides.length]);
 
   const goToSlide = useCallback((index) => {
+    if (!heroSlides.length) return;
     setDirection(index > currentSlide ? 1 : -1);
     setCurrentSlide(index);
     // Reset auto-play timer
@@ -133,17 +173,17 @@ const Hero = () => {
         intervalRef.current = setInterval(nextSlide, 5000);
       }
     }
-  }, [currentSlide, isPlaying, nextSlide]);
+  }, [currentSlide, heroSlides.length, isPlaying, nextSlide]);
 
   // Auto-play with cleanup
   useEffect(() => {
-    if (isPlaying) {
+    if (isPlaying && heroSlides.length > 0) {
       intervalRef.current = setInterval(nextSlide, 5000);
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isPlaying, nextSlide]);
+  }, [isPlaying, nextSlide, heroSlides.length]);
 
   // Pause auto-play on hover (desktop only)
   const handleMouseEnter = useCallback(() => {
@@ -153,11 +193,11 @@ const Hero = () => {
   }, [isMobile, isPlaying]);
 
   const handleMouseLeave = useCallback(() => {
-    if (!isMobile && isPlaying) {
+    if (!isMobile && isPlaying && heroSlides.length > 0) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = setInterval(nextSlide, 5000);
     }
-  }, [isMobile, isPlaying, nextSlide]);
+  }, [isMobile, isPlaying, nextSlide, heroSlides.length]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -191,11 +231,20 @@ const Hero = () => {
   }, []);
 
   // Memoized slide data
-  const currentSlideData = useMemo(() => heroSlides[currentSlide], [currentSlide]);
+  const currentSlideData = useMemo(() => heroSlides[currentSlide] || (heroSlides[0] || { image: '', title: '', subtitle: '', link: '/products', cta: 'Shop Now' }), [currentSlide, heroSlides]);
   const truncatedSubtitle = useMemo(() => {
-    const subtitle = currentSlideData.subtitle;
+    const subtitle = currentSlideData.subtitle || '';
     return subtitle.length > 60 ? subtitle.substring(0, 60) + '...' : subtitle;
   }, [currentSlideData.subtitle]);
+
+  // Show loading state
+  if (loading || heroSlides.length === 0) {
+    return (
+      <section className="relative overflow-hidden bg-neutral-900" style={{ height: '100vh', maxHeight: '100vh', minHeight: '600px' }}>
+        <div className="absolute inset-0 bg-gradient-to-r from-neutral-700 via-neutral-600 to-neutral-700 animate-pulse" />
+      </section>
+    );
+  }
 
   return (
     <section 
@@ -423,7 +472,7 @@ const Hero = () => {
       </AnimatePresence>
 
       {/* Navigation Arrows - Desktop only */}
-      {!isMobile && (
+      {!isMobile && heroSlides.length > 1 && (
         <>
           <button
             onClick={prevSlide}

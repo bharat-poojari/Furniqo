@@ -154,11 +154,14 @@ const Checkout = () => {
     
     try {
       const orderData = {
+        shippingAddress: shippingData,
         shipping: shippingData,
         shippingMethod,
+        paymentMethod: 'Visa',
         payment: {
           last4: paymentData.cardNumber.replace(/\s/g, '').slice(-4),
           brand: 'Visa',
+          status: 'pending',
         },
         items: cartItems.map(item => ({
           productId: item.product._id,
@@ -174,6 +177,7 @@ const Checkout = () => {
         giftWrapCost: giftWrap ? 5.99 : 0,
         tax: getTax(),
         total: getTotal() + (giftWrap ? 5.99 : 0),
+        couponCode: appliedCoupon?.code,
         coupon: appliedCoupon?.code,
         giftWrap,
       };

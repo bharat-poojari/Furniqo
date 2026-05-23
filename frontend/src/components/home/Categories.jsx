@@ -3,28 +3,48 @@ import { Link } from 'react-router-dom';
 import { FiArrowRight, FiGrid, FiTrendingUp, FiAward, FiStar } from 'react-icons/fi';
 import apiWrapper from '../../services/apiWrapper';
 import { Skeleton } from '../common/Skeleton';
+import { categories as mockCategories } from '../../data/data';
 
 const Categories = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hoveredCategory, setHoveredCategory] = useState(null);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
+  // Fetch categories from API first, fallback to mock data
+  const fetchCategories = useCallback(async () => {
+    setLoading(true);
     try {
       const response = await apiWrapper.getCategories();
-      if (response.data.success) {
-        setCategories(response.data.data);
+      let categoriesData = [];
+      
+      if (response?.data?.success && response.data.data) {
+        categoriesData = response.data.data;
+      } else if (response?.success && response?.data) {
+        categoriesData = response.data;
+      } else if (Array.isArray(response)) {
+        categoriesData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        categoriesData = response.data;
+      }
+      
+      if (categoriesData && categoriesData.length > 0) {
+        setCategories(categoriesData);
+      } else {
+        console.warn('No categories from API, using mock data');
+        setCategories(mockCategories);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
+      // Fallback to mock data on error
+      setCategories(mockCategories);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   // Memoized stats data
   const statsData = useMemo(() => [
@@ -42,6 +62,12 @@ const Categories = () => {
   const handleMouseLeave = useCallback(() => {
     setHoveredCategory(null);
   }, []);
+
+  // Get visible categories (first 6)
+  const visibleCategories = useMemo(() => {
+    if (!categories || categories.length === 0) return [];
+    return categories.slice(0, 6);
+  }, [categories]);
 
   if (loading) {
     return (
@@ -63,6 +89,10 @@ const Categories = () => {
         </div>
       </section>
     );
+  }
+
+  if (!categories || categories.length === 0) {
+    return null;
   }
 
   return (
@@ -87,9 +117,9 @@ const Categories = () => {
 
         {/* Categories Grid - Removed motion and stagger animations */}
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5">
-          {categories.slice(0, 6).map((category, index) => (
+          {visibleCategories.map((category, index) => (
             <div
-              key={category._id}
+              key={category._id || category.id || index}
               className="relative"
               onMouseEnter={() => handleMouseEnter(index)}
               onMouseLeave={handleMouseLeave}
@@ -146,7 +176,7 @@ const Categories = () => {
                   <div className="flex items-center justify-center gap-0.5 sm:gap-1 mt-0.5 sm:mt-1">
                     <FiTrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-primary-500" />
                     <p className="text-[10px] sm:text-xs font-medium text-neutral-500 dark:text-neutral-400">
-                      {category.itemCount || 120}+ items
+                      {category.itemCount || category.count || 120}+ items
                     </p>
                   </div>
                 </div>

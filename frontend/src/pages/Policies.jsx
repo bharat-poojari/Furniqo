@@ -13,11 +13,12 @@ import {
   FiEye, FiBookmark
 } from 'react-icons/fi';
 import { FaTwitter, FaFacebook, FaLinkedin, FaWhatsapp } from 'react-icons/fa';
-import { policies } from '../data/data';
+import { policies as mockPolicies } from '../data/data';
 import Button from '../components/common/Button';
 import Newsletter from '../components/layout/Newsletter';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
+import apiWrapper from '../services/apiWrapper';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -309,9 +310,43 @@ const Policies = () => {
   const [showFAB, setShowFAB]                 = useState(false);
   const [copiedLink, setCopiedLink]           = useState(false);
   const [mobileTOCOpen, setMobileTOCOpen]     = useState(false);
+  const [policies, setPolicies] = useState({});
+  const [loading, setLoading] = useState(true);
   const sectionRefs = useRef([]);
   const searchRef   = useRef(null);
   const heroRef     = useRef(null);
+
+  // Fetch policies from API first
+  useEffect(() => {
+    const fetchPolicies = async () => {
+      setLoading(true);
+      try {
+        const response = await apiWrapper.getPolicies();
+        let policiesData = {};
+        
+        if (response?.data?.success && response.data.data) {
+          policiesData = response.data.data;
+        } else if (response?.success && response?.data) {
+          policiesData = response.data;
+        } else if (response?.data) {
+          policiesData = response.data;
+        }
+        
+        if (Object.keys(policiesData).length === 0) {
+          policiesData = mockPolicies;
+        }
+        
+        setPolicies(policiesData);
+      } catch (error) {
+        console.warn('Failed to fetch policies from API, using mock data:', error);
+        setPolicies(mockPolicies);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPolicies();
+  }, []);
 
   const policy     = policies[type];
   const Icon       = policyIcons[type]  || FiShield;
@@ -323,11 +358,12 @@ const Policies = () => {
 
   // Scroll spy
   useEffect(() => {
+    if (!policy?.sections) return;
+    
     const handler = () => {
       const scrollY = window.scrollY;
       setShowFAB(scrollY > 300);
 
-      if (!policy?.sections) return;
       for (let i = policy.sections.length - 1; i >= 0; i--) {
         const el = sectionRefs.current[i];
         if (el && el.getBoundingClientRect().top < 140) {
@@ -390,6 +426,18 @@ const Policies = () => {
         s.content.toLowerCase().includes(searchQuery.toLowerCase())
       );
   }, [policy, searchQuery]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-white dark:from-neutral-950 dark:to-neutral-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-neutral-500 dark:text-neutral-400">Loading policies...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Not found
   if (!policy) {

@@ -12,7 +12,7 @@ import {
   FiShield,
   FiRefreshCw,
 } from 'react-icons/fi';
-import { validateEmail } from '../utils/validators';
+import apiWrapper from '../services/apiWrapper';
 import toast from 'react-hot-toast';
 
 const ForgotPassword = () => {
@@ -21,6 +21,7 @@ const ForgotPassword = () => {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const [resetToken, setResetToken] = useState(null);
 
   const navigate = useNavigate();
 
@@ -59,13 +60,24 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      setSubmitted(true);
-      toast.success('Reset link sent to your email!');
-      setResendTimer(60);
+      const response = await apiWrapper.forgotPassword(email);
+      
+      if (response?.success) {
+        setSubmitted(true);
+        toast.success('Reset link sent to your email!');
+        setResendTimer(60);
+        // Store reset token for development (in production, this would be in email)
+        if (response.resetToken) {
+          setResetToken(response.resetToken);
+          console.log('Reset token (for testing):', response.resetToken);
+          console.log('Reset URL:', response.resetUrl);
+        }
+      } else {
+        toast.error(response?.message || 'Failed to send reset link');
+      }
     } catch (error) {
-      toast.error('Failed to send reset link. Please try again.');
+      console.error('Forgot password error:', error);
+      toast.error(error?.response?.data?.message || 'Failed to send reset link. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -76,9 +88,14 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success('Reset link resent!');
-      setResendTimer(60);
+      const response = await apiWrapper.forgotPassword(email);
+      if (response?.success) {
+        toast.success('Reset link resent!');
+        setResendTimer(60);
+        if (response.resetToken) setResetToken(response.resetToken);
+      } else {
+        toast.error(response?.message || 'Failed to resend');
+      }
     } catch (error) {
       toast.error('Failed to resend. Please try again.');
     } finally {
@@ -95,6 +112,7 @@ const ForgotPassword = () => {
     setEmail('');
     setErrors({});
     setResendTimer(0);
+    setResetToken(null);
   };
 
   return (

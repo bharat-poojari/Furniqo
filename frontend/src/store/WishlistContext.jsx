@@ -8,37 +8,38 @@ export const WishlistContext = createContext(null);
 export const WishlistProvider = ({ children }) => {
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, token } = useAuth();
   
   // Refs to prevent duplicate toasts
-  const toastIdsRef = useRef(new Set());
   const lastToastTimeRef = useRef({});
 
-  useEffect(() => {
-    loadWishlist();
-  }, []);
+  // Fetch wishlist from backend when authenticated
+  const fetchWishlist = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
+    
+    setLoading(true);
+    try {
+      const response = await apiWrapper.getWishlist();
+      const payload = Array.isArray(response?.data)
+        ? response.data
+        : response?.data?.data || [];
+      if (response?.success && Array.isArray(payload)) {
+        setWishlistItems(payload);
+      }
+    } catch (error) {
+      console.error('Error fetching wishlist:', error);
+      loadWishlistFromLocal();
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, token]);
 
-  useEffect(() => {
-    saveWishlist();
-  }, [wishlistItems]);
-
-  const loadWishlist = async () => {
+  // Load wishlist from localStorage
+  const loadWishlistFromLocal = () => {
     try {
       const savedWishlist = localStorage.getItem('furniqo_wishlist');
       if (savedWishlist) {
         setWishlistItems(JSON.parse(savedWishlist));
-      }
-      
-      // If authenticated, try to sync with backend
-      if (isAuthenticated) {
-        try {
-          const items = await apiWrapper.getWishlistItems();
-          if (Array.isArray(items)) {
-            setWishlistItems(items);
-          }
-        } catch (error) {
-          console.debug('Wishlist sync skipped (offline mode)');
-        }
       }
     } catch (error) {
       console.error('Error loading wishlist:', error);
@@ -46,13 +47,51 @@ export const WishlistProvider = ({ children }) => {
     }
   };
 
-  const saveWishlist = () => {
+  // Save wishlist to localStorage (for guests)
+  const saveWishlistToLocal = useCallback((items) => {
     try {
-      localStorage.setItem('furniqo_wishlist', JSON.stringify(wishlistItems));
+      localStorage.setItem('furniqo_wishlist', JSON.stringify(items));
     } catch (error) {
       console.error('Error saving wishlist:', error);
     }
-  };
+  }, []);
+
+  // Load wishlist on mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchWishlist();
+    } else {
+      loadWishlistFromLocal();
+    }
+  }, [isAuthenticated, fetchWishlist]);
+
+  // Save to localStorage whenever wishlist changes (for guests)
+  useEffect(() => {
+    if (!isAuthenticated && wishlistItems.length >= 0) {
+      saveWishlistToLocal(wishlistItems);
+    }
+  }, [wishlistItems, isAuthenticated, saveWishlistToLocal]);
+
+  // Sync wishlist after login
+  const syncWishlistAfterLogin = useCallback(async (guestWishlist) => {
+    if (!isAuthenticated || !token) return;
+    
+    setLoading(true);
+    try {
+      // Sync each guest wishlist item to backend
+      for (const item of guestWishlist) {
+        await apiWrapper.addToWishlist(item._id);
+      }
+      // Fetch updated wishlist from backend
+      await fetchWishlist();
+      // Clear guest wishlist from localStorage
+      localStorage.removeItem('furniqo_wishlist');
+    } catch (error) {
+      console.error('Error syncing wishlist after login:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated, token, fetchWishlist]);
 
   const showUniqueToast = (message, type = 'success', options = {}) => {
     const now = Date.now();
@@ -75,26 +114,55 @@ export const WishlistProvider = ({ children }) => {
   };
 
   const addToWishlist = useCallback(async (product) => {
-    setWishlistItems(prev => {
-      if (prev.some(item => item._id === product._id)) {
-        showUniqueToast('Already in your wishlist', 'default', { icon: '💝' });
-        return prev;
+    if (isAuthenticated) {
+      try {
+        const response = await apiWrapper.addToWishlist(product._id);
+        if (response?.success) {
+          await fetchWishlist();
+          showUniqueToast(`${product.name} added to wishlist`, 'success');
+        }
+      } catch (error) {
+        console.error('Error adding to wishlist:', error);
+        showUniqueToast('Failed to add to wishlist', 'error');
       }
-      showUniqueToast(`${product.name} added to wishlist`, 'success');
-      return [...prev, { ...product, addedAt: new Date().toISOString() }];
-    });
-  }, []);
+    } else {
+      setWishlistItems(prev => {
+        if (prev.some(item => item._id === product._id)) {
+          showUniqueToast('Already in your wishlist', 'default', { icon: '💝' });
+          return prev;
+        }
+        showUniqueToast(`${product.name} added to wishlist`, 'success');
+        return [...prev, { ...product, addedAt: new Date().toISOString() }];
+      });
+    }
+  }, [isAuthenticated, fetchWishlist]);
 
-  const removeFromWishlist = useCallback((productId, skipToast = false) => {
-    setWishlistItems(prev => {
-      const item = prev.find(i => i._id === productId);
-      const updated = prev.filter(item => item._id !== productId);
-      if (item && !skipToast) {
-        showUniqueToast(`${item.name} removed from wishlist`, 'success');
+  const removeFromWishlist = useCallback(async (productId, skipToast = false) => {
+    if (isAuthenticated) {
+      try {
+        const response = await apiWrapper.removeFromWishlist(productId);
+        if (response?.success) {
+          await fetchWishlist();
+          if (!skipToast) {
+            const item = wishlistItems.find(i => i._id === productId);
+            if (item) showUniqueToast(`${item.name} removed from wishlist`, 'success');
+          }
+        }
+      } catch (error) {
+        console.error('Error removing from wishlist:', error);
+        if (!skipToast) showUniqueToast('Failed to remove from wishlist', 'error');
       }
-      return updated;
-    });
-  }, []);
+    } else {
+      setWishlistItems(prev => {
+        const item = prev.find(i => i._id === productId);
+        const updated = prev.filter(item => item._id !== productId);
+        if (item && !skipToast) {
+          showUniqueToast(`${item.name} removed from wishlist`, 'success');
+        }
+        return updated;
+      });
+    }
+  }, [isAuthenticated, fetchWishlist, wishlistItems]);
 
   const isWishlisted = useCallback((productId) => {
     return wishlistItems.some(item => item._id === productId);
@@ -102,20 +170,34 @@ export const WishlistProvider = ({ children }) => {
 
   const toggleWishlist = useCallback(async (product) => {
     if (isWishlisted(product._id)) {
-      removeFromWishlist(product._id);
+      await removeFromWishlist(product._id);
     } else {
       await addToWishlist(product);
     }
   }, [isWishlisted, addToWishlist, removeFromWishlist]);
 
-  const clearWishlist = useCallback(() => {
+  const clearWishlist = useCallback(async () => {
     if (wishlistItems.length === 0) {
       showUniqueToast('Wishlist is already empty', 'default');
       return;
     }
-    setWishlistItems([]);
-    showUniqueToast('Wishlist cleared', 'success');
-  }, [wishlistItems.length]);
+    
+    if (isAuthenticated) {
+      try {
+        for (const item of wishlistItems) {
+          await apiWrapper.removeFromWishlist(item._id);
+        }
+        await fetchWishlist();
+        showUniqueToast('Wishlist cleared', 'success');
+      } catch (error) {
+        console.error('Error clearing wishlist:', error);
+        showUniqueToast('Failed to clear wishlist', 'error');
+      }
+    } else {
+      setWishlistItems([]);
+      showUniqueToast('Wishlist cleared', 'success');
+    }
+  }, [isAuthenticated, fetchWishlist, wishlistItems]);
 
   const moveAllToCart = useCallback((addToCartFn) => {
     if (!addToCartFn) {
@@ -130,22 +212,28 @@ export const WishlistProvider = ({ children }) => {
     
     const itemCount = wishlistItems.length;
     
-    // Move items to cart without showing individual "removed from wishlist" messages
+    // Move items to cart
     wishlistItems.forEach(item => {
-      // Add to cart with skipToast=true to avoid individual cart toasts
       addToCartFn(item, 1, null, true);
     });
     
-    // Clear wishlist without showing toast for each removal
-    setWishlistItems([]);
+    // Clear wishlist
+    if (isAuthenticated) {
+      wishlistItems.forEach(async (item) => {
+        await removeFromWishlist(item._id, true);
+      });
+    } else {
+      setWishlistItems([]);
+    }
     
-    // Show single combined success message
     showUniqueToast(`${itemCount} item${itemCount > 1 ? 's' : ''} moved to cart`, 'success');
-  }, [wishlistItems]);
+  }, [wishlistItems, isAuthenticated, removeFromWishlist]);
 
   const value = {
     wishlistItems,
     loading,
+    fetchWishlist,
+    syncWishlistAfterLogin,
     addToWishlist,
     removeFromWishlist,
     isWishlisted,

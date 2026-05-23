@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef, memo, useMemo } from 'react';
 import { FiChevronLeft, FiChevronRight, FiStar, FiMessageCircle, FiHeart, FiThumbsUp } from 'react-icons/fi';
-import { testimonials } from '../../data/data';
+import { testimonials as mockTestimonials } from '../../data/data';
 import { Skeleton } from '../common/Skeleton';
+import apiWrapper from '../../services/apiWrapper';
 
 // Memoized Star Rating Component - Removed unnecessary animations
 const StarRating = memo(({ rating }) => (
@@ -188,22 +189,48 @@ const Testimonials = () => {
     });
   }, []);
 
-  // Load testimonials data
+  // Load testimonials data from API first
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setTestimonialsData(testimonials);
-      setLoading(false);
-    }, 300);
-
-    return () => clearTimeout(timer);
+    const fetchTestimonials = async () => {
+      setLoading(true);
+      try {
+        const response = await apiWrapper.getTestimonials();
+        let testimonialsArray = [];
+        
+        if (response?.data?.success && response.data.data) {
+          testimonialsArray = response.data.data;
+        } else if (response?.success && response?.data) {
+          testimonialsArray = response.data;
+        } else if (Array.isArray(response)) {
+          testimonialsArray = response;
+        } else if (response?.data && Array.isArray(response.data)) {
+          testimonialsArray = response.data;
+        }
+        
+        if (testimonialsArray && testimonialsArray.length > 0) {
+          setTestimonialsData(testimonialsArray);
+        } else {
+          setTestimonialsData(mockTestimonials);
+        }
+      } catch (error) {
+        console.warn('Failed to fetch testimonials from API, using mock data:', error);
+        setTestimonialsData(mockTestimonials);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTestimonials();
   }, []);
 
   // Optimized navigation functions
   const nextTestimonial = useCallback(() => {
+    if (!testimonialsData.length) return;
     setCurrentIndex((prev) => (prev + 1) % testimonialsData.length);
   }, [testimonialsData.length]);
 
   const prevTestimonial = useCallback(() => {
+    if (!testimonialsData.length) return;
     setCurrentIndex((prev) => (prev - 1 + testimonialsData.length) % testimonialsData.length);
   }, [testimonialsData.length]);
 
@@ -284,6 +311,8 @@ const Testimonials = () => {
   ), []);
 
   if (loading) return LoadingSkeleton;
+
+  if (testimonialsData.length === 0) return null;
 
   const currentTestimonial = testimonialsData[currentIndex];
   const isLiked = likedTestimonials[currentTestimonial?.id];

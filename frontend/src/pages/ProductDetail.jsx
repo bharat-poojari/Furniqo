@@ -296,7 +296,7 @@ const QuickViewModal = ({ product, isOpen, onClose, onAddToCart, isWishlisted, o
   );
 };
 
-// Related Products Horizontal Scroll Component (matching Wishlist pattern)
+// Related Products Horizontal Scroll Component
 const RelatedProductsHorizontal = ({ productId, category, onAddToCart, onQuickView, onWishlistToggle, isWishlisted, isAddingToCart }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -329,6 +329,21 @@ const RelatedProductsHorizontal = ({ productId, category, onAddToCart, onQuickVi
       if (response?.data?.success && response.data.data) productsData = response.data.data;
       else if (response?.data && Array.isArray(response.data)) productsData = response.data;
       else if (Array.isArray(response)) productsData = response;
+      
+      // Parse images if they're strings
+      productsData = productsData.map(p => {
+        if (typeof p.images === 'string') {
+          try {
+            p.images = JSON.parse(p.images);
+          } catch (e) {
+            p.images = [];
+          }
+        }
+        if (!p.images || !Array.isArray(p.images)) {
+          p.images = [];
+        }
+        return p;
+      });
       
       setProducts(productsData.slice(0, 10));
     } catch (error) {
@@ -382,13 +397,13 @@ const RelatedProductsHorizontal = ({ productId, category, onAddToCart, onQuickVi
             return (
               <div key={product._id} className="w-32 sm:w-36 flex-shrink-0">
                 <div className="group relative bg-white dark:bg-neutral-800 rounded-lg overflow-hidden shadow hover:shadow-md transition-all border border-neutral-200 dark:border-neutral-700">
-                   <Link to={`/products/${product.slug}`} className="relative overflow-hidden bg-neutral-100 aspect-square block">
-                     <img
-                       src={product.images?.[0] || '/placeholder.svg'}
-                       alt={product.name}
-                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                       loading="lazy"
-                     />
+                  <Link to={`/products/${product.slug}`} className="relative overflow-hidden bg-neutral-100 aspect-square block">
+                    <img
+                      src={product.images?.[0] || '/placeholder.svg'}
+                      alt={product.name}
+                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      loading="lazy"
+                    />
                     {discount > 0 && (
                       <div className="absolute top-1 left-1 bg-red-500 text-white text-[8px] font-bold px-1 py-0.5 rounded-sm shadow">
                         -{discount}%
@@ -465,7 +480,6 @@ const ProductDetail = () => {
   const isMountedRef = useRef(true);
   
   const [product, setProduct] = useState(null);
-  const [relatedProducts, setRelatedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [quantity, setQuantity] = useState(1);
@@ -505,6 +519,74 @@ const ProductDetail = () => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
   }, [slug]);
 
+  const parseProductData = useCallback((data) => {
+    // Parse images if they're a string
+    if (typeof data.images === 'string') {
+      try {
+        data.images = JSON.parse(data.images);
+      } catch (e) {
+        data.images = [];
+      }
+    }
+    if (!data.images || !Array.isArray(data.images)) {
+      data.images = [];
+    }
+    
+    // Parse features if they're a string
+    if (typeof data.features === 'string') {
+      try {
+        data.features = JSON.parse(data.features);
+      } catch (e) {
+        data.features = [];
+      }
+    }
+    if (!data.features || !Array.isArray(data.features)) {
+      data.features = [];
+    }
+    
+    // Parse tags if they're a string
+    if (typeof data.tags === 'string') {
+      try {
+        data.tags = JSON.parse(data.tags);
+      } catch (e) {
+        data.tags = [];
+      }
+    }
+    
+    // Convert boolean fields from 1/0 to true/false
+    data.inStock = data.inStock === 1 || data.inStock === true;
+    data.featured = data.featured === 1 || data.featured === true;
+    data.trending = data.trending === 1 || data.trending === true;
+    data.bestSeller = data.bestSeller === 1 || data.bestSeller === true;
+    data.newArrival = data.newArrival === 1 || data.newArrival === true;
+    data.onSale = data.onSale === 1 || data.onSale === true;
+    
+    // Ensure stock is a number
+    data.stock = data.stock || 0;
+    
+    // Parse variants
+    if (data.variants && typeof data.variants === 'string') {
+      try {
+        data.variants = JSON.parse(data.variants);
+      } catch (e) {
+        data.variants = [];
+      }
+    }
+    if (!data.variants) data.variants = [];
+    
+    // Parse reviews
+    if (data.reviews && typeof data.reviews === 'string') {
+      try {
+        data.reviews = JSON.parse(data.reviews);
+      } catch (e) {
+        data.reviews = [];
+      }
+    }
+    if (!data.reviews) data.reviews = [];
+    
+    return data;
+  }, []);
+
   const fetchProduct = useCallback(async () => {
     if (!slug || !isMountedRef.current) return;
     
@@ -518,26 +600,33 @@ const ProductDetail = () => {
       const response = await apiWrapper.getProduct(slug);
       if (!isMountedRef.current) return;
       
+      let productData = null;
       if (response?.data?.success && response?.data?.data) {
-        const productData = response.data.data;
-        setProduct(productData);
-        addToRecentlyViewed(productData);
+        productData = response.data.data;
       } else if (response?.data?._id) {
-        setProduct(response.data);
-        addToRecentlyViewed(response.data);
+        productData = response.data;
+      } else if (response?.data?.product) {
+        productData = response.data.product;
+      }
+      
+      if (productData) {
+        const parsedData = parseProductData(productData);
+        setProduct(parsedData);
+        addToRecentlyViewed(parsedData);
       } else {
         setError('Product not found');
         toast.error('Product not found');
       }
     } catch (error) {
       if (isMountedRef.current && error.name !== 'AbortError') {
+        console.error('Error fetching product:', error);
         setError('Failed to load product');
         toast.error('Failed to load product');
       }
     } finally {
       if (isMountedRef.current) setLoading(false);
     }
-  }, [slug, addToRecentlyViewed]);
+  }, [slug, addToRecentlyViewed, parseProductData]);
 
   useEffect(() => {
     fetchProduct();
@@ -572,19 +661,17 @@ const ProductDetail = () => {
       { label: 'Products', href: '/products' }
     ];
     
-    // Add category if available
     if (product?.category) {
       const categoryName = typeof product.category === 'object' ? product.category.name : product.category;
       const categorySlug = typeof product.category === 'object' && product.category.slug 
         ? product.category.slug 
-        : categoryName.toLowerCase().replace(/\s+/g, '-');
+        : categoryName?.toLowerCase().replace(/\s+/g, '-');
       items.push({ 
         label: categoryName, 
         href: `/products?category=${categorySlug}` 
       });
     }
     
-    // Add current product (no href for current item)
     if (product?.name) {
       items.push({ label: product.name });
     }
@@ -605,16 +692,29 @@ const ProductDetail = () => {
     
     setAddingToCart(true);
     try {
-      await addToCart(product, quantity, selectedVariant);
+      // Create a clean product object for cart
+      const cartProduct = {
+        _id: product._id,
+        name: product.name,
+        slug: product.slug,
+        price: currentPrice,
+        originalPrice: product.originalPrice,
+        images: product.images || [],
+        stock: selectedVariant?.stock || product.stock || 0,
+        ...(selectedVariant && { variant: selectedVariant })
+      };
+      
+      await addToCart(cartProduct, quantity);
       setAddedToCart(true);
       toast.success(`${quantity} × ${product.name} added!`);
       setTimeout(() => setAddedToCart(false), 2000);
     } catch (error) {
-      toast.error('Failed to add');
+      console.error('Add to cart error:', error);
+      toast.error('Failed to add to cart');
     } finally {
       setAddingToCart(false);
     }
-  }, [product, quantity, selectedVariant, inStock, addToCart, addingToCart]);
+  }, [product, quantity, selectedVariant, inStock, addToCart, addingToCart, currentPrice]);
 
   const handleAddToCartRelated = useCallback(async (product, qty = 1) => {
     if (addingToCartRelated[product._id]) return;
@@ -633,16 +733,27 @@ const ProductDetail = () => {
     setQuantity(prev => {
       const newValue = prev + delta;
       if (newValue < 1) return 1;
-      if (newValue > (selectedVariant?.stock || product?.stock || 10)) return selectedVariant?.stock || product?.stock || 10;
+      const max = selectedVariant?.stock || product?.stock || 10;
+      if (newValue > max) return max;
       return newValue;
     });
   }, [selectedVariant, product]);
 
   const handleBuyNow = useCallback(async () => {
     if (!inStock || !product) return;
-    await addToCart(product, quantity, selectedVariant);
+    const cartProduct = {
+      _id: product._id,
+      name: product.name,
+      slug: product.slug,
+      price: currentPrice,
+      originalPrice: product.originalPrice,
+      images: product.images || [],
+      stock: selectedVariant?.stock || product.stock || 0,
+      ...(selectedVariant && { variant: selectedVariant })
+    };
+    await addToCart(cartProduct, quantity);
     navigate('/cart');
-  }, [product, quantity, selectedVariant, inStock, addToCart, navigate]);
+  }, [product, quantity, selectedVariant, inStock, addToCart, navigate, currentPrice]);
 
   const handleWishlistToggle = useCallback(() => {
     if (product) toggleWishlist(product);
@@ -696,19 +807,19 @@ const ProductDetail = () => {
   return (
     <div className="bg-white dark:bg-neutral-950">
       <div className="w-full px-3 sm:px-4 py-3">
-        {/* Breadcrumb - Responsive */}
+        {/* Breadcrumb */}
         <div className="mb-3">
           <Breadcrumb items={breadcrumbItems} />
         </div>
 
-        {/* Main Product Info - Mobile Optimized */}
+        {/* Main Product Info */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Product Images */}
           <ProductImages images={product.images || []} name={product.name} />
 
-          {/* Product Details - Reduced text sizes for mobile */}
+          {/* Product Details */}
           <div className="space-y-3">
-            {/* Badges - Smaller on mobile */}
+            {/* Badges */}
             <div className="flex flex-wrap gap-1.5">
               {product.newArrival && <Badge variant="new" size="xs">New</Badge>}
               {product.bestSeller && <Badge variant="featured" size="xs">Bestseller</Badge>}
@@ -719,7 +830,7 @@ const ProductDetail = () => {
               )}
             </div>
 
-            {/* SKU & Category - Smaller text */}
+            {/* SKU & Category */}
             <div className="flex flex-wrap items-center gap-2 text-[10px] text-neutral-500">
               <span>SKU: {product.sku || (product._id || '').slice(-8).toUpperCase()}</span>
               {product.category && (
@@ -730,12 +841,12 @@ const ProductDetail = () => {
               )}
             </div>
 
-            {/* Title - Smaller on mobile */}
+            {/* Title */}
             <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-neutral-900 dark:text-white">
               {product.name}
             </h1>
 
-            {/* Rating - Compact */}
+            {/* Rating */}
             <div className="flex items-center gap-2">
               <Rating value={product.rating || 0} numReviews={product.numReviews || 0} size="sm" />
               <button 
@@ -746,7 +857,7 @@ const ProductDetail = () => {
               </button>
             </div>
 
-            {/* Price - Smaller on mobile */}
+            {/* Price */}
             <div className="flex items-baseline gap-2 bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3">
               <span className="text-xl sm:text-2xl font-bold text-primary-600">{formatPrice(currentPrice)}</span>
               {product.originalPrice > currentPrice && (
@@ -759,9 +870,9 @@ const ProductDetail = () => {
               )}
             </div>
 
-            {/* Description - Smaller text */}
+            {/* Description */}
             <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
-              {product.shortDescription || product.description?.substring(0, 100)}
+              {product.shortDescription || product.description?.substring(0, 200)}
             </p>
 
             {/* Variants */}
@@ -773,7 +884,7 @@ const ProductDetail = () => {
               />
             )}
 
-            {/* Shipping Info - Compact */}
+            {/* Shipping Info */}
             {inStock && (
               <div className="flex items-center gap-1.5 text-[10px] text-green-600 bg-green-50 dark:bg-green-900/10 px-2 py-1.5 rounded-lg">
                 <FiTruck className="h-3 w-3" />
@@ -844,7 +955,7 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* Features Grid - Compact on mobile */}
+            {/* Features Grid */}
             <div className="grid grid-cols-3 gap-1.5 pt-2 border-t">
               {[
                 { icon: FiTruck, label: 'Free Ship', desc: '$200+' },
@@ -861,7 +972,7 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* Tabs - Compact on mobile */}
+        {/* Tabs */}
         <div className="mt-6">
           <div className="border-b border-neutral-200 dark:border-neutral-800">
             <div className="flex gap-3 overflow-x-auto scrollbar-hide">
@@ -937,7 +1048,7 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* Related Products - Using Wishlist pattern */}
+        {/* Related Products */}
         <RelatedProductsHorizontal 
           productId={product._id}
           category={product.category}

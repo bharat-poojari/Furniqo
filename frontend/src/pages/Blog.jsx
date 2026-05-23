@@ -29,6 +29,8 @@ const Blog = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(9);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalPosts, setTotalPosts] = useState(0);
   const searchInputRef = useRef(null);
   const pageRef = useRef(null);
   
@@ -41,22 +43,54 @@ const Blog = () => {
 
   const fetchPosts = async () => {
     try {
+      setLoading(true);
       const response = await apiWrapper.getBlogPosts();
       
+      console.log('Blog API Response:', response);
+      
+      // Axios response: response.data contains the API response
+      const apiResponse = response?.data;
+      
       let postsData = [];
-      if (response?.data?.success && response?.data?.data) {
-        postsData = response.data.data;
-      } else if (response?.success && response?.data) {
-        postsData = response.data;
-      } else if (response?.data && Array.isArray(response.data)) {
-        postsData = response.data;
-      } else if (Array.isArray(response)) {
+      let paginationData = null;
+      
+      // Your backend format: { success: true, posts: [...], pagination: {...} }
+      if (apiResponse?.success === true && Array.isArray(apiResponse.posts)) {
+        postsData = apiResponse.posts;
+        paginationData = apiResponse.pagination;
+      }
+      // Alternative: response.data directly has posts
+      else if (apiResponse?.posts && Array.isArray(apiResponse.posts)) {
+        postsData = apiResponse.posts;
+        paginationData = apiResponse.pagination;
+      }
+      // Alternative format with data property
+      else if (apiResponse?.success === true && Array.isArray(apiResponse.data)) {
+        postsData = apiResponse.data;
+        paginationData = apiResponse.pagination;
+      }
+      // Direct array response
+      else if (Array.isArray(apiResponse)) {
+        postsData = apiResponse;
+      }
+      // response itself is array
+      else if (Array.isArray(response)) {
         postsData = response;
       }
+      // response.data is array
+      else if (response?.data && Array.isArray(response.data)) {
+        postsData = response.data;
+      }
+      
+      console.log('Parsed blog posts count:', postsData.length);
       
       setPosts(postsData);
+      setTotalPosts(paginationData?.total || postsData.length);
+      setTotalPages(paginationData?.pages || Math.ceil(postsData.length / itemsPerPage));
+      setError(null);
     } catch (error) {
       console.error('Error fetching blog posts:', error);
+      setError('Failed to load blog posts');
       setPosts([]);
     } finally {
       setLoading(false);
@@ -91,12 +125,13 @@ const Blog = () => {
   );
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
   const paginatedPosts = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     const end = start + itemsPerPage;
     return filteredPosts.slice(start, end);
   }, [filteredPosts, currentPage, itemsPerPage]);
+
+  const totalFilteredPages = Math.ceil(filteredPosts.length / itemsPerPage);
 
   const handlePageChange = useCallback((page) => {
     setCurrentPage(page);
@@ -297,7 +332,7 @@ const Blog = () => {
               className="flex items-center gap-3 sm:gap-4"
             >
               <div className="flex items-center gap-1.5">
-                <span className="text-base sm:text-xl lg:text-2xl font-bold text-neutral-900 dark:text-white">{posts.length}</span>
+                <span className="text-base sm:text-xl lg:text-2xl font-bold text-neutral-900 dark:text-white">{totalPosts}</span>
                 <span className="text-[10px] sm:text-xs text-neutral-400">Articles</span>
               </div>
               <div className="w-px h-3 sm:h-4 bg-neutral-300 dark:bg-neutral-600" />
@@ -307,7 +342,7 @@ const Blog = () => {
               </div>
               <div className="w-px h-3 sm:h-4 bg-neutral-300 dark:bg-neutral-600" />
               <div className="flex items-center gap-1.5">
-                <span className="text-base sm:text-xl lg:text-2xl font-bold text-neutral-900 dark:text-white">{(posts.filter(p => p.featured)).length || posts.slice(0, 3).length}</span>
+                <span className="text-base sm:text-xl lg:text-2xl font-bold text-neutral-900 dark:text-white">{posts.filter(p => p.featured).length}</span>
                 <span className="text-[10px] sm:text-xs text-neutral-400">Featured</span>
               </div>
             </motion.div>
@@ -571,6 +606,7 @@ const Blog = () => {
                             alt={post.title}
                             loading="lazy"
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            onError={(e) => { e.target.src = 'https://placehold.co/600x400/eee/999?text=No+Image'; }}
                           />
                           <div className="absolute top-3 left-3">
                             <span className={`text-[10px] font-semibold px-2 py-1 rounded-full shadow-sm ${getCategoryColor(post.category)}`}>
@@ -640,6 +676,7 @@ const Blog = () => {
                             alt={post.title}
                             loading="lazy"
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            onError={(e) => { e.target.src = 'https://placehold.co/400x300/eee/999?text=No+Image'; }}
                           />
                           {post.featured && (
                             <div className="absolute top-0.5 left-0.5">
@@ -662,6 +699,7 @@ const Blog = () => {
                             </span>
                             <span className="text-[9px] sm:text-[10px] text-neutral-400 flex items-center gap-0.5">
                               <FiClock className="h-2 w-2 sm:h-2.5 sm:w-2.5" />
+                              {post.readTime}
                             </span>
                           </div>
                           
@@ -693,7 +731,7 @@ const Blog = () => {
         </AnimatePresence>
 
         {/* Pagination */}
-        {!loading && !error && filteredPosts.length > 0 && totalPages > 1 && (
+        {!loading && !error && filteredPosts.length > 0 && totalFilteredPages > 1 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -702,7 +740,7 @@ const Blog = () => {
           >
             <Pagination
               currentPage={currentPage}
-              totalPages={totalPages}
+              totalPages={totalFilteredPages}
               onPageChange={handlePageChange}
               variant="rounded"
               size="md"

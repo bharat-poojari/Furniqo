@@ -36,26 +36,53 @@ const BlogPost = () => {
 
   const fetchPost = async () => {
     try {
+      setLoading(true);
       const response = await apiWrapper.getBlogPost(slug);
       
+      console.log('Blog Post API Response:', response);
+      
+      // Axios response: response.data contains the API response
+      const apiResponse = response?.data;
+      
       let postData = null;
-      if (response?.data?.success && response?.data?.data) {
-        postData = response.data.data;
-      } else if (response?.success && response?.data) {
-        postData = response.data;
-      } else if (response?.data && !response?.success) {
-        postData = response.data;
+      
+      // Your backend format for single post: { success: true, post: {...} }
+      if (apiResponse?.success === true && apiResponse?.post) {
+        postData = apiResponse.post;
       }
+      // Alternative: { success: true, data: {...} }
+      else if (apiResponse?.success === true && apiResponse?.data) {
+        postData = apiResponse.data;
+      }
+      // Direct response with post
+      else if (apiResponse?.post) {
+        postData = apiResponse.post;
+      }
+      // response itself has the post
+      else if (response?.post) {
+        postData = response.post;
+      }
+      // Direct object
+      else if (apiResponse && apiResponse._id) {
+        postData = apiResponse;
+      }
+      else if (response && response._id) {
+        postData = response;
+      }
+      
+      console.log('Parsed blog post:', postData);
       
       if (postData) {
         setPost(postData);
         fetchRelatedPosts(postData);
       } else {
         setPost(null);
+        toast.error('Blog post not found');
       }
     } catch (error) {
       console.error('Error fetching blog post:', error);
       setPost(null);
+      toast.error('Failed to load blog post');
     } finally {
       setLoading(false);
     }
@@ -68,18 +95,44 @@ const BlogPost = () => {
       
       const response = await apiWrapper.getBlogPosts({ 
         category: category, 
-        limit: 3,
-        exclude: currentPost._id || currentPost.slug 
+        limit: 3
       });
       
-      let related = response.data.data || [];
+      const apiResponse = response?.data;
+      let related = [];
+      
+      // Your backend format: { success: true, posts: [...] }
+      if (apiResponse?.success === true && Array.isArray(apiResponse.posts)) {
+        related = apiResponse.posts.filter(p => p._id !== currentPost._id && p.slug !== currentPost.slug);
+      }
+      // Alternative format
+      else if (apiResponse?.posts && Array.isArray(apiResponse.posts)) {
+        related = apiResponse.posts.filter(p => p._id !== currentPost._id && p.slug !== currentPost.slug);
+      }
+      else if (apiResponse?.success === true && Array.isArray(apiResponse.data)) {
+        related = apiResponse.data.filter(p => p._id !== currentPost._id && p.slug !== currentPost.slug);
+      }
+      else if (Array.isArray(apiResponse)) {
+        related = apiResponse.filter(p => p._id !== currentPost._id && p.slug !== currentPost.slug);
+      }
+      else if (response?.data && Array.isArray(response.data)) {
+        related = response.data.filter(p => p._id !== currentPost._id && p.slug !== currentPost.slug);
+      }
       
       if (related.length < 3) {
-        const recentResponse = await apiWrapper.getBlogPosts({ 
-          limit: 3 - related.length,
-          exclude: currentPost._id || currentPost.slug 
-        });
-        related = [...related, ...(recentResponse.data.data || [])];
+        const recentResponse = await apiWrapper.getBlogPosts({ limit: 3 });
+        const recentApiResponse = recentResponse?.data;
+        let recentPosts = [];
+        
+        if (recentApiResponse?.success === true && Array.isArray(recentApiResponse.posts)) {
+          recentPosts = recentApiResponse.posts;
+        } else if (Array.isArray(recentApiResponse)) {
+          recentPosts = recentApiResponse;
+        }
+        
+        const filteredRecent = recentPosts.filter(p => p._id !== currentPost._id && p.slug !== currentPost.slug);
+        const combined = [...related, ...filteredRecent];
+        related = combined.slice(0, 3);
       }
       
       setRelatedPosts(related.slice(0, 3));
@@ -102,6 +155,7 @@ const BlogPost = () => {
   };
 
   const handleShare = async () => {
+    if (!post) return;
     const shareData = {
       title: post.title,
       text: post.excerpt,
@@ -201,13 +255,14 @@ const BlogPost = () => {
             <div className="absolute inset-0 bg-neutral-800 animate-pulse" />
           )}
           <motion.img 
-            src={post.image} 
+            src={post.image || 'https://placehold.co/1200x800/eee/999?text=No+Image'} 
             alt={post.title} 
             className={`w-full h-full object-cover transition-opacity duration-700 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             onLoad={() => setImageLoaded(true)}
             initial={{ scale: 1.05 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
+            onError={(e) => { e.target.src = 'https://placehold.co/1200x800/eee/999?text=No+Image'; }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/50 to-transparent" />
         </div>
@@ -242,7 +297,7 @@ const BlogPost = () => {
                   </Link>
                   <span className="flex items-center gap-1.5 text-white/80 text-xs sm:text-sm">
                     <FiCalendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    <span>{post.date}</span>
+                    <span>{new Date(post.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
                   </span>
                   <span className="flex items-center gap-1.5 text-white/80 text-xs sm:text-sm">
                     <FiClock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
@@ -270,19 +325,20 @@ const BlogPost = () => {
             transition={{ delay: 0.3 }}
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <Link to={`/blog/author/${post.authorId}`} className="flex items-center gap-3 sm:gap-4 group">
+              <div className="flex items-center gap-3 sm:gap-4">
                 <img 
-                  src={post.authorImage} 
+                  src={post.authorImage || 'https://placehold.co/100x100/eee/999?text=Author'} 
                   alt={post.author} 
-                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover ring-2 ring-primary-500/20 group-hover:ring-primary-500/40 transition-all"
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover ring-2 ring-primary-500/20"
+                  onError={(e) => { e.target.src = 'https://placehold.co/100x100/eee/999?text=Author'; }}
                 />
                 <div>
-                  <p className="font-semibold text-neutral-900 dark:text-white text-base sm:text-lg group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                  <p className="font-semibold text-neutral-900 dark:text-white text-base sm:text-lg">
                     {post.author}
                   </p>
-                  <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">{post.authorRole}</p>
+                  <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">{post.authorRole || 'Contributor'}</p>
                 </div>
-              </Link>
+              </div>
               
               <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
                 <div className="flex items-center gap-3 sm:gap-4 text-neutral-500 dark:text-neutral-400">
@@ -348,149 +404,6 @@ const BlogPost = () => {
                 {post.content || post.excerpt}
               </div>
             </div>
-            
-            {/* Why This Matters */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-              className="relative mt-10 sm:mt-12"
-            >
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-primary-500 to-primary-600 rounded-full" />
-              <div className="pl-5 sm:pl-6">
-                <h2 className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-white mb-4 sm:mb-5">
-                  Why This Matters
-                </h2>
-                <p className="text-base sm:text-lg leading-relaxed text-neutral-600 dark:text-neutral-300">
-                  In today's fast-paced world, creating a space that reflects your personality 
-                  while maintaining functionality is more important than ever. The choices you 
-                  make in furniture and decor have a lasting impact on your daily comfort and 
-                  overall well-being.
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Key Considerations */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="mt-10 sm:mt-12"
-            >
-              <h2 className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-white mb-4 sm:mb-5">
-                Key Considerations Before Buying
-              </h2>
-              <p className="text-base sm:text-lg text-neutral-600 dark:text-neutral-300 mb-6 sm:mb-8">
-                Before making any purchase, it's essential to evaluate multiple factors to ensure 
-                you're making an investment that will serve you well for years to come.
-              </p>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                {[
-                  { icon: FiMaximize2, title: 'Measure Your Space', desc: 'Always measure your room dimensions and doorways before purchasing large furniture pieces.', color: 'from-blue-500 to-cyan-500' },
-                  { icon: FiTarget, title: 'Consider Traffic Flow', desc: "Ensure there's enough space for comfortable movement throughout your room.", color: 'from-purple-500 to-pink-500' },
-                  { icon: FiShield, title: 'Durability Matters', desc: 'Look for quality materials and construction that can withstand daily use.', color: 'from-emerald-500 to-teal-500' },
-                  { icon: FiDroplet, title: 'Color Coordination', desc: 'Choose colors that complement your existing decor and create harmony.', color: 'from-amber-500 to-orange-500' }
-                ].map((item, idx) => (
-                  <div key={idx} className="group bg-neutral-50 dark:bg-neutral-900 rounded-2xl p-5 sm:p-6 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.color} p-2.5 mb-4 shadow-lg`}>
-                      <item.icon className="h-full w-full text-white" />
-                    </div>
-                    <h3 className="font-semibold text-neutral-900 dark:text-white text-lg mb-2 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                      {item.title}
-                    </h3>
-                    <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                      {item.desc}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Expert Tips */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="mt-10 sm:mt-12"
-            >
-              <h2 className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-white mb-4 sm:mb-5">
-                Expert Tips for Smart Shopping
-              </h2>
-              <div className="space-y-4 sm:space-y-5">
-                {[
-                  'Research thoroughly: Read reviews and compare prices across different retailers.',
-                  'Test before buying: Whenever possible, try furniture in person to assess comfort and quality.',
-                  'Check return policies: Understand the return and warranty terms before making a purchase.',
-                  'Consider multi-functional pieces: Opt for furniture that serves multiple purposes in smaller spaces.'
-                ].map((tip, idx) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.3 + idx * 0.1 }}
-                    className="flex items-start gap-3 sm:gap-4 group"
-                  >
-                    <div className="flex-shrink-0 mt-1">
-                      <FiCheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-primary-500 dark:text-primary-400" />
-                    </div>
-                    <p className="text-base sm:text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                      <span className="font-semibold text-neutral-900 dark:text-white">{tip.split(':')[0]}:</span> {tip.split(':')[1]}
-                    </p>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Pro Tip */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="relative my-10 sm:my-12"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-primary-500/20 via-primary-500/10 to-transparent rounded-2xl blur-xl" />
-              <div className="relative bg-gradient-to-r from-primary-50 to-neutral-50 dark:from-primary-950/30 dark:to-neutral-900 rounded-2xl p-6 sm:p-8 border border-primary-200 dark:border-primary-800">
-                <div className="flex gap-4 sm:gap-5">
-                  <div className="flex-shrink-0">
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
-                      <FiStar className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-neutral-900 dark:text-white text-xl sm:text-2xl mb-2">Pro Tip</h3>
-                    <p className="text-base sm:text-lg text-neutral-700 dark:text-neutral-300 leading-relaxed">
-                      Start with neutral, timeless pieces for major furniture investments, then add personality 
-                      through accessories, accent pieces, and artwork that can be easily updated over time.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Conclusion */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-              className="mt-10 sm:mt-12"
-            >
-              <h2 className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-white mb-4 sm:mb-5">
-                Conclusion
-              </h2>
-              <p className="text-base sm:text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                Investing in quality furniture is an investment in your comfort, lifestyle, and the beauty 
-                of your home. Take your time, do thorough research, and choose pieces that you'll love 
-                and appreciate for years to come. Remember that the best spaces evolve over time, so be 
-                patient and enjoy the process of curating your perfect environment.
-              </p>
-            </motion.div>
           </motion.div>
 
           {/* Tags Section */}
@@ -538,38 +451,6 @@ const BlogPost = () => {
             </Link>
           </motion.div>
 
-          {/* Author Bio Card */}
-          <motion.div 
-            className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6 sm:p-8 mt-8 sm:mt-10"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.6 }}
-          >
-            <div className="text-center">
-              <img 
-                src={post.authorImage} 
-                alt={post.author} 
-                className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover mx-auto mb-4 ring-4 ring-primary-500/20"
-              />
-              <h3 className="font-bold text-neutral-900 dark:text-white text-xl sm:text-2xl mb-1">{post.author}</h3>
-              <p className="text-sm text-primary-600 dark:text-primary-400 mb-3">{post.authorRole}</p>
-              <p className="text-neutral-600 dark:text-neutral-400 mb-5 max-w-md mx-auto">
-                {post.authorBio || 'Expert in interior design with over 10 years of experience helping people create beautiful, functional spaces.'}
-              </p>
-              <div className="flex justify-center gap-6 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-                <div className="text-center">
-                  <div className="font-bold text-neutral-900 dark:text-white text-lg">{post.authorArticles || '45'}+</div>
-                  <div className="text-xs text-neutral-500">Articles</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-bold text-neutral-900 dark:text-white text-lg">{post.authorFollowers || '2.5'}k+</div>
-                  <div className="text-xs text-neutral-500">Followers</div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
           {/* Related Posts */}
           <motion.div 
             className="mt-10 sm:mt-12"
@@ -607,9 +488,10 @@ const BlogPost = () => {
                       <div className="bg-white dark:bg-neutral-900 rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                         <div className="relative overflow-hidden h-48 sm:h-52">
                           <img 
-                            src={related.image || '/api/placeholder/400/300'} 
+                            src={related.image || 'https://placehold.co/400x300/eee/999?text=No+Image'} 
                             alt={related.title}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            onError={(e) => { e.target.src = 'https://placehold.co/400x300/eee/999?text=No+Image'; }}
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                         </div>
@@ -620,7 +502,7 @@ const BlogPost = () => {
                           <div className="flex items-center gap-3 text-xs text-neutral-500">
                             <span className="flex items-center gap-1">
                               <FiCalendar className="h-3 w-3" />
-                              {related.date}
+                              {new Date(related.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                             </span>
                             <span className="flex items-center gap-1">
                               <FiClock className="h-3 w-3" />
@@ -638,43 +520,6 @@ const BlogPost = () => {
                 <p className="text-neutral-500 dark:text-neutral-400">No related articles found</p>
               </div>
             )}
-          </motion.div>
-
-          {/* Newsletter Signup */}
-          <motion.div 
-            className="relative mt-12 overflow-hidden rounded-2xl"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.8 }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-primary-600 to-primary-800" />
-            <div className="absolute inset-0 opacity-30">
-              <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5" />
-                  </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#grid)" />
-              </svg>
-            </div>
-            <div className="relative bg-white/10 backdrop-blur-sm p-8 sm:p-10 text-center">
-              <h3 className="text-white text-2xl sm:text-3xl font-bold mb-3">Never Miss an Article</h3>
-              <p className="text-primary-100 text-base sm:text-lg mb-6">
-                Get the latest design tips and inspiration delivered to your inbox
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-                <input 
-                  type="email" 
-                  placeholder="Enter your email" 
-                  className="flex-1 px-5 py-3 rounded-xl text-base bg-white text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
-                />
-                <button className="px-6 py-3 bg-white text-primary-700 rounded-xl text-base font-semibold hover:bg-primary-50 transition-all shadow-lg hover:shadow-xl">
-                  Subscribe
-                </button>
-              </div>
-            </div>
           </motion.div>
         </div>
       </div>

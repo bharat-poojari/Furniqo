@@ -15,6 +15,7 @@ import { formatPrice } from '../utils/helpers';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 import apiWrapper from '../services/apiWrapper';
+import { products as mockProducts } from '../data/data';
 
 // Simplified animation variants - minimal for scroll performance
 const cardVariants = {
@@ -76,13 +77,11 @@ const LazyImage = memo(({ src, alt, className, onLoad, priority = false }) => {
   const observerRef = useRef(null);
 
   useEffect(() => {
-    // If priority, load immediately
     if (priority) {
       setSrcToLoad(src);
       return;
     }
 
-    // Create intersection observer for lazy loading
     observerRef.current = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -611,51 +610,137 @@ const Offers = () => {
   const [quickViewOpen, setQuickViewOpen] = useState(false);
 
   const abortRef = useRef(null);
+  const isMountedRef = useRef(true);
 
-  const getMockData = useCallback(() => [
-    { _id: '1', name: 'Modern Sofa', price: 49999, originalPrice: 79999, images: ['https://placehold.co/400x400/eee/999?text=Sofa'], slug: 'modern-sofa', rating: 4.5, numReviews: 128, inStock: true, category: 'Living Room' },
-    { _id: '2', name: 'Dining Table Set', price: 29999, originalPrice: 49999, images: ['https://placehold.co/400x400/eee/999?text=Dining+Table'], slug: 'dining-table-set', rating: 4.8, numReviews: 95, inStock: true, category: 'Dining' },
-    { _id: '3', name: 'Ergonomic Chair', price: 14999, originalPrice: 24999, images: ['https://placehold.co/400x400/eee/999?text=Chair'], slug: 'ergonomic-chair', rating: 4.7, numReviews: 210, inStock: true, category: 'Office' },
-    { _id: '4', name: 'Queen Bed Frame', price: 34999, originalPrice: 49999, images: ['https://placehold.co/400x400/eee/999?text=Bed'], slug: 'queen-bed-frame', rating: 4.6, numReviews: 73, inStock: false, category: 'Bedroom' },
-    { _id: '5', name: 'Wardrobe Cabinet', price: 24999, originalPrice: 39999, images: ['https://placehold.co/400x400/eee/999?text=Wardrobe'], slug: 'wardrobe-cabinet', rating: 4.4, numReviews: 58, inStock: true, category: 'Bedroom' },
-    { _id: '6', name: 'Coffee Table', price: 9999, originalPrice: 14999, images: ['https://placehold.co/400x400/eee/999?text=Coffee+Table'], slug: 'coffee-table', rating: 4.3, numReviews: 142, inStock: true, category: 'Living Room' },
-    { _id: '7', name: 'Bookshelf Unit', price: 7999, originalPrice: 12999, images: ['https://placehold.co/400x400/eee/999?text=Bookshelf'], slug: 'bookshelf-unit', rating: 4.5, numReviews: 89, inStock: true, category: 'Storage' },
-    { _id: '8', name: 'Standing Desk', price: 19999, originalPrice: 34999, images: ['https://placehold.co/400x400/eee/999?text=Desk'], slug: 'standing-desk', rating: 4.9, numReviews: 301, inStock: true, category: 'Office' },
-    { _id: '9', name: 'Leather Recliner', price: 59999, originalPrice: 89999, images: ['https://placehold.co/400x400/eee/999?text=Recliner'], slug: 'leather-recliner', rating: 4.7, numReviews: 156, inStock: true, category: 'Living Room' },
-    { _id: '10', name: 'Study Table', price: 7999, originalPrice: 14999, images: ['https://placehold.co/400x400/eee/999?text=Study+Table'], slug: 'study-table', rating: 4.4, numReviews: 89, inStock: true, category: 'Office' },
-    { _id: '11', name: 'Night Stand', price: 4999, originalPrice: 8999, images: ['https://placehold.co/400x400/eee/999?text=Night+Stand'], slug: 'night-stand', rating: 4.3, numReviews: 67, inStock: true, category: 'Bedroom' },
-    { _id: '12', name: 'Shoe Rack', price: 2999, originalPrice: 5999, images: ['https://placehold.co/400x400/eee/999?text=Shoe+Rack'], slug: 'shoe-rack', rating: 4.2, numReviews: 124, inStock: true, category: 'Storage' },
-  ], []);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (abortRef.current) {
+        abortRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Helper to extract on-sale products from API response
+  const extractOnSaleProducts = useCallback((response) => {
+    // Handle Axios response: response.data contains the API response
+    const apiResponse = response?.data;
+    
+    // Your backend format: { success: true, products: [...], total: 90 }
+    if (apiResponse?.success === true && Array.isArray(apiResponse.products)) {
+      return apiResponse.products.filter(p => 
+        p.onSale === true || (p.originalPrice && p.originalPrice > p.price)
+      );
+    }
+    
+    // Alternative format with data property
+    if (apiResponse?.success === true && Array.isArray(apiResponse.data)) {
+      return apiResponse.data.filter(p => 
+        p.onSale === true || (p.originalPrice && p.originalPrice > p.price)
+      );
+    }
+    
+    // response.data.data format
+    if (apiResponse?.data && Array.isArray(apiResponse.data)) {
+      return apiResponse.data.filter(p => 
+        p.onSale === true || (p.originalPrice && p.originalPrice > p.price)
+      );
+    }
+    
+    // Direct array response
+    if (Array.isArray(apiResponse)) {
+      return apiResponse.filter(p => 
+        p.onSale === true || (p.originalPrice && p.originalPrice > p.price)
+      );
+    }
+    
+    // Fallback: check response itself
+    if (Array.isArray(response)) {
+      return response.filter(p => 
+        p.onSale === true || (p.originalPrice && p.originalPrice > p.price)
+      );
+    }
+    
+    return [];
+  }, []);
 
   const fetchOffers = useCallback(async () => {
-    abortRef.current?.abort();
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
     abortRef.current = new AbortController();
-    setLoading(true);
-    setError(null);
+    
+    if (isMountedRef.current) {
+      setLoading(true);
+      setError(null);
+    }
 
     try {
-      const res = await apiWrapper.getProducts({ onSale: true, discount: true, limit: 50, sort: 'discount_desc' });
-      let data = [];
-      if (res?.data?.success && res?.data?.data) data = res.data.data;
-      else if (res?.success && res?.data) data = res.data;
-      else if (res?.data && Array.isArray(res.data)) data = res.data;
-      else if (Array.isArray(res)) data = res;
-
-      const onSale = data.filter(p => p.discount || (p.originalPrice && p.originalPrice > p.price));
-      setProducts(onSale.length ? onSale : getMockData());
-    } catch (e) {
-      if (e.name !== 'AbortError') {
+      // Fetch products with onSale filter
+      const response = await apiWrapper.getProducts({ 
+        onSale: true, 
+        limit: 100,
+        sort: 'price_asc'
+      });
+      
+      if (!isMountedRef.current) return;
+      
+      console.log('Offers API Response:', response);
+      
+      // Extract on-sale products from response
+      let onSaleProducts = extractOnSaleProducts(response);
+      
+      console.log('On-sale products count:', onSaleProducts.length);
+      
+      // If no on-sale products from API, fallback to mock data
+      if (onSaleProducts.length === 0) {
+        console.log('No on-sale products from API, using mock data');
+        // Filter mock products that are on sale
+        const mockOnSale = mockProducts.filter(p => 
+          p.onSale === true || (p.originalPrice && p.originalPrice > p.price)
+        );
+        
+        if (mockOnSale.length > 0) {
+          setProducts(mockOnSale);
+        } else {
+          // If no mock on-sale products, use all mock products with discounts
+          const mockWithDiscounts = mockProducts.filter(p => 
+            p.originalPrice && p.originalPrice > p.price
+          );
+          setProducts(mockWithDiscounts.length > 0 ? mockWithDiscounts : mockProducts.slice(0, 12));
+        }
+      } else {
+        setProducts(onSaleProducts);
+      }
+    } catch (err) {
+      if (isMountedRef.current && err.name !== 'AbortError' && err.name !== 'CanceledError') {
+        console.error('Error fetching offers:', err);
         setError('Failed to load offers. Please try again.');
-        setProducts(getMockData());
+        
+        // Fallback to mock data on error
+        const mockOnSale = mockProducts.filter(p => 
+          p.onSale === true || (p.originalPrice && p.originalPrice > p.price)
+        );
+        
+        if (mockOnSale.length > 0) {
+          setProducts(mockOnSale);
+        } else {
+          const mockWithDiscounts = mockProducts.filter(p => 
+            p.originalPrice && p.originalPrice > p.price
+          );
+          setProducts(mockWithDiscounts.length > 0 ? mockWithDiscounts : mockProducts.slice(0, 12));
+        }
       }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
-  }, [getMockData]);
+  }, [extractOnSaleProducts]);
 
   useEffect(() => { 
     fetchOffers(); 
-    return () => abortRef.current?.abort(); 
   }, [fetchOffers]);
 
   const displayProducts = useMemo(() => {
@@ -664,7 +749,7 @@ const Offers = () => {
     switch (sortBy) {
       case 'price_asc':    items.sort((a, b) => a.price - b.price); break;
       case 'price_desc':   items.sort((a, b) => b.price - a.price); break;
-      case 'newest':       items.reverse(); break;
+      case 'newest':       items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); break;
       default: items.sort((a, b) => calcDiscount(b.price, b.originalPrice) - calcDiscount(a.price, a.originalPrice));
     }
     return items;

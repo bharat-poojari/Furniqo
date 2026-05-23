@@ -17,6 +17,32 @@ import { formatPrice, calculateDiscount } from '../../utils/helpers';
 // Fallback image constant
 const FALLBACK_IMAGE = 'https://placehold.co/600x600/eee/999?text=Image+Not+Available';
 
+// NavButton component - This was missing!
+const NavButton = memo(({ direction, onClick }) => {
+  const Icon = direction === 'prev' ? FiChevronLeft : FiChevronRight;
+  const positionClass = direction === 'prev' ? 'left-2' : 'right-2';
+  
+  return (
+    <motion.button
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={`absolute top-1/2 -translate-y-1/2 ${positionClass} p-2 rounded-full bg-white/90 dark:bg-neutral-800/90 shadow-lg hover:bg-white dark:hover:bg-neutral-800 transition-all duration-150 z-20 opacity-0 group-hover:opacity-100 focus:opacity-100`}
+      aria-label={`${direction === 'prev' ? 'Previous' : 'Next'} image`}
+    >
+      <Icon className="h-5 w-5 text-neutral-800 dark:text-neutral-200" />
+    </motion.button>
+  );
+});
+
+NavButton.displayName = 'NavButton';
+
 // Optimized LazyImage component with error handling
 const LazyImage = memo(({ src, alt, className, priority = false }) => {
   const [isLoaded, setIsLoaded] = useState(false);
