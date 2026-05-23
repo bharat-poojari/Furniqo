@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs_18", "sqlite", "python3", "gcc"]
+nixPkgs = ["nodejs_20", "sqlite", "python3", "gcc"]
 
 [phases.install]
 cmds = ["npm ci --omit=dev"]
@@ -11,7 +11,7 @@ cmds = ["echo 'Build complete'"]
 cmd = "npm start"
 
 [build]
-nixPkgs = ["nodejs_18", "sqlite", "python3", "gcc"]
+nixPkgs = ["nodejs_20", "sqlite", "python3", "gcc"]
 
 [environment]
 NODE_ENV = "production"
