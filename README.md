@@ -2,7 +2,11 @@
 
 <div align="center">
   
+<<<<<<< HEAD
   ![Furniqo Logo](https://via.placeholder.com/128x128?text=Furniqo)
+=======
+   <img src="https://raw.githubusercontent.com/bharat-poojari/Furniqo/main/frontend/public/logo.svg" width="192" height="192" alt="Furniqo Logo">
+>>>>>>> 99a39409311c9c88841da39a8ef88a56661f2a02
 
   ### 🌟 Immersive 3D Shopping Experience
 
@@ -594,6 +598,13 @@ For licensing inquiries, please contact the development team.
 [![Made with React](https://img.shields.io/badge/Made%20with-React-61DAFB?style=for-the-badge&logo=react)](https://reactjs.org/)
 [![3D Powered](https://img.shields.io/badge/3D-Powered-000000?style=for-the-badge&logo=three.js)](https://threejs.org/)
 [![Built with Vite](https://img.shields.io/badge/Built%20with-Vite-646CFF?style=for-the-badge&logo=vite)](https://vitejs.dev/)
+<<<<<<< HEAD
+
+**© 2026 Furniqo. All rights reserved.**
+
+*Experience furniture like never before — in stunning 3D.*
+=======
+>>>>>>> 99a39409311c9c88841da39a8ef88a56661f2a02
 
 **© 2026 Furniqo. All rights reserved.**
 
