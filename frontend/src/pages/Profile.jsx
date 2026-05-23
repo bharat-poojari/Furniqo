@@ -23,7 +23,9 @@ import {
 } from 'react-icons/fi';
 import { useAuth } from '../store/AuthContext';
 import { useWishlist } from '../store/WishlistContext';
-import { formatPrice } from '../utils/helpers';
+import { formatPrice, formatDate } from '../utils/helpers';
+import Badge from '../components/common/Badge';
+import apiWrapper from '../services/apiWrapper';
 import toast from 'react-hot-toast';
 
 // Edit Field Modal
@@ -226,15 +228,17 @@ const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
 };
 
 const Profile = () => {
-  const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, logout, updateProfile } = useAuth();
   const { wishlistItems } = useWishlist();
   const navigate = useNavigate();
   
-  // Local state for form data - updates directly from user context
+  // Local state for form data
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', address: '', city: '', state: '', zipCode: '' });
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   const [avatar, setAvatar] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   
   // Modal states
   const [showEditModal, setShowEditModal] = useState(false);
@@ -242,7 +246,51 @@ const Profile = () => {
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // Load user data from localStorage or user context
+  // Helper function to get product image
+  const getProductImage = (item) => {
+    try {
+      if (item.product?.images && Array.isArray(item.product.images) && item.product.images[0]) {
+        return item.product.images[0];
+      }
+      if (item.image) return item.image;
+      return 'https://placehold.co/400x400/eee/999?text=No+Image';
+    } catch {
+      return 'https://placehold.co/400x400/eee/999?text=No+Image';
+    }
+  };
+
+  // Fetch user orders
+  const fetchOrders = async () => {
+    if (!isAuthenticated) return;
+    
+    setOrdersLoading(true);
+    try {
+      const response = await apiWrapper.getOrders();
+      
+      let ordersData = [];
+      if (response?.success && response?.data) {
+        ordersData = Array.isArray(response.data) ? response.data : (response.data.orders || response.data.data || []);
+      } else if (response?.data?.success && response?.data?.data) {
+        ordersData = response.data.data;
+      }
+      
+      setOrders(ordersData);
+      
+      // Update localStorage for offline access
+      if (ordersData.length > 0) {
+        localStorage.setItem('furniqo_orders', JSON.stringify(ordersData));
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      // Fallback to localStorage
+      const localOrders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+      setOrders(localOrders);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  // Load user data from context
   useEffect(() => {
     if (user) {
       setFormData({
@@ -254,19 +302,19 @@ const Profile = () => {
         state: user.state || '',
         zipCode: user.zipCode || '',
       });
-    } else {
-      // Fallback: try loading from localStorage
-      const savedProfile = localStorage.getItem('userProfile');
-      if (savedProfile) {
-        try {
-          setFormData(JSON.parse(savedProfile));
-        } catch (e) {}
-      }
     }
+    
     // Load saved avatar
     const savedAvatar = localStorage.getItem('userAvatar');
     if (savedAvatar) setAvatar(savedAvatar);
   }, [user]);
+
+  // Fetch orders when authenticated and orders tab is active
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'orders') {
+      fetchOrders();
+    }
+  }, [isAuthenticated, activeTab]);
 
   // Loading state
   if (authLoading) {
@@ -310,12 +358,23 @@ const Profile = () => {
     );
   }
 
-  // Handle field save (local state + localStorage)
-  const handleFieldSave = (field, value) => {
+  // Handle field save via API
+  const handleFieldSave = async (field, value) => {
     const updatedData = { ...formData, [field]: value };
     setFormData(updatedData);
-    // Save to localStorage
-    localStorage.setItem('userProfile', JSON.stringify(updatedData));
+    
+    // Update via API
+    try {
+      const response = await updateProfile(updatedData);
+      if (response?.success) {
+        toast.success(`${field} updated successfully!`);
+      } else {
+        toast.error(response?.message || 'Update failed');
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      toast.error('Failed to update');
+    }
   };
 
   // Handle avatar save
@@ -325,13 +384,21 @@ const Profile = () => {
   };
 
   // Handle save all changes
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
     setSaving(true);
-    setTimeout(() => {
-      localStorage.setItem('userProfile', JSON.stringify(formData));
+    try {
+      const response = await updateProfile(formData);
+      if (response?.success) {
+        toast.success('Profile updated successfully!');
+      } else {
+        toast.error(response?.message || 'Update failed');
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      toast.error('Failed to update profile');
+    } finally {
       setSaving(false);
-      toast.success('Profile updated successfully!');
-    }, 800);
+    }
   };
 
   // Handle logout
@@ -354,9 +421,9 @@ const Profile = () => {
   ];
 
   const quickStats = [
-    { icon: FiShoppingBag, label: 'Orders', value: '12', href: '/orders' },
+    { icon: FiShoppingBag, label: 'Orders', value: orders.length.toString(), href: '/orders' },
     { icon: FiHeart, label: 'Wishlist', value: (wishlistItems.length || 0).toString(), href: '/wishlist' },
-    { icon: FiStar, label: 'Reviews', value: '3', href: '/reviews' },
+    { icon: FiStar, label: 'Reviews', value: '0', href: '/reviews' },
   ];
 
   const inputClass = `w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:text-white placeholder-neutral-400 transition-all`;
@@ -504,7 +571,7 @@ const Profile = () => {
                   {wishlistItems.map((item) => (
                     <Link key={item._id} to={`/products/${item.slug}`} className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800 overflow-hidden hover:shadow-md transition-all group">
                       <div className="aspect-square bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
-                        <img src={item.images?.[0]} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <img src={getProductImage(item)} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => { e.target.src = 'https://placehold.co/400x400/eee/999?text=No+Image'; }} />
                       </div>
                       <div className="p-2.5">
                         <p className="text-xs font-medium dark:text-white truncate">{item.name}</p>
@@ -518,12 +585,91 @@ const Profile = () => {
           )}
 
           {activeTab === 'orders' && (
-            <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="text-center py-10 bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800">
-              <FiPackage className="h-8 w-8 text-neutral-300 mx-auto mb-2" />
-              <p className="text-sm text-neutral-500 mb-3">View your complete order history</p>
-              <Link to="/orders" className="px-4 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 transition-colors inline-flex items-center gap-1.5">
-                View All Orders <FiChevronRight className="h-3 w-3" />
-              </Link>
+            <motion.div key="orders" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-100 dark:border-neutral-800 shadow-sm overflow-hidden">
+                <div className="p-3 border-b border-neutral-100 dark:border-neutral-800">
+                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-white">Recent Orders</h3>
+                </div>
+                
+                {ordersLoading ? (
+                  <div className="p-8 space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="animate-pulse">
+                        <div className="h-16 bg-neutral-200 dark:bg-neutral-700 rounded-lg"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="text-center py-10">
+                    <FiPackage className="h-8 w-8 text-neutral-300 mx-auto mb-2" />
+                    <p className="text-sm text-neutral-500 mb-3">No orders yet</p>
+                    <Link to="/products" className="px-4 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 transition-colors inline-flex items-center gap-1.5">
+                      Start Shopping <FiChevronRight className="h-3 w-3" />
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                    {orders.slice(0, 5).map((order) => {
+                      const orderItems = Array.isArray(order.items) ? order.items : (order.items ? JSON.parse(order.items) : []);
+                      return (
+                        <Link 
+                          key={order._id} 
+                          to={`/orders/${order._id}`}
+                          state={{ order: order }}
+                          className="block p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
+                        >
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-mono text-xs text-neutral-500">{order.orderNumber || order._id?.slice(-8).toUpperCase()}</p>
+                              <p className="text-sm font-medium text-neutral-900 dark:text-white mt-1">
+                                {formatPrice(order.total || 0)}
+                              </p>
+                              <p className="text-xs text-neutral-500 mt-1">{formatDate(order.createdAt)}</p>
+                              {orderItems.length > 0 && (
+                                <div className="flex items-center gap-1 mt-2">
+                                  <img 
+                                    src={getProductImage(orderItems[0])} 
+                                    alt="" 
+                                    className="w-6 h-6 object-cover rounded"
+                                    onError={(e) => { e.target.src = 'https://placehold.co/400x400/eee/999?text=No+Image'; }}
+                                  />
+                                  <span className="text-xs text-neutral-500 truncate max-w-[150px]">
+                                    {orderItems.length} item{orderItems.length !== 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <Badge
+                                variant={
+                                  order.status === 'delivered' ? 'success' :
+                                  order.status === 'cancelled' ? 'danger' :
+                                  order.status === 'shipped' ? 'info' : 'warning'
+                                }
+                                size="sm"
+                              >
+                                {order.status?.toUpperCase() || 'PENDING'}
+                              </Badge>
+                              <div className="flex items-center gap-1 text-xs text-primary-600 mt-2">
+                                <span>View Details</span>
+                                <FiChevronRight className="h-3 w-3" />
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {orders.length > 5 && (
+                  <div className="p-3 border-t border-neutral-100 dark:border-neutral-800 text-center">
+                    <Link to="/orders" className="text-sm text-primary-600 hover:text-primary-700">
+                      View All Orders →
+                    </Link>
+                  </div>
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

@@ -25,7 +25,6 @@ import {
 } from 'react-icons/fi';
 import { useCart } from '../store/CartContext';
 import { useAuth } from '../store/AuthContext';
-import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import { formatPrice } from '../utils/helpers';
 import { SHIPPING_METHODS } from '../utils/constants';
@@ -40,23 +39,24 @@ const steps = [
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const { cartItems, isEmpty, getSubtotal, getDiscount, getShippingCost, getTax, getTotal, clearCart, appliedCoupon } = useCart();
-  const { user } = useAuth();
+  const { cartItems, isEmpty, getSubtotal, getDiscount, getShippingCost, getTax, getTotal, clearCart, appliedCoupon, fetchCart } = useCart();
+  const { user, isAuthenticated } = useAuth();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [orderPlaced, setOrderPlaced] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState(null);
 
   const [shippingData, setShippingData] = useState({
     firstName: user?.name?.split(' ')[0] || '',
     lastName: user?.name?.split(' ').slice(1).join(' ') || '',
     email: user?.email || '',
     phone: user?.phone || '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
+    address: user?.address || '',
+    city: user?.city || '',
+    state: user?.state || '',
+    zipCode: user?.zipCode || '',
     country: 'US',
   });
 
@@ -76,6 +76,14 @@ const Checkout = () => {
       navigate('/cart', { replace: true });
     }
   }, [isEmpty, cartItems?.length, navigate]);
+
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      toast.error('Please login to checkout');
+      navigate('/login', { state: { from: '/checkout' } });
+    }
+  }, [isAuthenticated, navigate]);
 
   // Scroll to top on step change
   useEffect(() => {
@@ -120,7 +128,7 @@ const Checkout = () => {
     if (!shippingData.address.trim()) newErrors.address = 'Address is required';
     if (!shippingData.city.trim()) newErrors.city = 'City is required';
     if (!shippingData.state.trim()) newErrors.state = 'State is required';
-    if (!shippingData.zipCode || shippingData.zipCode.length < 5) newErrors.zipCode = 'Valid ZIP code is required';
+    if (!shippingData.zipCode || shippingData.zipCode.length < 3) newErrors.zipCode = 'Valid ZIP code is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -143,6 +151,18 @@ const Checkout = () => {
     }
   };
 
+  const getProductImage = (item) => {
+    try {
+      if (item.product?.images && Array.isArray(item.product.images) && item.product.images[0]) {
+        return item.product.images[0];
+      }
+      if (item.image) return item.image;
+      return 'https://placehold.co/400x400/eee/999?text=No+Image';
+    } catch {
+      return 'https://placehold.co/400x400/eee/999?text=No+Image';
+    }
+  };
+
   const handlePlaceOrder = async () => {
     if (!validateShippingStep() || !validatePaymentStep()) {
       setCurrentStep(1);
@@ -153,72 +173,53 @@ const Checkout = () => {
     setLoading(true);
     
     try {
+      const orderItems = cartItems.map(item => ({
+        productId: item.product._id,
+        name: item.product.name,
+        quantity: item.quantity,
+        price: item.variant?.price || item.product.price,
+        image: getProductImage(item),
+        variant: item.variant || null,
+      }));
+
       const orderData = {
+        items: orderItems,
         shippingAddress: shippingData,
-        shipping: shippingData,
-        shippingMethod,
-        paymentMethod: 'Visa',
-        payment: {
-          last4: paymentData.cardNumber.replace(/\s/g, '').slice(-4),
-          brand: 'Visa',
-          status: 'pending',
-        },
-        items: cartItems.map(item => ({
-          productId: item.product._id,
-          name: item.product.name,
-          quantity: item.quantity,
-          price: item.variant?.price || item.product.price,
-          image: item.product.images?.[0],
-          variant: item.variant,
-        })),
-        subtotal: getSubtotal(),
-        discount: getDiscount(),
-        shippingCost: getShippingCost(),
-        giftWrapCost: giftWrap ? 5.99 : 0,
-        tax: getTax(),
-        total: getTotal() + (giftWrap ? 5.99 : 0),
-        couponCode: appliedCoupon?.code,
-        coupon: appliedCoupon?.code,
-        giftWrap,
+        billingAddress: shippingData,
+        paymentMethod: 'visa',
+        paymentId: `pay_${Date.now()}`,
+        paymentStatus: 'paid',
+        giftWrap: giftWrap,
+        giftMessage: giftWrap ? 'Gift wrap requested' : null,
+        notes: '',
       };
 
       const response = await apiWrapper.createOrder(orderData);
       
-      // Handle different response structures
-      let orderSuccess = false;
-      let orderId = null;
-      let orderDataResponse = null;
-      
-      if (response?.data?.success && response?.data?.data) {
-        orderSuccess = true;
-        orderId = response.data.data._id;
-        orderDataResponse = response.data.data;
-      } else if (response?.success && response?.data) {
-        orderSuccess = true;
-        orderId = response.data._id;
-        orderDataResponse = response.data;
-      } else if (response?.success) {
-        orderSuccess = true;
-        orderId = response.orderId || response._id;
-        orderDataResponse = response;
-      }
-
-      if (orderSuccess && orderId) {
+      if (response?.success && response?.data) {
+        const newOrder = response.data;
+        setCreatedOrder(newOrder);
         setOrderPlaced(true);
-        clearCart();
         
-        // Small delay to show success animation
-        setTimeout(() => {
-          navigate(`/order-confirmation/${orderId}`, {
-            state: { order: orderDataResponse },
-            replace: true,
-          });
-        }, 1000);
+        // Clear cart from backend and localStorage
+        await clearCart();
+        
+        // Store order in localStorage for persistence across refreshes
+        const existingOrders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+        existingOrders.unshift(newOrder);
+        localStorage.setItem('furniqo_orders', JSON.stringify(existingOrders));
         
         toast.success('Order placed successfully!');
+        
+        // Navigate after a short delay
+        setTimeout(() => {
+          navigate(`/order-confirmation/${newOrder._id}`, {
+            state: { order: newOrder },
+            replace: true,
+          });
+        }, 1500);
       } else {
-        const errorMessage = response?.data?.message || response?.message || 'Failed to place order';
-        toast.error(errorMessage);
+        toast.error(response?.message || 'Failed to place order');
         setOrderPlaced(false);
       }
     } catch (error) {
@@ -481,55 +482,22 @@ const Checkout = () => {
                         <FiTruck className="h-3.5 w-3.5" /> Shipping Method
                       </h3>
                       <div className="space-y-2">
-                        {SHIPPING_METHODS && SHIPPING_METHODS.length > 0 ? (
-                          SHIPPING_METHODS.map((method) => (
-                            <motion.label 
-                              key={method.id} 
-                              whileHover={{ scale: 1.01 }} 
-                              className={`flex items-center p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                                shippingMethod === method.id 
-                                  ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/10' 
-                                  : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'
-                              }`}
-                            >
-                              <input 
-                                type="radio" 
-                                name="shippingMethod" 
-                                value={method.id} 
-                                checked={shippingMethod === method.id} 
-                                onChange={(e) => setShippingMethod(e.target.value)} 
-                                className="text-primary-600" 
-                              />
-                              <div className="ml-3 flex-1">
-                                <p className="text-sm font-medium dark:text-white">{method.name}</p>
-                                <p className="text-xs text-neutral-500">{method.description} • {method.days}</p>
-                              </div>
-                              <span className="text-sm font-semibold dark:text-white">
-                                {method.price === 0 ? 'FREE' : formatPrice(method.price)}
-                              </span>
-                            </motion.label>
-                          ))
-                        ) : (
-                          // Default shipping methods if constants not available
-                          <>
-                            <label className={`flex items-center p-3 rounded-xl border-2 cursor-pointer transition-all ${shippingMethod === 'standard' ? 'border-primary-500 bg-primary-50/50' : 'border-neutral-200'}`}>
-                              <input type="radio" name="shippingMethod" value="standard" checked={shippingMethod === 'standard'} onChange={(e) => setShippingMethod(e.target.value)} className="text-primary-600" />
-                              <div className="ml-3 flex-1">
-                                <p className="text-sm font-medium">Standard Shipping</p>
-                                <p className="text-xs text-neutral-500">5-7 business days</p>
-                              </div>
-                              <span className="text-sm font-semibold">FREE</span>
-                            </label>
-                            <label className={`flex items-center p-3 rounded-xl border-2 cursor-pointer transition-all ${shippingMethod === 'express' ? 'border-primary-500 bg-primary-50/50' : 'border-neutral-200'}`}>
-                              <input type="radio" name="shippingMethod" value="express" checked={shippingMethod === 'express'} onChange={(e) => setShippingMethod(e.target.value)} className="text-primary-600" />
-                              <div className="ml-3 flex-1">
-                                <p className="text-sm font-medium">Express Shipping</p>
-                                <p className="text-xs text-neutral-500">2-3 business days</p>
-                              </div>
-                              <span className="text-sm font-semibold">$9.99</span>
-                            </label>
-                          </>
-                        )}
+                        <label className={`flex items-center p-3 rounded-xl border-2 cursor-pointer transition-all ${shippingMethod === 'standard' ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/10' : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'}`}>
+                          <input type="radio" name="shippingMethod" value="standard" checked={shippingMethod === 'standard'} onChange={(e) => setShippingMethod(e.target.value)} className="text-primary-600" />
+                          <div className="ml-3 flex-1">
+                            <p className="text-sm font-medium dark:text-white">Standard Shipping</p>
+                            <p className="text-xs text-neutral-500">5-7 business days</p>
+                          </div>
+                          <span className="text-sm font-semibold dark:text-white">FREE</span>
+                        </label>
+                        <label className={`flex items-center p-3 rounded-xl border-2 cursor-pointer transition-all ${shippingMethod === 'express' ? 'border-primary-500 bg-primary-50/50 dark:bg-primary-900/10' : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600'}`}>
+                          <input type="radio" name="shippingMethod" value="express" checked={shippingMethod === 'express'} onChange={(e) => setShippingMethod(e.target.value)} className="text-primary-600" />
+                          <div className="ml-3 flex-1">
+                            <p className="text-sm font-medium dark:text-white">Express Shipping</p>
+                            <p className="text-xs text-neutral-500">2-3 business days</p>
+                          </div>
+                          <span className="text-sm font-semibold dark:text-white">$9.99</span>
+                        </label>
                       </div>
                     </div>
 
@@ -752,10 +720,10 @@ const Checkout = () => {
                         {cartItems.map((item) => (
                           <div key={item._id} className="flex gap-3 items-center p-2 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg">
                             <img 
-                              src={item.product.images?.[0] || '/placeholder-image.jpg'} 
+                              src={getProductImage(item)} 
                               alt={item.product.name} 
                               className="w-12 h-12 object-cover rounded-lg flex-shrink-0" 
-                              onError={(e) => { e.target.src = '/placeholder-image.jpg'; }}
+                              onError={(e) => { e.target.src = 'https://placehold.co/400x400/eee/999?text=No+Image'; }}
                             />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-medium dark:text-white truncate">{item.product.name}</p>

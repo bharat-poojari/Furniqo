@@ -1,12 +1,31 @@
 // src/App.jsx
 import { lazy, Suspense, useEffect } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AnimatePresence } from 'framer-motion';
 import { AppProvider } from './store/AppProvider';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import AppUpdateBanner from './components/common/AppUpdateBanner';
 import Layout from './components/layout/Layout';
+import AdminLayout from './admin/AdminLayout';
+import AdminDashboard from './admin/AdminDashboard';
+import AdminUsers from './admin/AdminUsers';
+import AdminProducts from './admin/AdminProducts';
+import AdminCategories from './admin/AdminCategories';
+import AdminOrders from './admin/AdminOrders';
+import AdminGiftCards from './admin/AdminGiftCards';
+import AdminTestimonials from './admin/AdminTestimonials';
+import AdminBlog from './admin/AdminBlog';
+import AdminRooms from './admin/AdminRooms';
+import AdminCoupons from './admin/AdminCoupons';
+import AdminFAQs from './admin/AdminFAQs';
+import AdminContact from './admin/AdminContact';
+import AdminNewsletter from './admin/AdminNewsletter';
+import AdminHeroSlides from './admin/AdminHeroSlides';
+import AdminPolicies from './admin/AdminPolicies';
+import AdminUploads from './admin/AdminUploads';
+import AdminLogin from './admin/AdminLogin';
+import { useAuth } from './store/AuthContext';
 
 // Simple loading spinner
 const LoadingSpinner = () => (
@@ -55,6 +74,21 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const Accessibility = lazy(() => import('./pages/Accessibility'));
 const Sustainability = lazy(() => import('./pages/Sustainability'));
 
+// Protected Admin Route Wrapper Component
+const AdminProtectedRoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+  
+  if (!isAuthenticated || user?.role !== 'admin') {
+    return <Navigate to="/admin/login" replace />;
+  }
+  
+  return children;
+};
+
 // Scroll to top on route change
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -68,7 +102,6 @@ function App() {
   return (
     <ErrorBoundary>
       <AppProvider>
-        {/* REMOVED <Router> from here - it's now in main.jsx */}
         <ScrollToTop />
         <Toaster
           position="top-center"
@@ -84,6 +117,7 @@ function App() {
         <AnimatePresence mode="wait">
           <Suspense fallback={<LoadingSpinner />}>
             <Routes>
+              {/* Main Website Routes */}
               <Route path="/" element={<Layout />}>
                 <Route index element={<Home />} />
                 <Route path="products" element={<Products />} />
@@ -114,18 +148,50 @@ function App() {
                 <Route path="sustainability" element={<Sustainability />} />
                 <Route path="policies/:type" element={<Policies />} />
                 <Route path="forgot-password" element={<ForgotPassword />} />
-                <Route path="/orders/:id" element={<OrderDetails />} />
+                <Route path="orders/:id" element={<OrderDetails />} />
                 <Route path="track-order" element={<TrackOrder />} />
                 <Route path="room-inspiration" element={<RoomInspiration />} />
                 <Route path="custom-furniture" element={<CustomFurniture />} />
                 <Route path="offers" element={<Offers />} />
                 <Route path="*" element={<NotFound />} />
               </Route>
+
+              {/* Admin Authentication Routes */}
+              <Route path="/admin/login" element={<AdminLogin />} />
+
+              {/* Protected Admin Routes */}
+              <Route 
+                path="/admin" 
+                element={
+                  <AdminProtectedRoute>
+                    <AdminLayout />
+                  </AdminProtectedRoute>
+                }
+              >
+                <Route index element={<AdminDashboard />} />
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="products" element={<AdminProducts />} />
+                <Route path="categories" element={<AdminCategories />} />
+                <Route path="orders" element={<AdminOrders />} />
+                <Route path="gift-cards" element={<AdminGiftCards />} />
+                <Route path="testimonials" element={<AdminTestimonials />} />
+                <Route path="blog" element={<AdminBlog />} />
+                <Route path="rooms" element={<AdminRooms />} />
+                <Route path="coupons" element={<AdminCoupons />} />
+                <Route path="faqs" element={<AdminFAQs />} />
+                <Route path="contact" element={<AdminContact />} />
+                <Route path="newsletter" element={<AdminNewsletter />} />
+                <Route path="hero-slides" element={<AdminHeroSlides />} />
+                <Route path="policies" element={<AdminPolicies />} />
+                <Route path="uploads" element={<AdminUploads />} />
+              </Route>
+
+              {/* Redirect any unknown admin routes to login */}
+              <Route path="/admin/*" element={<Navigate to="/admin/login" replace />} />
             </Routes>
           </Suspense>
         </AnimatePresence>
-        {/* REMOVED closing </Router> tag */}
-        {/* SW Update Banner */}
         <AppUpdateBanner />
       </AppProvider>
     </ErrorBoundary>

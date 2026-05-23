@@ -17,8 +17,8 @@ import Badge from '../components/common/Badge';
 import EmptyState from '../components/common/EmptyState';
 import Pagination from '../components/common/Pagination';
 import { formatPrice, formatDate } from '../utils/helpers';
-import { ORDER_STATUS, ORDER_STATUS_COLORS } from '../utils/constants';
 import apiWrapper from '../services/apiWrapper';
+import toast from 'react-hot-toast';
 
 const statusIcons = {
   pending: FiClock,
@@ -29,52 +29,72 @@ const statusIcons = {
   cancelled: FiXCircle,
 };
 
+const getProductImage = (item) => {
+  try {
+    if (item.product?.images && Array.isArray(item.product.images) && item.product.images[0]) {
+      return item.product.images[0];
+    }
+    if (item.image) return item.image;
+    return 'https://placehold.co/400x400/eee/999?text=No+Image';
+  } catch {
+    return 'https://placehold.co/400x400/eee/999?text=No+Image';
+  }
+};
+
 const Orders = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
 
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+      const response = await apiWrapper.getOrders();
+      
+      let ordersData = [];
+      if (response?.success && response?.data) {
+        ordersData = Array.isArray(response.data) ? response.data : (response.data.orders || response.data.data || []);
+      } else if (response?.data?.success && response?.data?.data) {
+        ordersData = response.data.data;
+      }
+      
+      setOrders(ordersData);
+      
+      // Also update localStorage for offline access
+      if (ordersData.length > 0) {
+        localStorage.setItem('furniqo_orders', JSON.stringify(ordersData));
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      // Try to load from localStorage as fallback
+      const localOrders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+      setOrders(localOrders);
+      if (localOrders.length > 0) {
+        toast.success('Loaded orders from cache');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchOrders();
+    } else {
+      // Load from localStorage for guest users
+      const localOrders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+      setOrders(localOrders);
+      setLoading(false);
     }
   }, [isAuthenticated]);
-
-  const fetchOrders = async () => {
-  setLoading(true);
-  try {
-    const response = await apiWrapper.getOrders();
-    
-    // Handle different response structures
-    let ordersData = [];
-    if (response?.data?.success && response?.data?.data) {
-      ordersData = response.data.data;
-    } else if (response?.success && response?.data) {
-      ordersData = response.data;
-    } else if (response?.data && Array.isArray(response.data)) {
-      ordersData = response.data;
-    } else if (Array.isArray(response)) {
-      ordersData = response;
-    }
-    
-    setOrders(ordersData);
-  } catch (error) {
-    console.error('Error fetching orders:', error);
-    setOrders([]);
-  } finally {
-    setLoading(false);
-  }
-};
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order._id?.toLowerCase().includes(searchTerm.toLowerCase());
-    
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    
     return matchesSearch && matchesStatus;
   });
 
@@ -88,14 +108,14 @@ const Orders = () => {
   if (!isAuthenticated) {
     return (
       <div className="w-full px-[1%] sm:px-[1.5%] py-16 text-center">
-        <FiPackage className="h-20 w-20 text-neutral-300 dark:text-neutral-600  mb-6" />
+        <FiPackage className="h-20 w-20 text-neutral-300 dark:text-neutral-600 mb-6" />
         <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-4">
           Sign In to View Orders
         </h1>
         <p className="text-neutral-600 dark:text-neutral-400 mb-8">
           Track your orders and view your purchase history.
         </p>
-        <Link to="/login">
+        <Link to="/login" state={{ from: '/orders' }}>
           <Button variant="primary" size="lg">Sign In</Button>
         </Link>
       </div>
@@ -116,7 +136,7 @@ const Orders = () => {
 
   return (
     <div className="w-full px-[1%] sm:px-[1.5%] py-8">
-      <div className="max-w-5xl ">
+      <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl lg:text-4xl font-display font-bold text-neutral-900 dark:text-white mb-8">
           My Orders
         </h1>
@@ -150,11 +170,12 @@ const Orders = () => {
                 className="px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="all">All Status</option>
-                {Object.entries(ORDER_STATUS).map(([key, value]) => (
-                  <option key={key} value={value}>
-                    {key.replace(/_/g, ' ')}
-                  </option>
-                ))}
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </div>
 
@@ -163,6 +184,7 @@ const Orders = () => {
               <AnimatePresence>
                 {paginatedOrders.map((order) => {
                   const StatusIcon = statusIcons[order.status] || FiClock;
+                  const orderItems = Array.isArray(order.items) ? order.items : (order.items ? JSON.parse(order.items) : []);
                   
                   return (
                     <motion.div
@@ -173,16 +195,16 @@ const Orders = () => {
                       exit={{ opacity: 0, x: -20 }}
                     >
                       <Link
-  to={`/orders/${order._id}`}
-  state={{ order: order }}  // Add this line
-  className="block bg-white dark:bg-neutral-900 rounded-2xl shadow-soft border border-neutral-100 dark:border-neutral-800 hover:shadow-medium transition-all overflow-hidden group"
->
+                        to={`/orders/${order._id}`}
+                        state={{ order: order }}
+                        className="block bg-white dark:bg-neutral-900 rounded-2xl shadow-soft border border-neutral-100 dark:border-neutral-800 hover:shadow-medium transition-all overflow-hidden group"
+                      >
                         <div className="p-4 lg:p-6">
                           <div className="flex items-start justify-between mb-4">
                             <div>
                               <p className="text-xs text-neutral-500 mb-1">Order Number</p>
                               <p className="font-mono font-bold text-neutral-900 dark:text-white group-hover:text-primary-600 transition-colors">
-                                {order.orderNumber || order._id}
+                                {order.orderNumber || order._id?.slice(-8).toUpperCase()}
                               </p>
                               <p className="text-sm text-neutral-500 mt-1">
                                 {formatDate(order.createdAt)}
@@ -200,7 +222,7 @@ const Orders = () => {
                             >
                               <span className="flex items-center gap-1.5">
                                 <StatusIcon className="h-3.5 w-3.5" />
-                                {order.status?.replace(/_/g, ' ')}
+                                {order.status?.replace(/_/g, ' ')?.toUpperCase() || 'PENDING'}
                               </span>
                             </Badge>
                           </div>
@@ -208,17 +230,18 @@ const Orders = () => {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-sm text-neutral-500">
-                                {order.items?.length || 0} {order.items?.length === 1 ? 'item' : 'items'}
+                                {orderItems.length} {orderItems.length === 1 ? 'item' : 'items'}
                               </p>
-                              {order.items?.slice(0, 3).map((item, i) => (
+                              {orderItems.slice(0, 3).map((item, i) => (
                                 <div key={i} className="flex items-center gap-2 mt-1">
                                   <img
-                                    src={item.product?.images?.[0]}
+                                    src={getProductImage(item)}
                                     alt=""
                                     className="w-8 h-8 object-cover rounded"
+                                    onError={(e) => { e.target.src = 'https://placehold.co/400x400/eee/999?text=No+Image'; }}
                                   />
-                                  <span className="text-sm text-neutral-700 dark:text-neutral-300 truncate">
-                                    {item.product?.name}
+                                  <span className="text-sm text-neutral-700 dark:text-neutral-300 truncate max-w-[200px]">
+                                    {item.name || item.product?.name || 'Product'}
                                   </span>
                                 </div>
                               ))}
