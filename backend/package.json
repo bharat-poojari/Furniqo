@@ -7,13 +7,14 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "seed": "node utils/seedData.js",
-    "db:reset": "rm -f furniqo.db && npm run seed"
+    "db:reset": "rm -f furniqo.db && npm run seed",
+    "build": "npm ci --omit=dev",
+    "postinstall": "echo 'Backend installed successfully'"
   },
   "dependencies": {
-    "adm-zip": "^0.5.17",
+    "better-sqlite3": "^9.0.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "docx": "^9.6.1",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
@@ -22,10 +23,21 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
-    "sqlite": "^5.1.1",
     "uuid": "^14.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
-  }
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "furniture",
+    "ecommerce",
+    "api",
+    "sqlite"
+  ],
+  "author": "Furniqo",
+  "license": "ISC"
 }
