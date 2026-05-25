@@ -48,45 +48,41 @@ const Blog = () => {
       
       console.log('Blog API Response:', response);
       
-      // Axios response: response.data contains the API response
-      const apiResponse = response?.data;
-      
+      // Handle the response - your backend returns { success: true, posts: [...], pagination: {...} }
       let postsData = [];
       let paginationData = null;
       
-      // Your backend format: { success: true, posts: [...], pagination: {...} }
-      if (apiResponse?.success === true && Array.isArray(apiResponse.posts)) {
-        postsData = apiResponse.posts;
-        paginationData = apiResponse.pagination;
+      // Check if response has data property (axios)
+      const data = response?.data || response;
+      
+      // Your exact backend format
+      if (data && data.success === true && Array.isArray(data.posts)) {
+        postsData = data.posts;
+        paginationData = data.pagination;
       }
-      // Alternative: response.data directly has posts
-      else if (apiResponse?.posts && Array.isArray(apiResponse.posts)) {
-        postsData = apiResponse.posts;
-        paginationData = apiResponse.pagination;
+      // If posts are directly in data
+      else if (data && Array.isArray(data.posts)) {
+        postsData = data.posts;
+        paginationData = data.pagination;
       }
-      // Alternative format with data property
-      else if (apiResponse?.success === true && Array.isArray(apiResponse.data)) {
-        postsData = apiResponse.data;
-        paginationData = apiResponse.pagination;
+      // If response is directly the posts array
+      else if (Array.isArray(data)) {
+        postsData = data;
       }
-      // Direct array response
-      else if (Array.isArray(apiResponse)) {
-        postsData = apiResponse;
-      }
-      // response itself is array
-      else if (Array.isArray(response)) {
-        postsData = response;
-      }
-      // response.data is array
-      else if (response?.data && Array.isArray(response.data)) {
-        postsData = response.data;
+      // If posts are in data.data
+      else if (data && data.data && Array.isArray(data.data)) {
+        postsData = data.data;
+        paginationData = data.pagination;
       }
       
       console.log('Parsed blog posts count:', postsData.length);
+      console.log('First post sample:', postsData[0]);
       
       setPosts(postsData);
-      setTotalPosts(paginationData?.total || postsData.length);
-      setTotalPages(paginationData?.pages || Math.ceil(postsData.length / itemsPerPage));
+      setTotalPosts(paginationData?.total || paginationData?.totalPosts || postsData.length);
+      // Calculate total pages based on itemsPerPage
+      const total = paginationData?.total || paginationData?.totalPosts || postsData.length;
+      setTotalPages(Math.ceil(total / itemsPerPage));
       setError(null);
     } catch (error) {
       console.error('Error fetching blog posts:', error);

@@ -342,6 +342,21 @@ const createTables = async () => {
     )
   `);
 
+  // Uploads/media table
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS uploads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      filename TEXT NOT NULL,
+      path TEXT NOT NULL,
+      url TEXT NOT NULL,
+      mimetype TEXT,
+      size INTEGER,
+      uploadedBy TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (uploadedBy) REFERENCES users(_id) ON DELETE SET NULL
+    )
+  `);
+
   // Newsletter subscribers table
   await db.exec(`
     CREATE TABLE IF NOT EXISTS newsletter_subscribers (

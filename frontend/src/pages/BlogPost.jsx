@@ -41,33 +41,27 @@ const BlogPost = () => {
       
       console.log('Blog Post API Response:', response);
       
-      // Axios response: response.data contains the API response
-      const apiResponse = response?.data;
-      
+      // Handle the response - your backend returns { success: true, post: {...} }
       let postData = null;
       
-      // Your backend format for single post: { success: true, post: {...} }
-      if (apiResponse?.success === true && apiResponse?.post) {
-        postData = apiResponse.post;
+      // Get the actual data from axios response
+      const data = response?.data || response;
+      
+      // Your exact backend format
+      if (data && data.success === true && data.post) {
+        postData = data.post;
       }
-      // Alternative: { success: true, data: {...} }
-      else if (apiResponse?.success === true && apiResponse?.data) {
-        postData = apiResponse.data;
+      // If post is directly in data
+      else if (data && data.post) {
+        postData = data.post;
       }
-      // Direct response with post
-      else if (apiResponse?.post) {
-        postData = apiResponse.post;
+      // If response is directly the post object with _id
+      else if (data && data._id) {
+        postData = data;
       }
-      // response itself has the post
-      else if (response?.post) {
-        postData = response.post;
-      }
-      // Direct object
-      else if (apiResponse && apiResponse._id) {
-        postData = apiResponse;
-      }
-      else if (response && response._id) {
-        postData = response;
+      // If post is in data.data
+      else if (data && data.data && data.data._id) {
+        postData = data.data;
       }
       
       console.log('Parsed blog post:', postData);
@@ -93,49 +87,72 @@ const BlogPost = () => {
       setLoadingRelated(true);
       const category = currentPost.category;
       
+      // Fetch posts by category
       const response = await apiWrapper.getBlogPosts({ 
         category: category, 
-        limit: 3
+        limit: 4  // Fetch more to filter out current
       });
       
-      const apiResponse = response?.data;
+      // Get the actual data from axios response
+      const data = response?.data || response;
+      
       let related = [];
       
-      // Your backend format: { success: true, posts: [...] }
-      if (apiResponse?.success === true && Array.isArray(apiResponse.posts)) {
-        related = apiResponse.posts.filter(p => p._id !== currentPost._id && p.slug !== currentPost.slug);
+      // Your exact backend format
+      if (data && data.success === true && Array.isArray(data.posts)) {
+        related = data.posts.filter(p => 
+          p._id !== currentPost._id && p.slug !== currentPost.slug
+        );
       }
-      // Alternative format
-      else if (apiResponse?.posts && Array.isArray(apiResponse.posts)) {
-        related = apiResponse.posts.filter(p => p._id !== currentPost._id && p.slug !== currentPost.slug);
+      // If posts are directly in data
+      else if (data && Array.isArray(data.posts)) {
+        related = data.posts.filter(p => 
+          p._id !== currentPost._id && p.slug !== currentPost.slug
+        );
       }
-      else if (apiResponse?.success === true && Array.isArray(apiResponse.data)) {
-        related = apiResponse.data.filter(p => p._id !== currentPost._id && p.slug !== currentPost.slug);
+      // If response is directly the posts array
+      else if (Array.isArray(data)) {
+        related = data.filter(p => 
+          p._id !== currentPost._id && p.slug !== currentPost.slug
+        );
       }
-      else if (Array.isArray(apiResponse)) {
-        related = apiResponse.filter(p => p._id !== currentPost._id && p.slug !== currentPost.slug);
-      }
-      else if (response?.data && Array.isArray(response.data)) {
-        related = response.data.filter(p => p._id !== currentPost._id && p.slug !== currentPost.slug);
+      // If posts are in data.data
+      else if (data && data.data && Array.isArray(data.data)) {
+        related = data.data.filter(p => 
+          p._id !== currentPost._id && p.slug !== currentPost.slug
+        );
       }
       
+      // If we don't have enough related posts from same category, fetch recent posts
       if (related.length < 3) {
-        const recentResponse = await apiWrapper.getBlogPosts({ limit: 3 });
-        const recentApiResponse = recentResponse?.data;
+        const recentResponse = await apiWrapper.getBlogPosts({ limit: 5 });
+        const recentData = recentResponse?.data || recentResponse;
+        
         let recentPosts = [];
         
-        if (recentApiResponse?.success === true && Array.isArray(recentApiResponse.posts)) {
-          recentPosts = recentApiResponse.posts;
-        } else if (Array.isArray(recentApiResponse)) {
-          recentPosts = recentApiResponse;
+        if (recentData && recentData.success === true && Array.isArray(recentData.posts)) {
+          recentPosts = recentData.posts;
+        } else if (recentData && Array.isArray(recentData.posts)) {
+          recentPosts = recentData.posts;
+        } else if (Array.isArray(recentData)) {
+          recentPosts = recentData;
+        } else if (recentData && recentData.data && Array.isArray(recentData.data)) {
+          recentPosts = recentData.data;
         }
         
-        const filteredRecent = recentPosts.filter(p => p._id !== currentPost._id && p.slug !== currentPost.slug);
+        // Filter out current post and duplicates
+        const filteredRecent = recentPosts.filter(p => 
+          p._id !== currentPost._id && p.slug !== currentPost.slug &&
+          !related.some(r => r._id === p._id)
+        );
+        
         const combined = [...related, ...filteredRecent];
         related = combined.slice(0, 3);
+      } else {
+        related = related.slice(0, 3);
       }
       
-      setRelatedPosts(related.slice(0, 3));
+      setRelatedPosts(related);
     } catch (error) {
       console.error('Error fetching related posts:', error);
       setRelatedPosts([]);
@@ -392,7 +409,7 @@ const BlogPost = () => {
             </div>
           </motion.div>
 
-          {/* Article Content */}
+          {/* Article Content - Using both content and excerpt fallback */}
           <motion.div 
             className="prose prose-neutral prose-sm sm:prose-base lg:prose-lg dark:prose-invert max-w-none"
             initial={{ opacity: 0 }}
@@ -401,7 +418,7 @@ const BlogPost = () => {
           >
             <div className="text-neutral-600 dark:text-neutral-300 leading-relaxed text-base sm:text-lg">
               <div className="first-letter:text-5xl sm:first-letter:text-6xl first-letter:font-bold first-letter:text-primary-600 dark:first-letter:text-primary-400 first-letter:float-left first-letter:mr-3 first-letter:leading-tight">
-                {post.content || post.excerpt}
+                {post.content || post.excerpt || 'Full content coming soon...'}
               </div>
             </div>
           </motion.div>

@@ -327,43 +327,25 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
       updatedValues = [...currentValues, value];
     }
     onFilterChange({ ...filters, [type]: updatedValues.length > 0 ? updatedValues : undefined });
-    // Auto-close desktop filter after applying
-    if (!isMobile && onDesktopToggle) {
-      setTimeout(() => onDesktopToggle(), 100);
-    }
-  }, [filters, onFilterChange, isMobile, onDesktopToggle]);
+  }, [filters, onFilterChange]);
 
   const handleRadioChange = useCallback((type, value) => {
     onFilterChange({ ...filters, [type]: filters[type] === value ? undefined : value });
-    // Auto-close desktop filter after applying
-    if (!isMobile && onDesktopToggle) {
-      setTimeout(() => onDesktopToggle(), 100);
-    }
-  }, [filters, onFilterChange, isMobile, onDesktopToggle]);
+  }, [filters, onFilterChange]);
 
   const handleSortSelect = useCallback((value) => {
     onSortChange(value);
-    // Auto-close desktop filter after sorting
-    if (!isMobile && onDesktopToggle) {
-      setTimeout(() => onDesktopToggle(), 100);
-    }
-  }, [onSortChange, isMobile, onDesktopToggle]);
+  }, [onSortChange]);
 
   const handleInStockToggle = useCallback(() => {
     onFilterChange({ ...filters, inStock: !filters.inStock ? true : undefined });
-    if (!isMobile && onDesktopToggle) {
-      setTimeout(() => onDesktopToggle(), 100);
-    }
-  }, [filters, onFilterChange, isMobile, onDesktopToggle]);
+  }, [filters, onFilterChange]);
 
   const handleResetFilters = useCallback(() => {
     setLocalPriceRange({ min: '', max: '' });
     onFilterChange({});
     if (onSortChange) onSortChange('featured');
-    if (!isMobile && onDesktopToggle) {
-      setTimeout(() => onDesktopToggle(), 100);
-    }
-  }, [onFilterChange, onSortChange, isMobile, onDesktopToggle]);
+  }, [onFilterChange, onSortChange]);
 
   const toggleSection = useCallback((section) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -540,44 +522,21 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
     </>
   ), [filters, openSections, localPriceRange, filterOptions, handleCheckboxChange, handleRadioChange, handleInStockToggle, handlePriceInputChange, toggleSection]);
 
-  // Desktop version - Filter Toggle Button and Overlay Panel
+  // Desktop version - Sidebar Panel (not floating)
   if (!isMobile) {
     return (
       <>
-        {/* Filter Toggle Button */}
-        <button
-          onClick={onDesktopToggle}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-full shadow-lg hover:shadow-xl transition-all duration-150 lg:hidden"
-        >
-          <FiSliders className="h-4 w-4" />
-          <span className="text-sm font-medium">Filters</span>
-          {activeCount > 0 && (
-            <span className="text-xs bg-primary-500 text-white px-2 py-0.5 rounded-full">{activeCount}</span>
-          )}
-        </button>
-
-        {/* Desktop Filter Button - Visible on larger screens */}
-        <button
-          onClick={onDesktopToggle}
-          className="hidden lg:flex fixed top-24 right-6 z-40 items-center gap-2 px-4 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-md hover:shadow-lg transition-all duration-150"
-        >
-          <FiSliders className="h-4 w-4" />
-          <span className="text-sm font-medium">Filters</span>
-          {activeCount > 0 && (
-            <span className="text-xs bg-primary-500 text-white px-2 py-0.5 rounded-full">{activeCount}</span>
-          )}
-        </button>
-
-        {/* Overlay */}
+        {/* Desktop Sidebar Panel - Slides from right when isDesktopOpen is true */}
         <AnimatePresence>
           {isDesktopOpen && (
             <>
+              {/* Overlay */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
                 onClick={onDesktopToggle}
               />
               
@@ -616,10 +575,10 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
                   </div>
                 </div>
 
-                {/* Scrollable Content with Custom Scrollbar */}
+                {/* Scrollable Content */}
                 <div 
                   ref={scrollContainerRef}
-                  className="flex-1 overflow-y-auto overscroll-contain custom-scrollbar"
+                  className="flex-1 overflow-y-auto overscroll-contain"
                 >
                   {/* Sort Section */}
                   <div className="px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">
@@ -687,7 +646,7 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
       {/* Scrollable Content */}
       <div 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto overscroll-contain custom-scrollbar"
+        className="flex-1 overflow-y-auto overscroll-contain"
       >
         {/* Sort Section */}
         <div className="px-4 py-3 border-b border-neutral-100 dark:border-neutral-800">

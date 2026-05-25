@@ -20,7 +20,6 @@ import AdminRooms from './admin/AdminRooms';
 import AdminCoupons from './admin/AdminCoupons';
 import AdminFAQs from './admin/AdminFAQs';
 import AdminContact from './admin/AdminContact';
-import AdminNewsletter from './admin/AdminNewsletter';
 import AdminHeroSlides from './admin/AdminHeroSlides';
 import AdminPolicies from './admin/AdminPolicies';
 import AdminUploads from './admin/AdminUploads';
@@ -181,7 +180,6 @@ function App() {
                 <Route path="coupons" element={<AdminCoupons />} />
                 <Route path="faqs" element={<AdminFAQs />} />
                 <Route path="contact" element={<AdminContact />} />
-                <Route path="newsletter" element={<AdminNewsletter />} />
                 <Route path="hero-slides" element={<AdminHeroSlides />} />
                 <Route path="policies" element={<AdminPolicies />} />
                 <Route path="uploads" element={<AdminUploads />} />

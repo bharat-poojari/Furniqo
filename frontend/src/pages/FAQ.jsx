@@ -22,122 +22,15 @@ import {
   FiUsers,
   FiTag,
   FiLink,
-  FiFilter
+  FiFilter,
+  FiLoader
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import apiWrapper from '../services/apiWrapper';
 
 // ============================================================================
 // Types & Constants
 // ============================================================================
-
-const faqs = [
-  {
-    id: 1,
-    question: "What is your return policy?",
-    answer: "We offer a 30-day money-back guarantee on all products. If you're not satisfied with your purchase, you can return it within 30 days for a full refund. The product must be in its original condition and packaging. Start your return by contacting our support team.",
-    category: "Returns",
-    popular: true,
-    helpful: 234,
-    tags: ["refund", "return", "money-back"],
-    relatedLinks: [
-      { label: "Return Process Guide", url: "/returns" },
-      { label: "Refund Timeline", url: "/refund-policy" }
-    ],
-    relatedFaqIds: [2, 4]
-  },
-  {
-    id: 2,
-    question: "How long does shipping take?",
-    answer: "Standard shipping typically takes 3-5 business days within the continental US. Express shipping (1-2 business days) is available at checkout for an additional fee. International shipping times vary by destination, usually 7-14 business days.",
-    category: "Shipping",
-    popular: true,
-    helpful: 189,
-    tags: ["shipping", "delivery", "tracking"],
-    relatedLinks: [
-      { label: "Shipping Policy", url: "/shipping" },
-      { label: "Track Your Order", url: "/track-order" }
-    ],
-    relatedFaqIds: [3, 4]
-  },
-  {
-    id: 3,
-    question: "Do you offer international shipping?",
-    answer: "Yes, we ship to over 50 countries worldwide. International shipping rates and delivery times vary by destination. Please note that customs fees, duties, and taxes may apply and are the responsibility of the customer.",
-    category: "Shipping",
-    popular: false,
-    helpful: 145,
-    tags: ["international", "worldwide", "customs"],
-    relatedLinks: [
-      { label: "International Shipping Guide", url: "/international-shipping" }
-    ],
-    relatedFaqIds: [2]
-  },
-  {
-    id: 4,
-    question: "How do I track my order?",
-    answer: "Once your order ships, we'll send you a confirmation email with a tracking number. You can also track your order by logging into your account and visiting the 'Orders' section.",
-    category: "Orders",
-    popular: true,
-    helpful: 167,
-    tags: ["tracking", "order status", "delivery"],
-    relatedLinks: [
-      { label: "Track Your Order", url: "/track-order" }
-    ],
-    relatedFaqIds: [2, 6]
-  },
-  {
-    id: 5,
-    question: "What payment methods do you accept?",
-    answer: "We accept all major credit cards (Visa, Mastercard, American Express, Discover), PayPal, Apple Pay, Google Pay, and Shop Pay. All transactions are secured with 256-bit SSL encryption.",
-    category: "Payments",
-    popular: true,
-    helpful: 212,
-    tags: ["payment", "credit card", "paypal"],
-    relatedLinks: [
-      { label: "Secure Payment Guide", url: "/payment-security" }
-    ],
-    relatedFaqIds: []
-  },
-  {
-    id: 6,
-    question: "How do I change or cancel my order?",
-    answer: "You can modify or cancel your order within 1 hour of placing it. Contact our support team immediately with your order number. After the order has been processed or shipped, modifications may not be possible.",
-    category: "Orders",
-    popular: false,
-    helpful: 98,
-    tags: ["cancel", "modify", "change order"],
-    relatedLinks: [
-      { label: "Order Modification Policy", url: "/modify-order" }
-    ],
-    relatedFaqIds: [4]
-  },
-  {
-    id: 7,
-    question: "Are your products eco-friendly?",
-    answer: "Absolutely! We're committed to sustainability. All our products are made from recycled or sustainable materials, and our packaging is 100% plastic-free. We're also a carbon-neutral company.",
-    category: "Products",
-    popular: true,
-    helpful: 287,
-    tags: ["eco-friendly", "sustainable", "green"],
-    relatedLinks: [
-      { label: "Our Sustainability Promise", url: "/sustainability" }
-    ],
-    relatedFaqIds: []
-  },
-  {
-    id: 8,
-    question: "What's your warranty policy?",
-    answer: "All products come with a 1-year limited warranty covering manufacturing defects. If your product fails due to a defect within the warranty period, we'll repair or replace it at no cost.",
-    category: "Returns",
-    popular: false,
-    helpful: 156,
-    tags: ["warranty", "defects", "repair"],
-    relatedLinks: [
-      { label: "Warranty Registration", url: "/warranty" }
-    ],
-    relatedFaqIds: [1]
-  }
-];
 
 const categoryNames = {
   'all': 'All',
@@ -145,7 +38,11 @@ const categoryNames = {
   'Shipping': 'Shipping',
   'Orders': 'Orders',
   'Payments': 'Payments',
-  'Products': 'Products'
+  'Products': 'Products',
+  'general': 'General',
+  'account': 'Account',
+  'technical': 'Technical',
+  'gift cards': 'Gift Cards'
 };
 
 const categoryIcons = {
@@ -154,7 +51,11 @@ const categoryIcons = {
   'Shipping': FiClock,
   'Orders': FiBookOpen,
   'Payments': FiZap,
-  'Products': FiTrendingUp
+  'Products': FiTrendingUp,
+  'General': FiHelpCircle,
+  'Account': FiUsers,
+  'Technical': FiZap,
+  'Gift Cards': FiStar
 };
 
 const sortOptions = [
@@ -227,19 +128,24 @@ const PopularItem = ({ faq, rank, onClick }) => (
       <p className="text-xs text-neutral-700 dark:text-neutral-300 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors line-clamp-2">
         {faq.question}
       </p>
-      <span className="text-[10px] text-neutral-400 mt-0.5 block">{faq.category}</span>
+      <span className="text-[10px] text-neutral-400 mt-0.5 block">{faq.category || 'General'}</span>
     </div>
     <FiArrowRight className="h-3.5 w-3.5 text-neutral-400 flex-shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1" />
   </motion.button>
 );
 
-// FAQ Item Component (Enhanced Accordion)
+// FAQ Item Component - No nested buttons
 const FAQItem = ({ faq, isOpen, onToggle, onViewDetails, searchTerm, onHelpful, helpfulStates }) => {
-  const helpfulState = helpfulStates[faq.id] || { type: null, count: faq.helpful };
+  const helpfulState = helpfulStates[faq.id] || { type: null, count: faq.helpful || 0 };
   
   const handleHelpfulClick = (type, e) => {
     e.stopPropagation();
     onHelpful(faq.id, type, helpfulState.count);
+  };
+
+  const handleDetailsClick = (e) => {
+    e.stopPropagation();
+    onViewDetails();
   };
 
   return (
@@ -253,9 +159,10 @@ const FAQItem = ({ faq, isOpen, onToggle, onViewDetails, searchTerm, onHelpful, 
           : 'border-neutral-200 dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700 hover:shadow-md'
       }`}
     >
-      <button
+      {/* Header - Clickable div instead of button to avoid nesting */}
+      <div
         onClick={onToggle}
-        className="w-full p-4 text-left flex items-start justify-between gap-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors group"
+        className="w-full p-4 text-left flex items-start justify-between gap-3 hover:bg-neutral-50 dark:hover:bg-neutral-800/30 transition-colors group cursor-pointer"
       >
         <div className="flex-1 min-w-0">
           <h4 className="text-sm font-medium text-neutral-900 dark:text-white leading-snug group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
@@ -263,26 +170,21 @@ const FAQItem = ({ faq, isOpen, onToggle, onViewDetails, searchTerm, onHelpful, 
           </h4>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <span className="text-[10px] px-1.5 py-0.5 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-full">
-              {faq.category}
+              {faq.category || 'General'}
             </span>
             <span className="text-[10px] text-neutral-400 flex items-center gap-0.5">
               <FiThumbsUp className="h-2.5 w-2.5" />
               {helpfulState.count}
             </span>
-            {faq.tags?.slice(0, 2).map((tag, i) => (
-              <span key={i} className="text-[9px] px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-500 rounded-full">
-                #{tag}
-              </span>
-            ))}
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button
-            onClick={(e) => { e.stopPropagation(); onViewDetails(); }}
-            className="text-[11px] px-2.5 py-1.5 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors hidden sm:block"
+          <span
+            onClick={handleDetailsClick}
+            className="text-[11px] px-2.5 py-1.5 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-lg hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors cursor-pointer hidden sm:inline-block"
           >
             Details
-          </button>
+          </span>
           <motion.div 
             animate={{ rotate: isOpen ? 180 : 0 }} 
             transition={{ duration: 0.3, type: "spring", stiffness: 300 }}
@@ -291,7 +193,7 @@ const FAQItem = ({ faq, isOpen, onToggle, onViewDetails, searchTerm, onHelpful, 
             <FiChevronDown className="h-4 w-4" />
           </motion.div>
         </div>
-      </button>
+      </div>
       
       <AnimatePresence initial={false}>
         {isOpen && (
@@ -333,12 +235,12 @@ const FAQItem = ({ faq, isOpen, onToggle, onViewDetails, searchTerm, onHelpful, 
                 </div>
               </div>
 
-              <button
-                onClick={onViewDetails}
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-primary-600 dark:text-primary-400 mt-3 hover:gap-2 transition-all"
+              <span
+                onClick={handleDetailsClick}
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-primary-600 dark:text-primary-400 mt-3 hover:gap-2 transition-all cursor-pointer"
               >
                 Read full answer <FiArrowRight className="h-2.5 w-2.5" />
-              </button>
+              </span>
             </div>
           </motion.div>
         )}
@@ -350,7 +252,7 @@ const FAQItem = ({ faq, isOpen, onToggle, onViewDetails, searchTerm, onHelpful, 
 // Enhanced Question Detail Modal
 const QuestionDetailModal = ({ isOpen, onClose, faq, relatedFaqs, onRelatedClick, onHelpful, helpfulStates }) => {
   const [copied, setCopied] = useState(false);
-  const helpfulState = faq ? (helpfulStates[faq.id] || { type: null, count: faq.helpful }) : { type: null, count: 0 };
+  const helpfulState = faq ? (helpfulStates[faq.id] || { type: null, count: faq.helpful || 0 }) : { type: null, count: 0 };
 
   useEffect(() => {
     const handleEsc = (e) => {
@@ -436,7 +338,7 @@ const QuestionDetailModal = ({ isOpen, onClose, faq, relatedFaqs, onRelatedClick
               <FiX className="h-4 w-4" />
             </button>
             <span className="inline-block px-2.5 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-semibold mb-2">
-              {faq.category}
+              {faq.category || 'General'}
             </span>
             <h2 className="text-base font-bold leading-snug pr-8">{faq.question}</h2>
           </div>
@@ -446,18 +348,6 @@ const QuestionDetailModal = ({ isOpen, onClose, faq, relatedFaqs, onRelatedClick
             <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
               {faq.answer}
             </p>
-
-            {/* Tags */}
-            {faq.tags && faq.tags.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {faq.tags.map((tag, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 rounded-full">
-                    <FiTag className="h-2.5 w-2.5" />
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
 
             {/* Helpful section */}
             <div className="mt-5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
@@ -487,48 +377,6 @@ const QuestionDetailModal = ({ isOpen, onClose, faq, relatedFaqs, onRelatedClick
                 </button>
               </div>
             </div>
-
-            {/* Related Resources */}
-            {faq.relatedLinks && faq.relatedLinks.length > 0 && (
-              <div className="mt-5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
-                <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                  <FiLink className="h-3 w-3" />
-                  Related Resources
-                </h4>
-                <div className="space-y-1.5">
-                  {faq.relatedLinks.map((link, i) => (
-                    <a key={i} href={link.url} className="flex items-center gap-2 text-xs text-primary-600 dark:text-primary-400 hover:underline group">
-                      <FiExternalLink className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
-                      {link.label}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Related FAQs */}
-            {relatedFaqs && relatedFaqs.length > 0 && (
-              <div className="mt-5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
-                <h4 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                  <FiHelpCircle className="h-3 w-3" />
-                  Related Questions
-                </h4>
-                <div className="space-y-2">
-                  {relatedFaqs.map((relatedFaq) => (
-                    <button
-                      key={relatedFaq.id}
-                      onClick={() => {
-                        onRelatedClick(relatedFaq);
-                        onClose();
-                      }}
-                      className="w-full text-left text-xs text-neutral-700 dark:text-neutral-300 hover:text-primary-600 dark:hover:text-primary-400 py-1 border-l-2 border-transparent hover:border-primary-500 pl-2 transition-all"
-                    >
-                      {relatedFaq.question}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2 mt-5 pt-4 border-t border-neutral-100 dark:border-neutral-800">
@@ -587,7 +435,7 @@ const RecentSearches = ({ searches, onSelect, onClear }) => {
   );
 };
 
-// Quick Navigation Component (without scroll buttons)
+// Quick Navigation Component
 const QuickNav = ({ categories, activeCategory, onSelect, categoryCounts }) => {
   return (
     <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -623,12 +471,22 @@ const EmptyStateFaq = ({ onClearFilters, searchTerm }) => (
   </div>
 );
 
+// Loading Component
+const LoadingSpinner = () => (
+  <div className="flex flex-col items-center justify-center h-64">
+    <FiLoader className="h-8 w-8 animate-spin text-primary-500 mb-3" />
+    <p className="text-sm text-neutral-500">Loading frequently asked questions...</p>
+  </div>
+);
+
 // ============================================================================
 // Main FAQ Component
 // ============================================================================
 
 const FAQ = () => {
   // State
+  const [faqs, setFaqs] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
@@ -656,8 +514,59 @@ const FAQ = () => {
   const categoryBarRef = useRef(null);
   const searchInputRef = useRef(null);
 
+  // Fetch FAQs from API
+  const fetchFaqs = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await apiWrapper.getFAQs();
+      
+      console.log('FAQ API response:', response);
+      
+      let faqsData = [];
+      
+      // Handle different response formats
+      if (response?.faqs && Array.isArray(response.faqs)) {
+        faqsData = response.faqs;
+      } else if (response?.data && Array.isArray(response.data)) {
+        faqsData = response.data;
+      } else if (Array.isArray(response)) {
+        faqsData = response;
+      } else if (response?.data?.faqs && Array.isArray(response.data.faqs)) {
+        faqsData = response.data.faqs;
+      }
+      
+      // Map the data to ensure consistent field names
+      const mappedFaqs = faqsData.map(faq => ({
+        id: faq.id || faq._id,
+        question: faq.question,
+        answer: faq.answer,
+        category: faq.category || 'General',
+        popular: faq.popular || false,
+        helpful: faq.helpful || 0,
+        tags: faq.tags || [],
+        relatedLinks: faq.relatedLinks || [],
+        relatedFaqIds: faq.relatedFaqIds || []
+      }));
+      
+      setFaqs(mappedFaqs);
+    } catch (error) {
+      console.error('Error fetching FAQs:', error);
+      toast.error('Failed to load FAQs');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load FAQs on mount
+  useEffect(() => {
+    fetchFaqs();
+  }, [fetchFaqs]);
+
   // Derived data
-  const categories = useMemo(() => ['all', ...new Set(faqs.map(faq => faq.category))], []);
+  const categories = useMemo(() => {
+    const cats = new Set(faqs.map(faq => faq.category));
+    return ['all', ...Array.from(cats).sort()];
+  }, [faqs]);
   
   const categoryCounts = useMemo(() => {
     const counts = {};
@@ -666,15 +575,15 @@ const FAQ = () => {
     });
     counts['all'] = faqs.length;
     return counts;
-  }, []);
+  }, [faqs]);
 
   // Filtered FAQs with sort
   const filteredFAQs = useMemo(() => {
     let filtered = faqs.filter(faq => {
       const matchesSearch = searchTerm === '' ||
-        faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        faq.answer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        faq.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+        faq.question?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        faq.answer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (faq.tags || []).some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesCategory = activeCategory === 'all' || faq.category === activeCategory;
       return matchesSearch && matchesCategory;
     });
@@ -682,10 +591,10 @@ const FAQ = () => {
     // Sort
     switch (sortBy) {
       case 'popular':
-        filtered.sort((a, b) => (helpfulStates[b.id]?.count || b.helpful) - (helpfulStates[a.id]?.count || a.helpful));
+        filtered.sort((a, b) => (helpfulStates[b.id]?.count || b.helpful || 0) - (helpfulStates[a.id]?.count || a.helpful || 0));
         break;
       case 'newest':
-        filtered.sort((a, b) => b.id - a.id);
+        filtered.sort((a, b) => (b.id || 0) - (a.id || 0));
         break;
       default:
         // relevance - keep as is
@@ -693,7 +602,7 @@ const FAQ = () => {
     }
     
     return filtered;
-  }, [searchTerm, activeCategory, sortBy, helpfulStates]);
+  }, [faqs, searchTerm, activeCategory, sortBy, helpfulStates]);
 
   const groupedFAQs = useMemo(() => {
     return categories.filter(c => c !== 'all').map(cat => ({
@@ -705,9 +614,9 @@ const FAQ = () => {
   const popularQuestions = useMemo(() => {
     return [...faqs]
       .filter(f => f.popular)
-      .sort((a, b) => (helpfulStates[b.id]?.count || b.helpful) - (helpfulStates[a.id]?.count || a.helpful))
+      .sort((a, b) => (helpfulStates[b.id]?.count || b.helpful || 0) - (helpfulStates[a.id]?.count || a.helpful || 0))
       .slice(0, 4);
-  }, [helpfulStates]);
+  }, [faqs, helpfulStates]);
 
   // Get related FAQs
   const getRelatedFaqs = useCallback((faq) => {
@@ -715,7 +624,7 @@ const FAQ = () => {
     return faq.relatedFaqIds
       .map(id => faqs.find(f => f.id === id))
       .filter(Boolean);
-  }, []);
+  }, [faqs]);
 
   // Handlers
   const handleFaqToggle = useCallback((faqId) => {
@@ -752,7 +661,6 @@ const FAQ = () => {
       let newType = type;
       
       if (existing?.type === type) {
-        // Undo
         newCount = type === 'yes' ? currentCount - 1 : currentCount + 1;
         newType = null;
       } else if (existing?.type === 'yes' && type === 'no') {
@@ -822,14 +730,18 @@ const FAQ = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const faqId = params.get('faq');
-    if (faqId) {
+    if (faqId && faqs.length > 0) {
       const faq = faqs.find(f => f.id === parseInt(faqId));
       if (faq) {
         setSelectedFaq(faq);
         setShowDetailModal(true);
       }
     }
-  }, []);
+  }, [faqs]);
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-white to-neutral-100 dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950">
@@ -943,28 +855,30 @@ const FAQ = () => {
               {!searchTerm && activeCategory === 'all' && (
                 <div className="sticky top-24 space-y-4">
                   {/* Popular Questions Panel */}
-                  <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shadow-sm">
-                    <div className="p-4 border-b border-neutral-100 dark:border-neutral-800">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg">
-                          <FiTrendingUp className="h-3.5 w-3.5 text-white" />
+                  {popularQuestions.length > 0 && (
+                    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shadow-sm">
+                      <div className="p-4 border-b border-neutral-100 dark:border-neutral-800">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 bg-gradient-to-br from-primary-500 to-purple-600 rounded-lg">
+                            <FiTrendingUp className="h-3.5 w-3.5 text-white" />
+                          </div>
+                          <h3 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
+                            Most Popular Questions
+                          </h3>
                         </div>
-                        <h3 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 uppercase tracking-wide">
-                          Most Popular Questions
-                        </h3>
+                      </div>
+                      <div>
+                        {popularQuestions.map((faq, idx) => (
+                          <PopularItem 
+                            key={faq.id} 
+                            faq={faq} 
+                            rank={idx + 1} 
+                            onClick={() => handlePopularClick(faq)} 
+                          />
+                        ))}
                       </div>
                     </div>
-                    <div>
-                      {popularQuestions.map((faq, idx) => (
-                        <PopularItem 
-                          key={faq.id} 
-                          faq={faq} 
-                          rank={idx + 1} 
-                          onClick={() => handlePopularClick(faq)} 
-                        />
-                      ))}
-                    </div>
-                  </div>
+                  )}
 
                   {/* Support Card */}
                   <div className="bg-gradient-to-r from-primary-500 to-purple-600 rounded-xl p-5 text-white text-center shadow-lg">
@@ -988,7 +902,7 @@ const FAQ = () => {
                       </div>
                       <div className="text-center">
                         <p className="text-2xl font-bold text-emerald-600">
-                          {Object.values(helpfulStates).reduce((sum, h) => sum + (h.count || 0), faqs.reduce((s, f) => s + f.helpful, 0))}
+                          {Object.values(helpfulStates).reduce((sum, h) => sum + (h.count || 0), faqs.reduce((s, f) => s + (f.helpful || 0), 0))}
                         </p>
                         <p className="text-[10px] text-neutral-500">Helpful Votes</p>
                       </div>
@@ -1001,7 +915,7 @@ const FAQ = () => {
             {/* Right Content - FAQ List */}
             <div className="lg:col-span-2">
               {/* Mobile Popular Questions */}
-              {!searchTerm && activeCategory === 'all' && (
+              {!searchTerm && activeCategory === 'all' && popularQuestions.length > 0 && (
                 <div className="lg:hidden mb-5">
                   <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shadow-sm">
                     <div className="p-3 border-b border-neutral-100 dark:border-neutral-800">

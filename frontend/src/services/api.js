@@ -3,7 +3,7 @@ import { API_BASE_URL } from '../utils/constants';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -71,153 +71,187 @@ api.interceptors.response.use(
   }
 );
 
-// Product API - Fixed to use filtering instead of non-existent endpoints
-export const productAPI = {
-  // Main product endpoints
-  getAll: (params = {}) => api.get('/products', { params }),
-  getOne: (slug) => api.get(`/products/${slug}`),
-  getById: (id) => api.get(`/products/${id}`),
-  
-  // Filtered product endpoints (using the main endpoint with filters)
-  getFeatured: (limit = 8) => api.get('/products', { params: { featured: 'true', limit } }),
-  getTrending: (limit = 8) => api.get('/products', { params: { trending: 'true', limit } }),
-  getBestSellers: (limit = 8) => api.get('/products', { params: { bestSeller: 'true', limit } }),
-  getNewArrivals: (limit = 8) => api.get('/products', { params: { newArrival: 'true', limit } }),
-  getOnSale: (limit = 12) => api.get('/products', { params: { onSale: 'true', limit } }),
-  
-  // Additional endpoints
-  getRelated: (productId, limit = 4) => api.get(`/products/${productId}/related`, { params: { limit } }),
-  getRecommended: (limit = 6) => api.get('/products/recommended', { params: { limit } }),
-  search: (query, params = {}) => api.get('/products', { params: { search: query, ...params } }),
-  getByCategory: (category, params = {}) => api.get('/products', { params: { category, ...params } }),
-  
-  // Admin endpoints
-  uploadImage: (formData) => api.post('/products/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
-  create: (productData) => api.post('/products', productData),
-  update: (id, productData) => api.put(`/products/${id}`, productData),
-  delete: (id) => api.delete(`/products/${id}`),
-};
-
-// Auth API
-export const authAPI = {
+// ============ USER MANAGEMENT API ============
+export const userAPI = {
+  register: (userData) => api.post('/users/register', userData),
   login: (credentials) => api.post('/users/login', credentials),
-  signup: (userData) => api.post('/users/register', userData),
   refreshToken: (refreshToken) => api.post('/users/refresh-token', { refreshToken }),
   logout: (refreshToken) => api.post('/users/logout', refreshToken ? { refreshToken } : {}),
   getProfile: () => api.get('/users/profile'),
   updateProfile: (data) => api.put('/users/profile', data),
   changePassword: (passwords) => api.put('/users/change-password', passwords),
   forgotPassword: (email) => api.post('/users/forgot-password', { email }),
-  sendOTP: (email) => api.post('/users/forgot-password', { email }),
-  resetPassword: (token, password) => api.post('/users/reset-password', { token, newPassword: password }),
+  resetPassword: (token, newPassword) => api.post('/users/reset-password', { token, newPassword }),
   verifyEmail: (token) => api.get(`/users/verify-email/${token}`),
-  googleLogin: (token) => api.post('/auth/google', { token }),
-  facebookLogin: (token) => api.post('/auth/facebook', { token }),
-  getAddresses: () => api.get('/auth/addresses'),
-  addAddress: (address) => api.post('/auth/addresses', address),
-  updateAddress: (id, address) => api.put(`/auth/addresses/${id}`, address),
-  deleteAddress: (id) => api.delete(`/auth/addresses/${id}`),
+  getAllUsers: () => api.get('/users'),
+  getUserById: (id) => api.get(`/users/${id}`),
+  updateUserRole: (id, roleData) => api.put(`/users/${id}/role`, roleData),
+  deleteUser: (id) => api.delete(`/users/${id}`),
 };
 
-// Cart API
+// ============ CART MANAGEMENT API ============
 export const cartAPI = {
   getCart: () => api.get('/cart'),
-  addItem: (productId, quantity = 1, variant = null) => api.post('/cart/add', { productId, quantity, variant }),
+  addItem: (productId, quantity = 1, variantId = null) => api.post('/cart/add', { productId, quantity, variantId }),
   updateItem: (itemId, quantity) => api.put(`/cart/update/${itemId}`, { quantity }),
   removeItem: (itemId) => api.delete(`/cart/remove/${itemId}`),
   clearCart: () => api.delete('/cart/clear'),
   syncCart: (items) => api.post('/cart/sync', { items }),
 };
 
-// Wishlist API
+// ============ WISHLIST MANAGEMENT API ============
 export const wishlistAPI = {
   getWishlist: () => api.get('/wishlist'),
   addItem: (productId) => api.post('/wishlist/add', { productId }),
   removeItem: (productId) => api.delete(`/wishlist/remove/${productId}`),
-  isWishlisted: (productId) => api.get(`/wishlist/check/${productId}`),
-  moveToCart: (productIds) => api.post('/wishlist/move-to-cart', {
-    productIds: Array.isArray(productIds) ? productIds : [productIds],
-  }),
+  checkWishlist: (productId) => api.get(`/wishlist/check/${productId}`),
+  moveToCart: (productIds) => api.post('/wishlist/move-to-cart', { productIds }),
 };
 
-// Order API
+// ============ ORDER MANAGEMENT API ============
 export const orderAPI = {
   createOrder: (orderData) => api.post('/orders', orderData),
   getOrders: (params = {}) => api.get('/orders', { params }),
-  getOrder: (id) => api.get(`/orders/${id}`),
+  getOrderById: (id) => api.get(`/orders/${id}`),
   cancelOrder: (id) => api.put(`/orders/${id}/cancel`),
-  returnOrder: (id, reason) => api.post(`/orders/${id}/return`, { reason }),
-  trackOrder: (id) => api.get(`/orders/${id}/tracking`),
-  getInvoice: (id) => api.get(`/orders/${id}/invoice`, { responseType: 'blob' }),
+  updateOrderStatus: (id, statusData) => api.put(`/orders/${id}/status`, statusData),
+  getAllOrders: (params = {}) => api.get('/orders/admin/all', { params }),
 };
 
-// Review API
-export const reviewAPI = {
-  getProductReviews: (productId, params = {}) => api.get(`/reviews/product/${productId}`, { params }),
-  createReview: (reviewData) => api.post('/reviews', reviewData),
-  updateReview: (id, reviewData) => api.put(`/reviews/${id}`, reviewData),
-  deleteReview: (id) => api.delete(`/reviews/${id}`),
-  markHelpful: (id) => api.post(`/reviews/${id}/helpful`),
-  reportReview: (id, reason) => api.post(`/reviews/${id}/report`, { reason }),
-  getUserReviews: () => api.get('/reviews/user'),
+// ============ PRODUCT MANAGEMENT API ============
+export const productAPI = {
+  getAllProducts: (params = {}) => api.get('/products', { params }),
+  getProductByIdentifier: (identifier) => api.get(`/products/${identifier}`),
+  createProduct: (productData) => api.post('/products', productData),
+  updateProduct: (id, productData) => api.put(`/products/${id}`, productData),
+  deleteProduct: (id) => api.delete(`/products/${id}`),
+  addProductReview: (id, reviewData) => api.post(`/products/${id}/reviews`, reviewData),
 };
 
-// Coupon API
-export const couponAPI = {
-  validateCoupon: (code, orderTotal) => api.post('/coupons/validate', { code, orderTotal }),
-  getActiveCoupons: () => api.get('/coupons/active'),
-  getUserCoupons: () => api.get('/coupons/user'),
-};
-
-// Analytics API
-export const analyticsAPI = {
-  trackEvent: (eventData) => api.post('/analytics/event', eventData),
-  trackPageView: (page, metadata = {}) => api.post('/analytics/pageview', { page, metadata }),
-  trackProductView: (productId) => api.post('/analytics/product-view', { productId }),
-  trackAddToCart: (productId, quantity) => api.post('/analytics/add-to-cart', { productId, quantity }),
-  trackPurchase: (orderData) => api.post('/analytics/purchase', orderData),
-};
-
-// Search API
-export const searchAPI = {
-  search: (query, params = {}) => api.get('/search', { params: { q: query, ...params } }),
-  getSuggestions: (query) => api.get('/search/suggestions', { params: { q: query } }),
-  getPopularSearches: () => api.get('/search/popular'),
-};
-
-// Content API
-export const contentAPI = {
+// ============ CATEGORY MANAGEMENT API ============
+export const categoryAPI = {
   getCategories: () => api.get('/categories'),
-  getBlogPosts: (params = {}) => api.get('/blog', { params }),
-  getBlogPost: (slug) => api.get(`/blog/${slug}`),
-  getFAQs: () => api.get('/faqs'),
-  getPolicies: () => api.get('/policies'),
+  getFeaturedCategories: () => api.get('/categories/featured'),
+  getCategoryByIdentifier: (identifier) => api.get(`/categories/${identifier}`),
+  createCategory: (categoryData) => api.post('/categories', categoryData),
+  updateCategory: (id, categoryData) => api.put(`/categories/${id}`, categoryData),
+  deleteCategory: (id) => api.delete(`/categories/${id}`),
+};
+
+// ============ TESTIMONIAL MANAGEMENT API ============
+export const testimonialAPI = {
   getTestimonials: () => api.get('/testimonials'),
+  getTestimonialById: (id) => api.get(`/testimonials/${id}`),
+  createTestimonial: (testimonialData) => api.post('/testimonials', testimonialData),
+  updateTestimonial: (id, testimonialData) => api.put(`/testimonials/${id}`, testimonialData),
+  deleteTestimonial: (id) => api.delete(`/testimonials/${id}`),
+};
+
+// ============ BLOG MANAGEMENT API ============
+export const blogAPI = {
+  getBlogPosts: (params = {}) => api.get('/blog', { params }),
+  getFeaturedBlogPosts: () => api.get('/blog/featured'),
+  getBlogPostByIdentifier: (identifier) => api.get(`/blog/${identifier}`),
+  createBlogPost: (postData) => api.post('/blog', postData),
+  updateBlogPost: (id, postData) => api.put(`/blog/${id}`, postData),
+  deleteBlogPost: (id) => api.delete(`/blog/${id}`),
+};
+
+// ============ ROOMS MANAGEMENT API ============
+export const roomsAPI = {
   getRooms: () => api.get('/rooms'),
-  getHeroSlides: () => api.get('/hero-slides'),
+  getRoomsByType: (roomType) => api.get(`/rooms/type/${roomType}`),
+  getRoomById: (id) => api.get(`/rooms/${id}`),
+  createRoom: (roomData) => api.post('/rooms', roomData),
+  updateRoom: (id, roomData) => api.put(`/rooms/${id}`, roomData),
+  deleteRoom: (id) => api.delete(`/rooms/${id}`),
 };
 
-// Payment API
-export const paymentAPI = {
-  createPaymentIntent: (amount, currency = 'usd') => api.post('/payment/create-intent', { amount, currency }),
-  confirmPayment: (paymentIntentId) => api.post('/payment/confirm', { paymentIntentId }),
-  getPaymentMethods: () => api.get('/payment/methods'),
-  addPaymentMethod: (paymentMethodData) => api.post('/payment/methods', paymentMethodData),
-  removePaymentMethod: (id) => api.delete(`/payment/methods/${id}`),
+// ============ COUPON MANAGEMENT API ============
+export const couponAPI = {
+  getActiveCoupons: () => api.get('/coupons'),
+  validateCoupon: (code, orderTotal) => api.post('/coupons/validate', { code, orderTotal }),
+  getAllCoupons: () => api.get('/coupons/all'),
+  createCoupon: (couponData) => api.post('/coupons', couponData),
+  updateCoupon: (code, couponData) => api.put(`/coupons/${code}`, couponData),
+  deleteCoupon: (code) => api.delete(`/coupons/${code}`),
 };
 
-// Notification API
-export const notificationAPI = {
-  getNotifications: (params = {}) => api.get('/notifications', { params }),
-  markAsRead: (id) => api.put(`/notifications/${id}/read`),
-  markAllAsRead: () => api.put('/notifications/read-all'),
-  deleteNotification: (id) => api.delete(`/notifications/${id}`),
-  getUnreadCount: () => api.get('/notifications/unread-count'),
+// ============ FAQ MANAGEMENT API ============
+export const faqAPI = {
+  getFaqs: () => api.get('/faqs'),
+  getFaqCategories: () => api.get('/faqs/categories'),
+  getFaqById: (id) => api.get(`/faqs/${id}`),
+  createFaq: (faqData) => api.post('/faqs', faqData),
+  updateFaq: (id, faqData) => api.put(`/faqs/${id}`, faqData),
+  deleteFaq: (id) => api.delete(`/faqs/${id}`),
 };
 
-// Health Check
-export const healthCheck = () => api.get('/health');
+// ============ UPLOAD API ============
+export const uploadAPI = {
+  uploadImage: (formData) => api.post('/upload/image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  uploadImages: (formData) => api.post('/upload/images', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  getUploadedImages: () => api.get('/upload/images'),
+  deleteImage: (filename) => api.delete(`/upload/image/${filename}`),
+};
+
+// ============ CONTACT & NEWSLETTER API ============
+export const contactAPI = {
+  submitContact: (formData) => api.post('/contact/submit', formData),
+  getContactMessages: (params = {}) => api.get('/contact/all', { params }),
+  updateMessageStatus: (id, status) => api.put(`/contact/${id}/status`, { status }),
+  subscribeNewsletter: (email, name) => api.post('/contact/newsletter/subscribe', { email, name }),
+  unsubscribeNewsletter: (email) => api.post('/contact/newsletter/unsubscribe', { email }),
+  getNewsletterSubscribers: () => api.get('/contact/newsletter/subscribers'),
+};
+
+// ============ HERO SLIDES API ============
+export const heroSlidesAPI = {
+  getActiveSlides: () => api.get('/hero-slides'),
+  getSlideById: (id) => api.get(`/hero-slides/${id}`),
+  getAllSlides: () => api.get('/hero-slides/all'),  // Changed from /admin/all
+  createSlide: (slideData) => api.post('/hero-slides', slideData),  // Changed from /admin/hero-slides
+  updateSlide: (id, slideData) => api.put(`/hero-slides/${id}`, slideData),  // Changed from /admin/hero-slides/:id
+  deleteSlide: (id) => api.delete(`/hero-slides/${id}`),  // Changed from /admin/hero-slides/:id
+  toggleSlideStatus: (id) => api.patch(`/hero-slides/${id}/toggle`),  // Changed from /admin/hero-slides/:id/toggle
+  reorderSlides: (orderData) => api.post('/hero-slides/reorder', orderData),  // Changed from /admin/hero-slides/reorder
+};
+// ============ POLICIES API ============
+export const policiesAPI = {
+  getAllPolicies: () => api.get('/policies'),
+  getPolicyByType: (type) => api.get(`/policies/${type}`),
+  updatePolicy: (type, policyData) => api.put(`/admin/policies/${type}`, policyData),
+  deletePolicy: (type) => api.delete(`/admin/policies/${type}`),
+};
+
+// ============ ADMIN DASHBOARD API ============
+export const adminDashboardAPI = {
+  getStats: () => api.get('/admin/dashboard/stats'),
+  getHealth: () => api.get('/admin/health'),
+};
+
+// ============ HEALTH CHECK API ============
+export const healthAPI = {
+  checkHealth: () => api.get('/health'),
+};
+
+// ============ GIFT CARD MANAGEMENT API ============
+export const giftCardAPI = {
+  createGiftCard: (cardData) => api.post('/gift-cards', cardData),
+  getMyGiftCards: () => api.get('/gift-cards'),
+  getGiftCardByCode: (code) => api.get(`/gift-cards/code/${code}`),
+  applyGiftCard: (code, orderTotal) => api.post('/gift-cards/apply', { code, orderTotal }),
+  getAllGiftCards: (params) => api.get('/gift-cards/admin/all', { params }),
+  getGiftCardByCodeAdmin: (code) => api.get(`/gift-cards/admin/${code}`),
+  updateGiftCard: (code, updateData) => api.put(`/gift-cards/admin/${code}`, updateData),
+  updateGiftCardStatus: (code, status) => api.put(`/gift-cards/admin/${code}/status`, { status }),
+  deleteGiftCard: (code) => api.delete(`/gift-cards/admin/${code}`),
+  getGiftCardStats: () => api.get('/gift-cards/admin/stats/summary'),
+  bulkDeleteGiftCards: (codes) => api.delete('/gift-cards/admin/bulk', { data: { codes } })
+};
 
 export default api;

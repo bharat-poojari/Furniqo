@@ -1,15 +1,11 @@
-import { useState, useEffect } from 'react';
+// src/pages/Orders.jsx
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FiPackage, 
-  FiSearch, 
-  FiChevronRight, 
-  FiFilter,
-  FiClock,
-  FiCheckCircle,
-  FiTruck,
-  FiXCircle,
+  FiPackage, FiSearch, FiChevronRight, FiClock,
+  FiCheckCircle, FiTruck, FiXCircle, FiRefreshCw,
+  FiAlertCircle, FiShoppingBag
 } from 'react-icons/fi';
 import { useAuth } from '../store/AuthContext';
 import Button from '../components/common/Button';
@@ -29,6 +25,15 @@ const statusIcons = {
   cancelled: FiXCircle,
 };
 
+const statusColors = {
+  pending: 'warning',
+  confirmed: 'info',
+  processing: 'info',
+  shipped: 'info',
+  delivered: 'success',
+  cancelled: 'danger',
+};
+
 const getProductImage = (item) => {
   try {
     if (item.product?.images && Array.isArray(item.product.images) && item.product.images[0]) {
@@ -42,15 +47,25 @@ const getProductImage = (item) => {
 };
 
 const Orders = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const abortControllerRef = useRef(null);
 
-  const fetchOrders = async () => {
-    setLoading(true);
+  const fetchOrders = useCallback(async (showRefresh = false) => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    
+    if (showRefresh) setRefreshing(true);
+    else setLoading(true);
+    
     try {
       const response = await apiWrapper.getOrders();
       
@@ -63,33 +78,45 @@ const Orders = () => {
       
       setOrders(ordersData);
       
-      // Also update localStorage for offline access
       if (ordersData.length > 0) {
         localStorage.setItem('furniqo_orders', JSON.stringify(ordersData));
       }
+      
+      if (showRefresh) toast.success('Orders refreshed');
     } catch (error) {
-      console.error('Error fetching orders:', error);
-      // Try to load from localStorage as fallback
-      const localOrders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
-      setOrders(localOrders);
-      if (localOrders.length > 0) {
-        toast.success('Loaded orders from cache');
+      if (error.name !== 'AbortError') {
+        console.error('Error fetching orders:', error);
+        const localOrders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+        setOrders(localOrders);
+        if (!showRefresh && localOrders.length > 0) {
+          toast.success('Loaded orders from cache');
+        }
       }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchOrders();
     } else {
-      // Load from localStorage for guest users
       const localOrders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
       setOrders(localOrders);
       setLoading(false);
     }
-  }, [isAuthenticated]);
+    
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [isAuthenticated, fetchOrders]);
+
+  const handleRefresh = () => {
+    fetchOrders(true);
+  };
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -107,181 +134,219 @@ const Orders = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="w-full px-[1%] sm:px-[1.5%] py-16 text-center">
-        <FiPackage className="h-20 w-20 text-neutral-300 dark:text-neutral-600 mb-6" />
-        <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-4">
-          Sign In to View Orders
-        </h1>
-        <p className="text-neutral-600 dark:text-neutral-400 mb-8">
-          Track your orders and view your purchase history.
-        </p>
-        <Link to="/login" state={{ from: '/orders' }}>
-          <Button variant="primary" size="lg">Sign In</Button>
-        </Link>
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center px-4 py-16">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+            <FiShoppingBag className="h-10 w-10 text-primary-600 dark:text-primary-400" />
+          </div>
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-3">
+            Sign In to View Orders
+          </h1>
+          <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+            Track your orders and view your purchase history.
+          </p>
+          <Link to="/login" state={{ from: '/orders' }}>
+            <Button variant="primary" size="lg">Sign In</Button>
+          </Link>
+        </div>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="w-full px-[1%] sm:px-[1.5%] py-8">
-        <div className="animate-pulse space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-32 bg-neutral-200 dark:bg-neutral-800 rounded-2xl" />
-          ))}
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 px-4 py-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 w-48 bg-neutral-200 dark:bg-neutral-800 rounded-lg" />
+            <div className="h-12 bg-neutral-200 dark:bg-neutral-800 rounded-xl" />
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-32 bg-neutral-200 dark:bg-neutral-800 rounded-2xl" />
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full px-[1%] sm:px-[1.5%] py-8">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-3xl lg:text-4xl font-display font-bold text-neutral-900 dark:text-white mb-8">
-          My Orders
-        </h1>
-
-        {orders.length === 0 ? (
-          <EmptyState
-            icon={FiPackage}
-            title="No Orders Yet"
-            description="You haven't placed any orders yet. Start shopping to see your orders here!"
-            actionLabel="Start Shopping"
-            actionHref="/products"
-          />
-        ) : (
-          <>
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
-              <div className="relative flex-grow">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by order number..."
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="processing">Processing</option>
-                <option value="shipped">Shipped</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+      <div className="w-full px-4 py-6 sm:py-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-white">
+                My Orders
+              </h1>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+                Track and manage your orders
+              </p>
             </div>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50"
+            >
+              <FiRefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span className="text-sm font-medium">Refresh</span>
+            </button>
+          </div>
 
-            {/* Orders List */}
-            <div className="space-y-4">
-              <AnimatePresence>
-                {paginatedOrders.map((order) => {
-                  const StatusIcon = statusIcons[order.status] || FiClock;
-                  const orderItems = Array.isArray(order.items) ? order.items : (order.items ? JSON.parse(order.items) : []);
-                  
-                  return (
-                    <motion.div
-                      key={order._id}
-                      layout
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                    >
-                      <Link
-                        to={`/orders/${order._id}`}
-                        state={{ order: order }}
-                        className="block bg-white dark:bg-neutral-900 rounded-2xl shadow-soft border border-neutral-100 dark:border-neutral-800 hover:shadow-medium transition-all overflow-hidden group"
+          {orders.length === 0 ? (
+            <EmptyState
+              icon={FiPackage}
+              title="No Orders Yet"
+              description="You haven't placed any orders yet. Start shopping to see your orders here!"
+              actionLabel="Start Shopping"
+              actionHref="/products"
+            />
+          ) : (
+            <>
+              {/* Filters */}
+              <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                <div className="relative flex-1">
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 h-4 w-4" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search by order number..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                  />
+                </div>
+                
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-4 py-2.5 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="processing">Processing</option>
+                  <option value="shipped">Shipped</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+
+              {/* Orders List */}
+              <div className="space-y-3">
+                <AnimatePresence>
+                  {paginatedOrders.map((order, idx) => {
+                    const StatusIcon = statusIcons[order.status] || FiClock;
+                    const orderItems = Array.isArray(order.items) ? order.items : 
+                                      (order.items ? (typeof order.items === 'string' ? JSON.parse(order.items) : order.items) : []);
+                    
+                    return (
+                      <motion.div
+                        key={order._id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ delay: idx * 0.05 }}
                       >
-                        <div className="p-4 lg:p-6">
-                          <div className="flex items-start justify-between mb-4">
-                            <div>
-                              <p className="text-xs text-neutral-500 mb-1">Order Number</p>
-                              <p className="font-mono font-bold text-neutral-900 dark:text-white group-hover:text-primary-600 transition-colors">
-                                {order.orderNumber || order._id?.slice(-8).toUpperCase()}
-                              </p>
-                              <p className="text-sm text-neutral-500 mt-1">
-                                {formatDate(order.createdAt)}
-                              </p>
+                        <Link
+                          to={`/orders/${order._id}`}
+                          state={{ order: order }}
+                          className="block bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800 hover:shadow-md transition-all overflow-hidden group"
+                        >
+                          <div className="p-4 sm:p-5">
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                              <div>
+                                <p className="text-xs text-neutral-500 mb-1">Order Number</p>
+                                <p className="font-mono font-bold text-neutral-900 dark:text-white group-hover:text-primary-600 transition-colors">
+                                  {order.orderNumber || order._id?.slice(-8).toUpperCase()}
+                                </p>
+                                <p className="text-sm text-neutral-500 mt-1 flex items-center gap-1">
+                                  <FiClock className="h-3 w-3" />
+                                  {formatDate(order.createdAt)}
+                                </p>
+                              </div>
+                              
+                              <Badge
+                                variant={statusColors[order.status] || 'warning'}
+                                size="md"
+                                dot
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <StatusIcon className="h-3 w-3" />
+                                  {order.status?.toUpperCase() || 'PENDING'}
+                                </span>
+                              </Badge>
                             </div>
-                            
-                            <Badge
-                              variant={
-                                order.status === 'delivered' ? 'success' :
-                                order.status === 'cancelled' ? 'danger' :
-                                order.status === 'shipped' ? 'info' : 'warning'
-                              }
-                              size="md"
-                              dot
-                            >
-                              <span className="flex items-center gap-1.5">
-                                <StatusIcon className="h-3.5 w-3.5" />
-                                {order.status?.replace(/_/g, ' ')?.toUpperCase() || 'PENDING'}
-                              </span>
-                            </Badge>
-                          </div>
 
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-neutral-500">
-                                {orderItems.length} {orderItems.length === 1 ? 'item' : 'items'}
-                              </p>
-                              {orderItems.slice(0, 3).map((item, i) => (
-                                <div key={i} className="flex items-center gap-2 mt-1">
-                                  <img
-                                    src={getProductImage(item)}
-                                    alt=""
-                                    className="w-8 h-8 object-cover rounded"
-                                    onError={(e) => { e.target.src = 'https://placehold.co/400x400/eee/999?text=No+Image'; }}
-                                  />
-                                  <span className="text-sm text-neutral-700 dark:text-neutral-300 truncate max-w-[200px]">
-                                    {item.name || item.product?.name || 'Product'}
-                                  </span>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                              <div className="flex-1">
+                                <p className="text-sm text-neutral-500 mb-2">
+                                  {orderItems.length} {orderItems.length === 1 ? 'item' : 'items'}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {orderItems.slice(0, 3).map((item, i) => (
+                                    <div key={i} className="flex items-center gap-2">
+                                      <img
+                                        src={getProductImage(item)}
+                                        alt=""
+                                        className="w-8 h-8 rounded object-cover"
+                                        onError={(e) => { e.target.src = 'https://placehold.co/400x400/eee/999?text=No+Image'; }}
+                                      />
+                                      <span className="text-sm text-neutral-700 dark:text-neutral-300 truncate max-w-[150px]">
+                                        {item.name || item.product?.name || 'Product'}
+                                      </span>
+                                    </div>
+                                  ))}
+                                  {orderItems.length > 3 && (
+                                    <span className="text-sm text-neutral-500">+{orderItems.length - 3} more</span>
+                                  )}
                                 </div>
-                              ))}
-                            </div>
-                            
-                            <div className="text-right">
-                              <p className="text-lg font-bold text-primary-600">
-                                {formatPrice(order.total || 0)}
-                              </p>
-                              <div className="flex items-center gap-1 text-sm text-primary-600 group-hover:text-primary-700 transition-colors mt-1">
-                                <span>View Details</span>
-                                <FiChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                              </div>
+                              
+                              <div className="text-right sm:text-left">
+                                <p className="text-xl font-bold text-primary-600">
+                                  {formatPrice(order.total || 0)}
+                                </p>
+                                <div className="flex items-center gap-1 text-sm text-primary-600 group-hover:text-primary-700 transition-colors mt-1">
+                                  <span>View Details</span>
+                                  <FiChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </Link>
-                    </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-            </div>
-
-            {totalPages > 1 && (
-              <div className="mt-8">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                />
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
               </div>
-            )}
 
-            {filteredOrders.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-neutral-500">No orders match your search criteria.</p>
-              </div>
-            )}
-          </>
-        )}
+              {totalPages > 1 && (
+                <div className="mt-8 flex justify-center">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                  />
+                </div>
+              )}
+
+              {filteredOrders.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-neutral-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FiSearch className="h-8 w-8 text-neutral-400" />
+                  </div>
+                  <p className="text-neutral-500">No orders match your search criteria.</p>
+                  <button
+                    onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}
+                    className="mt-3 text-primary-600 hover:text-primary-700 text-sm font-medium"
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

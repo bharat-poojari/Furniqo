@@ -8,6 +8,8 @@ import {
   FiTrendingUp, FiShoppingBag, FiClock, FiFilter, FiChevronDown
 } from 'react-icons/fi';
 import apiWrapper from '../services/apiWrapper';
+import MediaLibraryPicker from '../components/common/MediaLibraryPicker';
+import { getUploadUrls } from '../utils/uploadResponseUtils';
 import { toast } from 'react-hot-toast';
 
 const AdminProducts = () => {
@@ -71,19 +73,23 @@ const AdminProducts = () => {
   const totalPages = Math.ceil(filteredProducts.length / (viewMode === 'grid' ? 12 : 10));
 
   const handleImageUpload = async (e) => {
-    const files = Array.from(e.target.files);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     setUploading(true);
     try {
       const formData = new FormData();
       files.forEach(file => formData.append('images', file));
       const response = await apiWrapper.uploadImages(formData);
+      const urls = getUploadUrls(response);
+      if (!urls.length) throw new Error('No image URLs returned from upload');
       setFormData(prev => ({
         ...prev,
-        images: [...prev.images, ...response.data.urls]
+        images: [...prev.images, ...urls]
       }));
       toast.success('Images uploaded successfully');
     } catch (error) {
-      toast.error('Failed to upload images');
+      console.error('Upload error:', error);
+      toast.error('Failed to upload images: ' + (error?.message || 'Unknown error'));
     } finally {
       setUploading(false);
     }
@@ -276,6 +282,15 @@ const AdminProducts = () => {
                 <FiImage className="h-4 w-4" />
                 Product Images
               </h3>
+              <div className="flex flex-wrap items-center gap-3">
+                <MediaLibraryPicker
+                  selected={formData.images}
+                  onSelect={(urls) => setFormData(prev => ({ ...prev, images: urls }))}
+                  multiple
+                  buttonText="Choose from media library"
+                  label="product images"
+                />
+              </div>
               <div className="flex flex-wrap gap-3">
                 {formData.images.map((img, idx) => (
                   <div key={idx} className="relative group">

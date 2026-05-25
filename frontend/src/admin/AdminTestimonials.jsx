@@ -23,7 +23,8 @@ const AdminTestimonials = () => {
     try {
       setLoading(true);
       const response = await apiWrapper.getTestimonials();
-      setTestimonials(response?.data?.testimonials || []);
+      const testimonialsData = response?.testimonials || response?.data || response?.data?.testimonials || [];
+      setTestimonials(Array.isArray(testimonialsData) ? testimonialsData : []);
     } catch (error) {
       toast.error('Failed to load testimonials');
     } finally {

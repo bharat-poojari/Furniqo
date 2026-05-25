@@ -53,6 +53,10 @@ const LazyImage = ({ src, alt, priority = false }) => {
         onLoad={() => setIsLoaded(true)}
         loading={priority ? "eager" : "lazy"}
         decoding="async"
+        onError={(e) => {
+          e.target.onerror = null;
+          e.target.src = 'https://placehold.co/1920x1080/333/666?text=Image+Not+Found';
+        }}
       />
     </div>
   );
@@ -95,50 +99,102 @@ const contentVariants = {
   }),
 };
 
+// Helper function to get image URL
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+  const baseWithoutApi = apiUrl.replace('/api/v1', '');
+  return `${baseWithoutApi}${imagePath}`;
+};
+
+// Normalize slide data from API response
+const normalizeSlideData = (slide) => ({
+  id: slide.id || slide._id,
+  image: getImageUrl(slide.image),
+  title: slide.title || 'Welcome to Furniqo',
+  subtitle: slide.subtitle || 'Discover premium furniture for your home',
+  link: slide.cta_link || '/products',
+  cta: slide.cta_text || 'Shop Now',
+  is_active: slide.is_active === 1,
+  sort_order: slide.sort_order || 0
+});
+
 const Hero = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [direction, setDirection] = useState(0);
   const [heroSlides, setHeroSlides] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const intervalRef = useRef(null);
   const touchStartX = useRef(0);
   const touchEndX = useRef(0);
   const [isMobile, setIsMobile] = useState(false);
 
   // Fetch hero slides from API first, fallback to mock data
-  useEffect(() => {
-    const fetchHeroSlides = async () => {
-      setLoading(true);
-      try {
-        const response = await apiWrapper.getHeroSlides();
-        let slidesData = [];
-        
-        if (response?.data?.success && response.data.data) {
-          slidesData = response.data.data;
-        } else if (response?.success && response?.data) {
-          slidesData = response.data;
-        } else if (Array.isArray(response)) {
-          slidesData = response;
-        } else if (response?.data && Array.isArray(response.data)) {
-          slidesData = response.data;
-        }
-        
-        if (slidesData && slidesData.length > 0) {
-          setHeroSlides(slidesData);
-        } else {
-          setHeroSlides(mockHeroSlides);
-        }
-      } catch (error) {
-        console.warn('Failed to fetch hero slides from API, using mock data:', error);
-        setHeroSlides(mockHeroSlides);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchHeroSlides = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     
-    fetchHeroSlides();
+    try {
+      // Try to fetch from API
+      const response = await apiWrapper.getHeroSlides();
+      
+      console.log('Hero slides API response:', response);
+      
+      let slidesData = [];
+      
+      // Handle different response formats
+      if (response?.data?.slides && Array.isArray(response.data.slides)) {
+        slidesData = response.data.slides;
+      } else if (response?.slides && Array.isArray(response.slides)) {
+        slidesData = response.slides;
+      } else if (response?.data && Array.isArray(response.data)) {
+        slidesData = response.data;
+      } else if (Array.isArray(response)) {
+        slidesData = response;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        slidesData = response.data.data;
+      }
+      
+      // Filter only active slides and normalize data
+      const activeSlides = slidesData
+        .filter(slide => slide.is_active === 1 || slide.is_active === true)
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+        .map(normalizeSlideData);
+      
+      if (activeSlides && activeSlides.length > 0) {
+        setHeroSlides(activeSlides);
+      } else {
+        // Fallback to mock data if no active slides
+        console.log('No active slides from API, using mock data');
+        const mockData = mockHeroSlides.map(slide => ({
+          ...slide,
+          image: slide.image
+        }));
+        setHeroSlides(mockData);
+      }
+    } catch (error) {
+      console.warn('Failed to fetch hero slides from API:', error);
+      setError(error.message);
+      // Fallback to mock data
+      console.log('Using mock hero slides data');
+      const mockData = mockHeroSlides.map(slide => ({
+        ...slide,
+        image: slide.image
+      }));
+      setHeroSlides(mockData);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchHeroSlides();
+  }, [fetchHeroSlides]);
 
   // Detect mobile for layout adjustments
   useEffect(() => {
@@ -189,6 +245,7 @@ const Hero = () => {
   const handleMouseEnter = useCallback(() => {
     if (!isMobile && isPlaying && intervalRef.current) {
       clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
   }, [isMobile, isPlaying]);
 
@@ -231,17 +288,53 @@ const Hero = () => {
   }, []);
 
   // Memoized slide data
-  const currentSlideData = useMemo(() => heroSlides[currentSlide] || (heroSlides[0] || { image: '', title: '', subtitle: '', link: '/products', cta: 'Shop Now' }), [currentSlide, heroSlides]);
+  const currentSlideData = useMemo(() => {
+    if (!heroSlides.length) {
+      return {
+        image: '',
+        title: 'Welcome to Furniqo',
+        subtitle: 'Discover premium furniture for your home',
+        link: '/products',
+        cta: 'Shop Now'
+      };
+    }
+    return heroSlides[currentSlide] || heroSlides[0];
+  }, [currentSlide, heroSlides]);
+  
   const truncatedSubtitle = useMemo(() => {
     const subtitle = currentSlideData.subtitle || '';
     return subtitle.length > 60 ? subtitle.substring(0, 60) + '...' : subtitle;
   }, [currentSlideData.subtitle]);
 
   // Show loading state
-  if (loading || heroSlides.length === 0) {
+  if (loading) {
     return (
       <section className="relative overflow-hidden bg-neutral-900" style={{ height: '100vh', maxHeight: '100vh', minHeight: '600px' }}>
         <div className="absolute inset-0 bg-gradient-to-r from-neutral-700 via-neutral-600 to-neutral-700 animate-pulse" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-white text-center">
+            <div className="w-12 h-12 border-3 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-sm text-white/80">Loading...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // If no slides after loading
+  if (!heroSlides.length) {
+    return (
+      <section className="relative overflow-hidden bg-neutral-900" style={{ height: '100vh', maxHeight: '100vh', minHeight: '600px' }}>
+        <div className="absolute inset-0 bg-gradient-to-r from-neutral-800 to-neutral-900" />
+        <div className="relative h-full flex items-center justify-center text-center px-4">
+          <div className="text-white">
+            <h1 className="text-3xl md:text-5xl font-bold mb-4">Welcome to Furniqo</h1>
+            <p className="text-base md:text-lg text-white/80 mb-6">Discover premium furniture for your home</p>
+            <Link to="/products" className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-semibold transition-all">
+              Shop Now <FiArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
       </section>
     );
   }

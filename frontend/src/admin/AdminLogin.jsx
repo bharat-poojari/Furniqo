@@ -1,10 +1,10 @@
-// AdminLogin.jsx - Dedicated admin login page
-import { useState } from 'react';
+// AdminLogin.jsx - Fixed version (no syntax errors)
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   FiMail, FiLock, FiEye, FiEyeOff, FiShield, FiArrowRight, 
-  FiAlertCircle, FiCheckCircle, FiLock as FiLockIcon
+  FiLock as FiLockIcon
 } from 'react-icons/fi';
 import { useAuth } from '../store/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -16,7 +16,14 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user, logout, isAuthenticated } = useAuth();
+
+  // Redirect if already logged in as admin
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'admin') {
+      navigate('/admin/dashboard');
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,21 +34,46 @@ const AdminLogin = () => {
     }
 
     setLoading(true);
+    
     try {
-      const response = await login(email, password);
+      const result = await login(email, password, rememberMe);
       
-      // Check if user has admin role
-      if (response?.user?.role !== 'admin') {
-        toast.error('Access denied. Admin privileges required.');
+      if (!result.success) {
+        toast.error(result.error || 'Login failed');
+        setLoading(false);
         return;
       }
       
-      toast.success('Welcome back, Admin!');
-      navigate('/admin/dashboard');
+      // Wait for state to update
+      setTimeout(() => {
+        // Get user from localStorage
+        const storedUser = localStorage.getItem('furniqo_user');
+        let userData = user;
+        
+        if (storedUser && !userData) {
+          try {
+            userData = JSON.parse(storedUser);
+          } catch (e) {
+            console.error('Failed to parse user data', e);
+          }
+        }
+        
+        // Check admin role
+        if (userData?.role !== 'admin') {
+          toast.error('Access denied. Admin privileges required.');
+          // Logout the non-admin user
+          logout();
+          setLoading(false);
+          return;
+        }
+        
+        toast.success('Welcome back, Admin!');
+        navigate('/admin/dashboard');
+        setLoading(false);
+      }, 200);
     } catch (error) {
       console.error('Login error:', error);
-      toast.error(error?.response?.data?.message || 'Invalid credentials');
-    } finally {
+      toast.error(error?.response?.data?.message || error?.message || 'Invalid credentials');
       setLoading(false);
     }
   };
@@ -55,7 +87,7 @@ const AdminLogin = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse delay-2000" />
       </div>
 
-      {/* Grid Pattern Overlay - Fixed SVG */}
+      {/* Grid Pattern Overlay */}
       <div 
         className="absolute inset-0 opacity-20"
         style={{
@@ -102,7 +134,7 @@ const AdminLogin = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
-                  placeholder="admin@example.com"
+                  placeholder="admin@furniqo.com"
                   autoComplete="email"
                 />
               </div>
@@ -147,6 +179,12 @@ const AdminLogin = () => {
               </Link>
             </div>
 
+            {/* Demo Credentials Notice */}
+            <div className="bg-white/5 rounded-lg p-3 text-center">
+              <p className="text-xs text-purple-300">Demo Admin Credentials:</p>
+              <p className="text-xs text-purple-200 font-mono mt-1">admin@furniqo.com / Admin123456</p>
+            </div>
+
             {/* Submit Button */}
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -180,7 +218,7 @@ const AdminLogin = () => {
 
         {/* Footer */}
         <p className="text-center text-purple-300 text-sm mt-8">
-          © 2024 Admin Portal. All rights reserved.
+          © 2024 Furniqo Admin Portal. All rights reserved.
         </p>
       </motion.div>
     </div>

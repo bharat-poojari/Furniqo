@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiUpload, FiTrash2, FiCopy, FiImage, FiFolder, FiX, FiCheck, FiGrid, FiList } from 'react-icons/fi';
 import apiWrapper from '../services/apiWrapper';
+import { getUploadUrls, getUploadedImages } from '../utils/uploadResponseUtils';
 import { toast } from 'react-hot-toast';
 
 const AdminUploads = () => {
@@ -22,7 +23,7 @@ const AdminUploads = () => {
     try {
       setLoading(true);
       const response = await apiWrapper.getUploadedImages();
-      setImages(response?.data?.images || []);
+      setImages(getUploadedImages(response));
     } catch (error) {
       toast.error('Failed to load images');
     } finally {
@@ -31,17 +32,20 @@ const AdminUploads = () => {
   };
 
   const handleUpload = async (e) => {
-    const files = Array.from(e.target.files);
+    const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
     setUploading(true);
     try {
       const formData = new FormData();
       files.forEach(file => formData.append('images', file));
       const response = await apiWrapper.uploadImages(formData);
-      setImages(prev => [...response.data.urls, ...prev]);
-      toast.success(`${files.length} image(s) uploaded`);
+      const urls = getUploadUrls(response);
+      if (!urls.length) throw new Error('No image URLs returned from upload');
+      setImages(prev => [...urls, ...prev]);
+      toast.success(`${urls.length} image(s) uploaded`);
     } catch (error) {
-      toast.error('Upload failed');
+      console.error('Upload error:', error);
+      toast.error('Upload failed: ' + (error?.message || 'Unknown error'));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

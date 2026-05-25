@@ -1,0 +1,325 @@
+Furniqo Backend API Documentation
+
+Base URL: /api/v1
+
+Health
+- GET /api/v1/health
+  - Description: Health check endpoint
+  - Access: Public
+
+Admin
+- GET /api/v1/admin/dashboard/stats
+  - Description: Fetch admin dashboard statistics
+  - Access: Admin only
+- GET /api/v1/admin/health
+  - Description: Check admin system health
+  - Access: Admin only
+
+Cart
+- GET /api/v1/cart
+  - Description: Get current user's cart
+  - Access: Private
+- POST /api/v1/cart/add
+  - Description: Add item to cart
+  - Access: Private
+- PUT /api/v1/cart/update/:itemId
+  - Description: Update cart item quantity
+  - Access: Private
+- DELETE /api/v1/cart/remove/:itemId
+  - Description: Remove item from cart
+  - Access: Private
+- DELETE /api/v1/cart/clear
+  - Description: Clear entire cart
+  - Access: Private
+- POST /api/v1/cart/sync
+  - Description: Sync guest cart items to authenticated user cart
+  - Access: Private
+
+Categories
+- GET /api/v1/categories
+  - Description: Get all categories
+  - Access: Public
+- GET /api/v1/categories/featured
+  - Description: Get featured categories
+  - Access: Public
+- GET /api/v1/categories/:identifier
+  - Description: Get category by slug or ID, including some products
+  - Access: Public
+- POST /api/v1/categories
+  - Description: Create a new category
+  - Access: Admin only
+- PUT /api/v1/categories/:id
+  - Description: Update a category
+  - Access: Admin only
+- DELETE /api/v1/categories/:id
+  - Description: Delete a category
+  - Access: Admin only
+
+Contact
+- POST /api/v1/contact/submit
+  - Description: Submit contact form
+  - Access: Public
+- GET /api/v1/contact/all
+  - Description: Get all contact submissions
+  - Access: Admin only
+- PUT /api/v1/contact/:id/status
+  - Description: Update contact submission status
+  - Access: Admin only
+- POST /api/v1/contact/newsletter/subscribe
+  - Description: Subscribe to newsletter
+  - Access: Public
+- POST /api/v1/contact/newsletter/unsubscribe
+  - Description: Unsubscribe from newsletter
+  - Access: Public
+- GET /api/v1/contact/newsletter/subscribers
+  - Description: Get newsletter subscribers
+  - Access: Admin only
+
+Coupons
+- GET /api/v1/coupons
+  - Description: Get active coupons
+  - Access: Public
+- POST /api/v1/coupons/validate
+  - Description: Validate a coupon code against subtotal and user status
+  - Access: Public
+- GET /api/v1/coupons/all
+  - Description: Get all coupons
+  - Access: Admin only
+- POST /api/v1/coupons
+  - Description: Create a new coupon
+  - Access: Admin only
+- PUT /api/v1/coupons/:code
+  - Description: Update a coupon
+  - Access: Admin only
+- DELETE /api/v1/coupons/:code
+  - Description: Delete a coupon
+  - Access: Admin only
+
+FAQs
+- GET /api/v1/faqs
+  - Description: Get all FAQs, optional category filter
+  - Access: Public
+- GET /api/v1/faqs/categories
+  - Description: Get FAQ categories list
+  - Access: Public
+- GET /api/v1/faqs/:id
+  - Description: Get a single FAQ by ID
+  - Access: Public
+- POST /api/v1/faqs
+  - Description: Create a new FAQ
+  - Access: Admin only
+- PUT /api/v1/faqs/:id
+  - Description: Update an FAQ
+  - Access: Admin only
+- DELETE /api/v1/faqs/:id
+  - Description: Delete an FAQ
+  - Access: Admin only
+
+Gift Cards
+- POST /api/v1/gift-cards
+  - Description: Purchase/create a gift card
+  - Access: Private
+- GET /api/v1/gift-cards
+  - Description: Get user gift cards
+  - Access: Private
+- GET /api/v1/gift-cards/:code
+  - Description: Check gift card balance and status
+  - Access: Public
+- POST /api/v1/gift-cards/apply
+  - Description: Apply gift card to an order total
+  - Access: Private
+- GET /api/v1/gift-cards/admin/all
+  - Description: Get all gift cards for admin management
+  - Access: Admin only
+
+Hero Slides
+- GET /api/v1/hero-slides
+  - Description: Get active hero slides
+  - Access: Public
+- GET /api/v1/hero-slides/:id
+  - Description: Get one hero slide by ID
+  - Access: Public
+- GET /api/v1/hero-slides/admin/all
+  - Description: Get all hero slides including inactive ones
+  - Access: Admin only
+- POST /api/v1/hero-slides/admin/hero-slides
+  - Description: Create a new hero slide
+  - Access: Admin only
+- PUT /api/v1/hero-slides/admin/hero-slides/:id
+  - Description: Update a hero slide
+  - Access: Admin only
+- DELETE /api/v1/hero-slides/admin/hero-slides/:id
+  - Description: Delete a hero slide
+  - Access: Admin only
+- PATCH /api/v1/hero-slides/admin/hero-slides/:id/toggle
+  - Description: Toggle hero slide active status
+  - Access: Admin only
+- POST /api/v1/hero-slides/admin/hero-slides/reorder
+  - Description: Reorder hero slides
+  - Access: Admin only
+
+Orders
+- POST /api/v1/orders
+  - Description: Create a new order
+  - Access: Private
+- GET /api/v1/orders
+  - Description: Get current user's orders
+  - Access: Private
+- GET /api/v1/orders/:id
+  - Description: Get a specific order by ID
+  - Access: Private
+- PUT /api/v1/orders/:id/cancel
+  - Description: Cancel a pending or confirmed order
+  - Access: Private
+- PUT /api/v1/orders/:id/status
+  - Description: Update order status
+  - Access: Admin only
+- GET /api/v1/orders/admin/all
+  - Description: Get all orders for admin listing
+  - Access: Admin only
+
+Policies
+- GET /api/v1/policies
+  - Description: Get all policies as key/value object
+  - Access: Public
+- GET /api/v1/policies/:type
+  - Description: Get a specific policy by type (privacy, terms, shipping, returns)
+  - Access: Public
+- PUT /api/v1/policies/admin/policies/:type
+  - Description: Create or update a policy by type
+  - Access: Admin only
+- DELETE /api/v1/policies/admin/policies/:type
+  - Description: Delete a policy by type
+  - Access: Admin only
+
+Products
+- GET /api/v1/products
+  - Description: Get all products with filters
+  - Access: Public
+- GET /api/v1/products/:identifier
+  - Description: Get single product by slug or ID
+  - Access: Public
+- POST /api/v1/products
+  - Description: Create a new product
+  - Access: Admin only
+- PUT /api/v1/products/:id
+  - Description: Update a product
+  - Access: Admin only
+- DELETE /api/v1/products/:id
+  - Description: Delete a product
+  - Access: Admin only
+- POST /api/v1/products/:id/reviews
+  - Description: Add a product review
+  - Access: Public
+
+Rooms
+- GET /api/v1/rooms
+  - Description: Get all rooms
+  - Access: Public
+- GET /api/v1/rooms/type/:roomType
+  - Description: Get rooms filtered by type
+  - Access: Public
+- GET /api/v1/rooms/:id
+  - Description: Get one room by ID
+  - Access: Public
+- POST /api/v1/rooms
+  - Description: Create a new room
+  - Access: Admin only
+- PUT /api/v1/rooms/:id
+  - Description: Update a room
+  - Access: Admin only
+- DELETE /api/v1/rooms/:id
+  - Description: Delete a room
+  - Access: Admin only
+
+Testimonials
+- GET /api/v1/testimonials
+  - Description: Get all verified testimonials
+  - Access: Public
+- GET /api/v1/testimonials/:id
+  - Description: Get a testimonial by ID
+  - Access: Public
+- POST /api/v1/testimonials
+  - Description: Create a testimonial submission
+  - Access: Public
+- PUT /api/v1/testimonials/:id
+  - Description: Update a testimonial
+  - Access: Admin only
+- DELETE /api/v1/testimonials/:id
+  - Description: Delete a testimonial
+  - Access: Admin only
+
+Upload
+- POST /api/v1/upload/image
+  - Description: Upload a single image
+  - Access: Admin only
+- POST /api/v1/upload/images
+  - Description: Upload multiple images
+  - Access: Admin only
+- GET /api/v1/upload/images
+  - Description: Get uploaded image records and URLs
+  - Access: Admin only
+- DELETE /api/v1/upload/image/:filename
+  - Description: Delete an uploaded image by filename
+  - Access: Admin only
+
+Users
+- POST /api/v1/users/register
+  - Description: Register a new user
+  - Access: Public
+- POST /api/v1/users/login
+  - Description: Login and get tokens
+  - Access: Public
+- POST /api/v1/users/refresh-token
+  - Description: Refresh access token using refresh token
+  - Access: Public
+- POST /api/v1/users/logout
+  - Description: Logout and revoke refresh token
+  - Access: Private
+- GET /api/v1/users/profile
+  - Description: Get current authenticated user's profile
+  - Access: Private
+- PUT /api/v1/users/profile
+  - Description: Update current user's profile
+  - Access: Private
+- PUT /api/v1/users/change-password
+  - Description: Change current user's password
+  - Access: Private
+- POST /api/v1/users/forgot-password
+  - Description: Send password reset token/email
+  - Access: Public
+- POST /api/v1/users/reset-password
+  - Description: Reset password with token
+  - Access: Public
+- GET /api/v1/users/verify-email/:token
+  - Description: Verify user email with token
+  - Access: Public
+- GET /api/v1/users
+  - Description: Get all users (admin paginated)
+  - Access: Admin only
+- GET /api/v1/users/:id
+  - Description: Get a single user by ID
+  - Access: Admin only
+- PUT /api/v1/users/:id/role
+  - Description: Change a user's role
+  - Access: Admin only
+- DELETE /api/v1/users/:id
+  - Description: Delete a user
+  - Access: Admin only
+
+Wishlist
+- GET /api/v1/wishlist
+  - Description: Get current user's wishlist
+  - Access: Private
+- POST /api/v1/wishlist/add
+  - Description: Add product to wishlist
+  - Access: Private
+- DELETE /api/v1/wishlist/remove/:productId
+  - Description: Remove product from wishlist
+  - Access: Private
+- GET /api/v1/wishlist/check/:productId
+  - Description: Check if product is in wishlist
+  - Access: Private
+- POST /api/v1/wishlist/move-to-cart
+  - Description: Move wishlist items to cart
+  - Access: Private

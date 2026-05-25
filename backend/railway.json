@@ -1,7 +1,6 @@
 {
   "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "npm ci --omit=dev"
+    "builder": "NIXPACKS"
   },
   "deploy": {
     "numReplicas": 1,

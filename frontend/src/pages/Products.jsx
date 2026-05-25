@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FiRefreshCw, FiAlertCircle, FiGrid, FiList, FiX
+  FiRefreshCw, FiAlertCircle, FiGrid, FiList, FiX, FiSliders
 } from 'react-icons/fi';
 import ProductGrid from '../components/product/ProductGrid';
 import ProductFilters from '../components/product/ProductFilters';
@@ -13,58 +13,83 @@ import apiWrapper from '../services/apiWrapper';
 const ITEMS_PER_PAGE = 12;
 
 // Helper function to normalize API responses
-const normalizeProductsResponse = (axiosResponse) => {
-  const responseData = axiosResponse?.data;
+const normalizeProductsResponse = (response) => {
+  // Log the full response for debugging
+  console.log('Normalizing response:', response);
   
-  if (!responseData) {
+  // If response is null or undefined
+  if (!response) {
     return { products: [], total: 0, pages: 1, currentPage: 1 };
   }
   
-  if (responseData?.success === true && Array.isArray(responseData.data)) {
+  // Handle axios response (response.data contains the API response)
+  let data = response.data || response;
+  
+  // If data is still wrapped in another layer
+  if (data && data.data && !data.products && !data.success) {
+    data = data.data;
+  }
+  
+  console.log('Data after unwrapping:', data);
+  
+  // Check for your exact backend format: { success: true, products: [...], total: 106 }
+  if (data && data.success === true && Array.isArray(data.products)) {
+    const totalProducts = data.total || data.products.length;
+    console.log('Found products in data.products:', data.products.length);
     return {
-      products: responseData.data,
-      total: responseData.pagination?.total || responseData.data.length,
-      pages: responseData.pagination?.pages || Math.ceil((responseData.pagination?.total || responseData.data.length) / ITEMS_PER_PAGE),
-      currentPage: responseData.pagination?.page || 1
+      products: data.products,
+      total: totalProducts,
+      pages: Math.ceil(totalProducts / ITEMS_PER_PAGE),
+      currentPage: 1
     };
   }
   
-  if (responseData?.data?.success === true && Array.isArray(responseData.data.data)) {
+  // If data itself has products array
+  if (data && Array.isArray(data.products)) {
+    const totalProducts = data.total || data.products.length;
+    console.log('Found products in data.products (no success flag):', data.products.length);
     return {
-      products: responseData.data.data,
-      total: responseData.data.pagination?.total || responseData.data.data.length,
-      pages: responseData.data.pagination?.pages || Math.ceil((responseData.data.pagination?.total || responseData.data.data.length) / ITEMS_PER_PAGE),
-      currentPage: responseData.data.pagination?.page || 1
+      products: data.products,
+      total: totalProducts,
+      pages: data.pages || Math.ceil(totalProducts / ITEMS_PER_PAGE),
+      currentPage: data.page || 1
     };
   }
   
-  if (Array.isArray(responseData)) {
+  // If data is directly the products array
+  if (Array.isArray(data)) {
+    console.log('Data is directly an array:', data.length);
     return {
-      products: responseData,
-      total: responseData.length,
+      products: data,
+      total: data.length,
       pages: 1,
       currentPage: 1
     };
   }
   
-  if (responseData?.data && Array.isArray(responseData.data)) {
+  // If products are in data.data (nested)
+  if (data && data.data && Array.isArray(data.data)) {
+    console.log('Found products in data.data:', data.data.length);
     return {
-      products: responseData.data,
-      total: responseData.data.length,
-      pages: 1,
-      currentPage: 1
+      products: data.data,
+      total: data.total || data.data.length,
+      pages: data.pages || Math.ceil((data.total || data.data.length) / ITEMS_PER_PAGE),
+      currentPage: data.page || 1
     };
   }
   
-  if (responseData?.products && Array.isArray(responseData.products)) {
+  // If response itself has products (not in data)
+  if (response && response.products && Array.isArray(response.products)) {
+    console.log('Found products directly in response:', response.products.length);
     return {
-      products: responseData.products,
-      total: responseData.total || responseData.products.length,
-      pages: responseData.pages || 1,
-      currentPage: responseData.page || 1
+      products: response.products,
+      total: response.total || response.products.length,
+      pages: response.pages || Math.ceil((response.total || response.products.length) / ITEMS_PER_PAGE),
+      currentPage: response.page || 1
     };
   }
   
+  console.warn('Could not find products in response structure:', data);
   return {
     products: [],
     total: 0,
@@ -280,10 +305,19 @@ const Products = () => {
       
       if (!isMountedRef.current) return;
       
+      console.log('Raw API Response:', response);
+      
       const normalized = normalizeProductsResponse(response);
       const newProducts = normalized.products || [];
       const total = normalized.total || 0;
       const pages = normalized.pages || 1;
+      
+      console.log('Normalized result:', { 
+        productsCount: newProducts.length, 
+        total, 
+        pages,
+        firstProduct: newProducts[0]?.name
+      });
       
       if (isInitial) {
         setProducts(newProducts);
@@ -345,7 +379,6 @@ const Products = () => {
     
     setSearchParams(params, { replace: true });
     setShowMobileFilters(false);
-    // Close desktop filter panel after applying filters
     setIsDesktopFilterOpen(false);
   }, [sort, setSearchParams]);
 
@@ -360,7 +393,6 @@ const Products = () => {
     }
     
     setSearchParams(params, { replace: true });
-    // Close desktop filter panel after sorting
     setIsDesktopFilterOpen(false);
   }, [searchParams, setSearchParams]);
 
@@ -370,6 +402,10 @@ const Products = () => {
     setSearchParams({}, { replace: true });
     setIsDesktopFilterOpen(false);
   }, [setSearchParams]);
+
+  const toggleDesktopFilter = useCallback(() => {
+    setIsDesktopFilterOpen(prev => !prev);
+  }, []);
 
   return (
     <div className="bg-white dark:bg-neutral-950 min-h-screen w-full overflow-x-hidden">
@@ -415,6 +451,20 @@ const Products = () => {
                 </button>
               )}
 
+              {/* Desktop Filter Button */}
+              <button
+                onClick={toggleDesktopFilter}
+                className="hidden lg:flex items-center gap-2 px-3 py-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:border-primary-300 dark:hover:border-primary-600 transition-all duration-150"
+              >
+                <FiSliders className="h-4 w-4" />
+                <span className="text-sm font-medium">Filters</span>
+                {activeFiltersCount > 0 && (
+                  <span className="text-xs bg-primary-500 text-white px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
+
               <div className="flex items-center bg-neutral-100 dark:bg-neutral-800 rounded-lg p-1">
                 <button
                   onClick={() => setViewMode('grid')}
@@ -435,9 +485,15 @@ const Products = () => {
               {isMobile && (
                 <button
                   onClick={() => setShowMobileFilters(true)}
-                  className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-xs sm:text-sm font-medium hover:border-primary-300 transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm font-medium hover:border-primary-300 transition-colors"
                 >
-                  Filters{activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ''}
+                  <FiSliders className="h-4 w-4" />
+                  Filters
+                  {activeFiltersCount > 0 && (
+                    <span className="text-xs bg-primary-500 text-white px-1.5 py-0.5 rounded-full">
+                      {activeFiltersCount}
+                    </span>
+                  )}
                 </button>
               )}
             </div>
@@ -445,7 +501,7 @@ const Products = () => {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Main Content - Always visible */}
+          {/* Main Content */}
           <div ref={gridRef} className="flex-1 min-w-0 w-full">
             {/* Error State */}
             {error && (
@@ -501,14 +557,14 @@ const Products = () => {
             {!loading && !hasMore && products.length > 0 && (
               <div className="text-center py-8">
                 <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                  You've reached the end! 
+                  You've reached the end!
                 </p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Desktop Filters - Overlay Panel */}
+        {/* Desktop Filters Panel */}
         {!isMobile && (
           <ProductFilters
             filters={filters}
@@ -518,7 +574,7 @@ const Products = () => {
             totalResults={totalResults}
             isMobile={false}
             isDesktopOpen={isDesktopFilterOpen}
-            onDesktopToggle={() => setIsDesktopFilterOpen(prev => !prev)}
+            onDesktopToggle={toggleDesktopFilter}
           />
         )}
 

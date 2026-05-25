@@ -1,0 +1,14 @@
+[phases.setup]
+nixPkgs = ["nodejs_24", "npm-9_x"]
+
+# Install only production dependencies – no devDependencies
+[phases.install]
+cmds = ["npm ci --omit=dev"]
+
+# Skip the default build command (which would re-run npm ci)
+[phases.build]
+cmds = ["echo 'Build skipped – production dependencies already installed'"]
+
+# Start command (Railway will automatically use npm run start)
+[phases.start]
+cmds = ["npm run start"]

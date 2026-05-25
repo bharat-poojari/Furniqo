@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiPlus, FiEdit2, FiTrash2, FiImage, FiUsers, FiMaximize, FiWifi, FiCoffee, FiTv, FiWind, FiX, FiSave, FiEye } from 'react-icons/fi';
 import apiWrapper from '../services/apiWrapper';
+import { getUploadUrls } from '../utils/uploadResponseUtils';
 import { toast } from 'react-hot-toast';
 
 const AdminRooms = () => {
@@ -28,7 +29,8 @@ const AdminRooms = () => {
     try {
       setLoading(true);
       const response = await apiWrapper.getRooms();
-      setRooms(response?.data?.rooms || []);
+      const roomsData = response?.data || response?.rooms || response?.data?.rooms || [];
+      setRooms(Array.isArray(roomsData) ? roomsData : []);
     } catch (error) {
       toast.error('Failed to load rooms');
     } finally {
@@ -37,16 +39,20 @@ const AdminRooms = () => {
   };
 
   const handleImageUpload = async (e) => {
-    const files = Array.from(e.target.files);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     setUploading(true);
     try {
       const formDataImg = new FormData();
       files.forEach(file => formDataImg.append('images', file));
       const response = await apiWrapper.uploadImages(formDataImg);
-      setFormData(prev => ({ ...prev, images: [...prev.images, ...response.data.urls] }));
+      const urls = getUploadUrls(response);
+      if (!urls.length) throw new Error('No image URLs returned from upload');
+      setFormData(prev => ({ ...prev, images: [...prev.images, ...urls] }));
       toast.success('Images uploaded');
     } catch (error) {
-      toast.error('Upload failed');
+      console.error('Upload error:', error);
+      toast.error('Upload failed: ' + (error?.message || 'Unknown error'));
     } finally {
       setUploading(false);
     }

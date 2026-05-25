@@ -1,22 +1,11 @@
-import { useEffect, useState } from 'react';
+// src/pages/OrderConfirmation.jsx
+import { useState, useEffect } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FiCheckCircle,
-  FiPackage,
-  FiTruck,
-  FiArrowRight,
-  FiHome,
-  FiClock,
-  FiMapPin,
-  FiMail,
-  FiPhone,
-  FiPrinter,
-  FiShare2,
-  FiStar,
-  FiShield,
-  FiRotateCcw,
-  FiSmile,
+  FiCheckCircle, FiPackage, FiTruck, FiArrowRight,
+  FiHome, FiClock, FiMapPin, FiMail, FiPhone,
+  FiPrinter, FiShare2, FiStar, FiShield, FiRotateCcw, FiSmile
 } from 'react-icons/fi';
 import Button from '../components/common/Button';
 import { formatPrice, formatDate } from '../utils/helpers';
@@ -44,7 +33,6 @@ const OrderConfirmation = () => {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
-    // Try to get order from localStorage if not in state
     if (!order && id) {
       const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
       const foundOrder = orders.find(o => o._id === id || o.orderNumber === id);
@@ -61,12 +49,10 @@ const OrderConfirmation = () => {
 
   const handleShare = async () => {
     const url = window.location.href;
-    const title = `Order Confirmation - Furniqo`;
-    
     if (navigator.share) {
       try {
         await navigator.share({
-          title: title,
+          title: 'Order Confirmation - Furniqo',
           text: 'Check out my order from Furniqo!',
           url: url,
         });
@@ -90,17 +76,16 @@ const OrderConfirmation = () => {
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 flex items-center justify-center px-[1%]">
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center px-4 py-16">
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
+          initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 200 }}
           className="text-center max-w-md"
         >
           <div className="w-24 h-24 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
             <FiCheckCircle className="h-12 w-12 text-green-500" />
           </div>
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-4">
+          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-4">
             Order Placed Successfully!
           </h1>
           <p className="text-neutral-600 dark:text-neutral-400 mb-8">
@@ -119,17 +104,18 @@ const OrderConfirmation = () => {
     );
   }
 
-  const orderItems = Array.isArray(order.items) ? order.items : (order.items ? JSON.parse(order.items) : []);
+  const orderItems = Array.isArray(order.items) ? order.items : 
+                    (order.items ? JSON.parse(order.items) : []);
   const shippingAddress = order.shippingAddress || order.shipping || {};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900">
-      <div className="w-full px-[1%] py-[1%]">
+      <div className="w-full px-4 py-6 sm:py-8">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.5 }}
           >
             {/* Success Header */}
             <div className="text-center mb-8">
@@ -137,16 +123,16 @@ const OrderConfirmation = () => {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-                className="w-24 h-24 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg"
+                className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg"
               >
-                <FiCheckCircle className="h-12 w-12 text-white" />
+                <FiCheckCircle className="h-10 w-10 sm:h-12 sm:w-12 text-white" />
               </motion.div>
               
               <motion.h1
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="text-3xl lg:text-4xl font-bold text-neutral-900 dark:text-white mb-3"
+                transition={{ delay: 0.3 }}
+                className="text-2xl sm:text-3xl font-bold text-neutral-900 dark:text-white mb-2"
               >
                 Thank You for Your Order!
               </motion.h1>
@@ -154,8 +140,8 @@ const OrderConfirmation = () => {
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.6 }}
-                className="text-lg text-neutral-600 dark:text-neutral-400"
+                transition={{ delay: 0.4 }}
+                className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400"
               >
                 Your order has been confirmed and will be shipped soon.
               </motion.p>
@@ -165,8 +151,8 @@ const OrderConfirmation = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+              transition={{ delay: 0.5 }}
+              className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8"
             >
               {[
                 { icon: FiShield, label: 'Secure Payment', value: 'Verified', color: 'from-blue-500 to-cyan-500' },
@@ -176,11 +162,11 @@ const OrderConfirmation = () => {
               ].map((stat, idx) => (
                 <motion.div
                   key={idx}
-                  whileHover={{ y: -5, scale: 1.02 }}
-                  className="bg-white dark:bg-neutral-800 rounded-xl p-4 text-center shadow-md border border-neutral-200 dark:border-neutral-700"
+                  whileHover={{ y: -3 }}
+                  className="bg-white dark:bg-neutral-800 rounded-xl p-3 text-center shadow-md border border-neutral-200 dark:border-neutral-700"
                 >
-                  <div className={`w-10 h-10 mx-auto mb-2 bg-gradient-to-br ${stat.color} rounded-lg flex items-center justify-center`}>
-                    <stat.icon className="h-5 w-5 text-white" />
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-2 bg-gradient-to-br ${stat.color} rounded-lg flex items-center justify-center`}>
+                    <stat.icon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                   </div>
                   <p className="text-xs text-neutral-500">{stat.label}</p>
                   <p className="text-sm font-semibold text-neutral-900 dark:text-white">{stat.value}</p>
@@ -192,15 +178,17 @@ const OrderConfirmation = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
+              transition={{ delay: 0.6 }}
               className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden"
             >
               {/* Order Number Banner */}
-              <div className="bg-gradient-to-r from-primary-600 to-purple-600 text-white p-6">
+              <div className="bg-gradient-to-r from-primary-600 to-purple-600 text-white p-5 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <p className="text-primary-100 text-sm">Order Number</p>
-                    <p className="text-3xl font-bold font-mono tracking-wider">{order.orderNumber || order._id?.slice(-8).toUpperCase()}</p>
+                    <p className="text-2xl sm:text-3xl font-bold font-mono tracking-wider">
+                      {order.orderNumber || order._id?.slice(-8).toUpperCase()}
+                    </p>
                   </div>
                   <div className="flex gap-6">
                     <div>
@@ -212,14 +200,14 @@ const OrderConfirmation = () => {
                     </div>
                     <div>
                       <p className="text-primary-100 text-sm">Total Amount</p>
-                      <p className="font-bold text-2xl">{formatPrice(order.total || 0)}</p>
+                      <p className="font-bold text-xl sm:text-2xl">{formatPrice(order.total || 0)}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons Bar */}
-              <div className="p-4 border-b border-neutral-200 dark:border-neutral-700 flex justify-end gap-2">
+              <div className="p-3 sm:p-4 border-b border-neutral-200 dark:border-neutral-700 flex justify-end gap-2">
                 <button
                   onClick={handlePrint}
                   className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
@@ -237,7 +225,7 @@ const OrderConfirmation = () => {
               </div>
 
               {/* Order Status Tracker */}
-              <div className="p-6 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/30">
+              <div className="p-5 sm:p-6 border-b border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/30">
                 <h3 className="font-semibold text-neutral-900 dark:text-white mb-4 flex items-center gap-2">
                   <FiTruck className="h-5 w-5 text-primary-600" />
                   Order Status
@@ -245,19 +233,19 @@ const OrderConfirmation = () => {
                 <div className="relative">
                   <div className="flex items-center justify-between mb-2">
                     {['Order Confirmed', 'Processing', 'Shipped', 'Out for Delivery', 'Delivered'].map((status, i) => (
-                      <div key={status} className="flex flex-col items-center relative z-10">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
+                      <div key={status} className="flex flex-col items-center relative z-10 flex-1">
+                        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-bold transition-all ${
                           i === 0 
                             ? 'bg-green-500 text-white ring-4 ring-green-500/30' 
                             : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-500'
                         }`}>
-                          {i === 0 ? <FiCheckCircle className="h-5 w-5" /> : i + 1}
+                          {i === 0 ? <FiCheckCircle className="h-4 w-4 sm:h-5 sm:w-5" /> : i + 1}
                         </div>
-                        <span className="text-xs mt-2 text-neutral-500 text-center hidden sm:block">{status}</span>
+                        <span className="text-[9px] sm:text-xs mt-2 text-neutral-500 text-center hidden sm:block">{status}</span>
                       </div>
                     ))}
                   </div>
-                  <div className="absolute top-5 left-0 right-0 h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full">
+                  <div className="absolute top-4 left-0 right-0 h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full">
                     <div className="h-full bg-green-500 rounded-full w-1/5" />
                   </div>
                 </div>
@@ -267,33 +255,31 @@ const OrderConfirmation = () => {
               </div>
 
               {/* Order Items */}
-              <div className="p-6 border-b border-neutral-200 dark:border-neutral-700">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-neutral-900 dark:text-white flex items-center gap-2">
-                    <FiPackage className="h-5 w-5 text-primary-600" />
-                    Order Items ({orderItems.length})
-                  </h3>
-                </div>
-                <div className="space-y-4">
+              <div className="p-5 sm:p-6 border-b border-neutral-200 dark:border-neutral-700">
+                <h3 className="font-semibold text-neutral-900 dark:text-white mb-4 flex items-center gap-2">
+                  <FiPackage className="h-5 w-5 text-primary-600" />
+                  Order Items ({orderItems.length})
+                </h3>
+                <div className="space-y-3">
                   {orderItems.map((item, index) => (
                     <motion.div
                       key={index}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="flex gap-4 items-center p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl hover:shadow-md transition-all"
+                      transition={{ delay: index * 0.05 }}
+                      className="flex gap-3 sm:gap-4 items-center p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl hover:shadow-md transition-all"
                     >
                       <img
                         src={getProductImage(item)}
                         alt={item.name}
-                        className="w-20 h-20 object-cover rounded-xl flex-shrink-0"
+                        className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl flex-shrink-0"
                         onError={(e) => { e.target.src = 'https://placehold.co/400x400/eee/999?text=No+Image'; }}
                       />
                       <div className="flex-grow min-w-0">
-                        <p className="font-semibold text-neutral-900 dark:text-white truncate">
+                        <p className="font-semibold text-sm sm:text-base text-neutral-900 dark:text-white truncate">
                           {item.name || item.product?.name}
                         </p>
-                        <p className="text-sm text-neutral-500">Qty: {item.quantity}</p>
+                        <p className="text-xs text-neutral-500">Qty: {item.quantity}</p>
                         {item.variant && (
                           <p className="text-xs text-neutral-400 mt-1">
                             {item.variant.color && `Color: ${item.variant.color}`}
@@ -310,7 +296,7 @@ const OrderConfirmation = () => {
                         </button>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-primary-600">
+                        <p className="font-bold text-primary-600 text-sm sm:text-base">
                           {formatPrice((item.variant?.price || item.price) * item.quantity)}
                         </p>
                         <p className="text-xs text-neutral-500 mt-1">
@@ -323,9 +309,9 @@ const OrderConfirmation = () => {
               </div>
 
               {/* Price Breakdown */}
-              <div className="p-6 border-b border-neutral-200 dark:border-neutral-700">
+              <div className="p-5 sm:p-6 border-b border-neutral-200 dark:border-neutral-700">
                 <h3 className="font-semibold text-neutral-900 dark:text-white mb-4">Price Breakdown</h3>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-neutral-500">Subtotal</span>
                     <span className="font-medium">{formatPrice(order.subtotal || 0)}</span>
@@ -347,14 +333,14 @@ const OrderConfirmation = () => {
                     <span className="font-medium">{formatPrice(order.tax || 0)}</span>
                   </div>
                   <div className="flex justify-between items-center pt-3 border-t border-neutral-200 dark:border-neutral-700">
-                    <span className="text-lg font-bold text-neutral-900 dark:text-white">Total</span>
-                    <span className="text-2xl font-bold text-primary-600">{formatPrice(order.total || 0)}</span>
+                    <span className="text-base sm:text-lg font-bold text-neutral-900 dark:text-white">Total</span>
+                    <span className="text-xl sm:text-2xl font-bold text-primary-600">{formatPrice(order.total || 0)}</span>
                   </div>
                 </div>
               </div>
 
               {/* Shipping & Contact Info */}
-              <div className="grid md:grid-cols-2 gap-6 p-6">
+              <div className="grid sm:grid-cols-2 gap-6 p-5 sm:p-6">
                 <div>
                   <h3 className="font-semibold text-neutral-900 dark:text-white mb-3 flex items-center gap-2">
                     <FiMapPin className="h-5 w-5 text-primary-600" />
@@ -404,7 +390,7 @@ const OrderConfirmation = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 1 }}
+              transition={{ delay: 0.7 }}
               className="flex flex-col sm:flex-row gap-4 justify-center mt-8"
             >
               <Link to="/orders">

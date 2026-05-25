@@ -17,14 +17,14 @@ router.get('/', async (req, res) => {
       params.push(category);
     }
     
-    query += ' ORDER BY sortOrder ASC';
+    query += ' ORDER BY sortOrder ASC, id ASC';
     
     const faqs = await db.all(query, params);
     
     res.json({ success: true, faqs });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('GET /faqs error:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 });
 
@@ -32,12 +32,12 @@ router.get('/', async (req, res) => {
 router.get('/categories', async (req, res) => {
   try {
     const db = getDb();
-    const categories = await db.all('SELECT DISTINCT category FROM faqs WHERE category IS NOT NULL');
+    const categories = await db.all('SELECT DISTINCT category FROM faqs WHERE category IS NOT NULL AND category != ""');
     
     res.json({ success: true, categories: categories.map(c => c.category) });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('GET /faqs/categories error:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 });
 
@@ -47,7 +47,7 @@ router.get('/:id', async (req, res) => {
     const db = getDb();
     const { id } = req.params;
     
-    const faq = await db.get('SELECT * FROM faqs WHERE _id = ?', id);
+    const faq = await db.get('SELECT * FROM faqs WHERE id = ?', id);
     
     if (!faq) {
       return res.status(404).json({ success: false, message: 'FAQ not found' });
@@ -55,8 +55,8 @@ router.get('/:id', async (req, res) => {
     
     res.json({ success: true, faq });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('GET /faqs/:id error:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 });
 
@@ -73,14 +73,14 @@ router.post('/', verifyToken, isAdmin, async (req, res) => {
     const result = await db.run(`
       INSERT INTO faqs (question, answer, category, sortOrder)
       VALUES (?, ?, ?, ?)
-    `, [question, answer, category || null, sortOrder || 0]);
+    `, [question, answer, category || 'general', sortOrder || 0]);
     
-    const newFaq = await db.get('SELECT * FROM faqs WHERE _id = ?', result.lastID);
+    const newFaq = await db.get('SELECT * FROM faqs WHERE id = ?', result.lastID);
     
     res.status(201).json({ success: true, faq: newFaq });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('POST /faqs error:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 });
 
@@ -90,24 +90,32 @@ router.put('/:id', verifyToken, isAdmin, async (req, res) => {
     const db = getDb();
     const { id } = req.params;
     
-    const faq = await db.get('SELECT * FROM faqs WHERE _id = ?', id);
-    if (!faq) {
+    // First check if FAQ exists
+    const existingFaq = await db.get('SELECT * FROM faqs WHERE id = ?', id);
+    if (!existingFaq) {
       return res.status(404).json({ success: false, message: 'FAQ not found' });
     }
     
     const { question, answer, category, sortOrder } = req.body;
     
-    await db.run(`
-      UPDATE faqs SET question = ?, answer = ?, category = ?, sortOrder = ?
-      WHERE _id = ?
-    `, [question || faq.question, answer || faq.answer, category || faq.category, sortOrder || faq.sortOrder, id]);
+    // Use existing values if not provided
+    const updatedQuestion = question !== undefined ? question : existingFaq.question;
+    const updatedAnswer = answer !== undefined ? answer : existingFaq.answer;
+    const updatedCategory = category !== undefined ? category : existingFaq.category;
+    const updatedSortOrder = sortOrder !== undefined ? sortOrder : existingFaq.sortOrder;
     
-    const updatedFaq = await db.get('SELECT * FROM faqs WHERE _id = ?', id);
+    await db.run(`
+      UPDATE faqs 
+      SET question = ?, answer = ?, category = ?, sortOrder = ?
+      WHERE id = ?
+    `, [updatedQuestion, updatedAnswer, updatedCategory, updatedSortOrder, id]);
+    
+    const updatedFaq = await db.get('SELECT * FROM faqs WHERE id = ?', id);
     
     res.json({ success: true, faq: updatedFaq });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('PUT /faqs/:id error:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 });
 
@@ -117,17 +125,18 @@ router.delete('/:id', verifyToken, isAdmin, async (req, res) => {
     const db = getDb();
     const { id } = req.params;
     
-    const faq = await db.get('SELECT * FROM faqs WHERE _id = ?', id);
-    if (!faq) {
+    // First check if FAQ exists
+    const existingFaq = await db.get('SELECT * FROM faqs WHERE id = ?', id);
+    if (!existingFaq) {
       return res.status(404).json({ success: false, message: 'FAQ not found' });
     }
     
-    await db.run('DELETE FROM faqs WHERE _id = ?', id);
+    await db.run('DELETE FROM faqs WHERE id = ?', id);
     
     res.json({ success: true, message: 'FAQ deleted successfully' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('DELETE /faqs/:id error:', error);
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 });
 

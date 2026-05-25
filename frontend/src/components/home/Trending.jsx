@@ -84,7 +84,7 @@ const copyToClipboard = async (text) => {
   }
 };
 
-// Optimized LazyImage Component with Intersection Observer
+// Optimized LazyImage Component
 const LazyImage = memo(({ src, alt, className, onLoad, priority = false }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [srcToLoad, setSrcToLoad] = useState(priority ? src : null);
@@ -647,7 +647,7 @@ const ProductCard = memo(({ product, index, onQuickView, onWishlistToggle, onAdd
           </button>
         </div>
 
-        {/* Trending Badge - show only if no discount or discount < 20 */}
+        {/* Trending Badge */}
         {discount === 0 && (
           <div className="absolute top-2 sm:top-3 left-2 sm:left-3 z-10">
             <div className="flex items-center gap-0.5 sm:gap-1 bg-gradient-to-r from-primary-500 to-purple-500 text-white text-[9px] sm:text-xs font-semibold px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-lg">
@@ -736,13 +736,21 @@ const Trending = () => {
     try {
       const response = await apiWrapper.getTrendingProducts(8);
       
-      if (response?.data?.success && Array.isArray(response.data.data)) {
-        setProducts(response.data.data);
+      // Handle different response formats
+      let productsData = [];
+      if (response?.success && response?.data && Array.isArray(response.data)) {
+        productsData = response.data;
+      } else if (response?.data && Array.isArray(response.data)) {
+        productsData = response.data;
       } else if (Array.isArray(response)) {
-        setProducts(response);
-      } else {
-        setProducts([]);
+        productsData = response;
+      } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        productsData = response.data.data;
+      } else if (response?.products && Array.isArray(response.products)) {
+        productsData = response.products;
       }
+      
+      setProducts(productsData);
     } catch (error) {
       if (error.name !== 'AbortError') {
         console.error('Error fetching trending products:', error);

@@ -28,7 +28,8 @@ const AdminPolicies = () => {
     try {
       setLoading(true);
       const response = await apiWrapper.getAllPolicies();
-      setPolicies(response?.data?.policies || []);
+      const policiesData = response?.data || response?.policies || response?.data?.policies || [];
+      setPolicies(Array.isArray(policiesData) ? policiesData : []);
     } catch (error) {
       toast.error('Failed to load policies');
     } finally {
