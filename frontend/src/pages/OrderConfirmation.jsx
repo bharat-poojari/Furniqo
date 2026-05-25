@@ -32,13 +32,27 @@ const OrderConfirmation = () => {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    if (!order && id) {
+
+    const fetchOrder = async () => {
+      try {
+        const response = await apiWrapper.getOrderById(id);
+        if (response?.success && response?.data) {
+          setOrder(response.data);
+          return;
+        }
+      } catch (fetchError) {
+        console.warn('Order confirmation API fetch failed:', fetchError);
+      }
+
       const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
       const foundOrder = orders.find(o => o._id === id || o.orderNumber === id);
       if (foundOrder) {
         setOrder(foundOrder);
       }
+    };
+
+    if (!order && id) {
+      fetchOrder();
     }
   }, [id, order]);
 

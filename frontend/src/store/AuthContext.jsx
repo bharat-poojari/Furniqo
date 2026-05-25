@@ -87,7 +87,7 @@ export const AuthProvider = ({ children }) => {
             const items = guestCart.map(i => ({
               productId: i.product?._id || i.productId || i.product,
               quantity: i.quantity || 1,
-              variant: i.variant || null,
+              variantId: i.variant?.id || i.variant?._id || null,
             }));
             await apiWrapper.syncCart(items);
             localStorage.removeItem('furniqo_cart');
@@ -141,7 +141,7 @@ export const AuthProvider = ({ children }) => {
             const items = guestCart.map(i => ({
               productId: i.product?._id || i.productId || i.product,
               quantity: i.quantity || 1,
-              variant: i.variant || null,
+              variantId: i.variant?.id || i.variant?._id || null,
             }));
             await apiWrapper.syncCart(items);
             localStorage.removeItem('furniqo_cart');
