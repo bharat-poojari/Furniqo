@@ -506,12 +506,19 @@ class APIWrapper {
     }
   }
 
+  resolveVariantId(variant) {
+    if (!variant) return null;
+    if (typeof variant === 'string' || typeof variant === 'number') return variant;
+    return variant._id || variant.id || variant.variantId || null;
+  }
+
   async addToCart({ productId, quantity = 1, variantId = null }) {
     await this.ensureInitialized();
-    
+    const resolvedVariantId = this.resolveVariantId(variantId);
+
     if (this.useLocalFallback) {
       const items = this.getCartItems();
-      const existing = items.find(i => i.productId === productId && i.variantId === variantId);
+      const existing = items.find(i => i.productId === productId && i.variantId === resolvedVariantId);
       
       if (existing) {
         existing.quantity += quantity;
@@ -521,7 +528,7 @@ class APIWrapper {
           _id: 'local_cart_item_' + Date.now(),
           productId,
           quantity,
-          variantId,
+          variantId: resolvedVariantId,
           name: product.name || '',
           price: product.price || 0,
         });
@@ -531,7 +538,7 @@ class APIWrapper {
     }
 
     try {
-      const response = await api.cartAPI.addItem(productId, quantity, variantId);
+      const response = await api.cartAPI.addItem(productId, quantity, resolvedVariantId);
       return response.data;
     } catch (error) {
       console.error('Add to cart API error:', error);
@@ -604,8 +611,15 @@ class APIWrapper {
       return { success: true };
     }
 
+    const normalizedItems = Array.isArray(items)
+      ? items.map((item) => ({
+          ...item,
+          variantId: this.resolveVariantId(item.variant || item.variantId),
+        }))
+      : [];
+
     try {
-      const response = await api.cartAPI.syncCart(items);
+      const response = await api.cartAPI.syncCart(normalizedItems);
       return response.data;
     } catch (error) {
       console.error('Sync cart API error:', error);

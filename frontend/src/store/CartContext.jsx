@@ -127,7 +127,7 @@ export const CartProvider = ({ children }) => {
         const response = await apiWrapper.addToCart({
           productId: product._id,
           quantity,
-          variant
+          variantId: variant?.id || variant?._id || null,
         });
         
         // Check response status correctly
@@ -281,7 +281,7 @@ export const CartProvider = ({ children }) => {
         await apiWrapper.addToCart({
           productId: item.product._id,
           quantity: item.quantity,
-          variant: item.variant
+          variantId: item.variant?.id || item.variant?._id || null,
         });
       }
       // Fetch updated cart from backend
