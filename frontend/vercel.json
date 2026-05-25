@@ -3,7 +3,11 @@
   "name": "furniqo",
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
+<<<<<<< HEAD
  "installCommand": "npm install --legacy-peer-deps",
+=======
+  "installCommand": "npm install --legacy-peer-deps",
+>>>>>>> ae5955a870210b85c6c853c7529547cbcfa562bf
   "framework": "vite",
   "outputDirectory": "dist",
   "rewrites": [
