@@ -280,7 +280,7 @@ export const CartProvider = ({ children }) => {
       // Sync each guest cart item to backend
       for (const item of guestCart) {
         await apiWrapper.addToCart({
-          productId: item.product._id,
+          productId: item.product?._id || item.productId || item.product,
           quantity: item.quantity,
           variantId: item.variant?.id || item.variant?._id || null,
         });
