@@ -43,8 +43,10 @@ const AdminProducts = () => {
         apiWrapper.getProducts(),
         apiWrapper.getCategories()
       ]);
-      setProducts(productsRes?.data?.products || []);
-      setCategories(categoriesRes?.data?.categories || []);
+      const productsData = productsRes?.data ?? productsRes;
+      const categoriesData = categoriesRes?.data ?? categoriesRes;
+      setProducts(Array.isArray(productsData) ? productsData : (productsData?.products || []));
+      setCategories(Array.isArray(categoriesData) ? categoriesData : (categoriesData?.categories || []));
     } catch (error) {
       toast.error('Failed to load data');
     } finally {

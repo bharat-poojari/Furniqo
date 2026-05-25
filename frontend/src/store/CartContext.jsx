@@ -48,16 +48,17 @@ export const CartProvider = ({ children }) => {
       const response = await apiWrapper.getCart();
       
       // Handle different response structures
+      const payload = response?.data ?? response;
       let items = [];
-      if (response?.data?.success && response?.data?.data?.items) {
-        items = response.data.data.items;
-      } else if (response?.success && response?.data?.items) {
-        items = response.data.items;
-      } else if (response?.data?.items) {
-        items = response.data.items;
+      if (payload?.success && payload?.data?.items) {
+        items = payload.data.items;
+      } else if (payload?.items) {
+        items = payload.items;
+      } else if (payload?.data && Array.isArray(payload.data)) {
+        items = payload.data;
       }
       
-      setCartItems(items.map(normalizeCartItem));
+      setCartItems(Array.isArray(items) ? items.map(normalizeCartItem) : []);
     } catch (error) {
       console.error('Error fetching cart:', error);
       loadCartFromLocal();
