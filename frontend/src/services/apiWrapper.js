@@ -1,10 +1,30 @@
-// apiWrapper.js - Complete with all methods
+// apiWrapper.js - Complete with all methods (FIXED - No circular dependency)
 
 import * as api from './api';
-import { localData as localDataFile, updateLocalData } from './api';
 
-// Create a mutable local copy that can be reassigned
-let localData = { ...localDataFile };
+// Create local data object directly - don't import from api.js to avoid circular dependency
+let localData = {
+  products: [],
+  categories: [],
+  testimonials: [],
+  blogPosts: [],
+  rooms: [],
+  coupons: [],
+  faqs: [],
+  heroSlides: [],
+  policies: {},
+  cart: [],
+  wishlist: [],
+  favorites: [],
+  recentlyViewed: [],
+  compareList: [],
+};
+
+// Helper function to update localData
+const updateLocalData = (newData) => {
+  localData = { ...localData, ...newData };
+  return localData;
+};
 
 class APIWrapper {
   constructor() {
@@ -282,29 +302,29 @@ class APIWrapper {
   }
   
   async updateUserProfile(profileData) {
-  await this.ensureInitialized();
+    await this.ensureInitialized();
 
-  if (this.useLocalFallback) {
-    const user = { ...JSON.parse(localStorage.getItem('furniqo_user') || '{}'), ...profileData };
-    localStorage.setItem('furniqo_user', JSON.stringify(user));
-    return { success: true, data: user, message: 'Profile updated locally' };
-  }
-
-  try {
-    const response = await api.userAPI.updateProfile(profileData);
-    const result = response.data;
-    if (result.success && result.data) {
-      localStorage.setItem('furniqo_user', JSON.stringify(result.data));
+    if (this.useLocalFallback) {
+      const user = { ...JSON.parse(localStorage.getItem('furniqo_user') || '{}'), ...profileData };
+      localStorage.setItem('furniqo_user', JSON.stringify(user));
+      return { success: true, data: user, message: 'Profile updated locally' };
     }
-    return result;
-  } catch (error) {
-    console.error('Update user profile API error:', error);
-    return { 
-      success: false, 
-      message: error?.response?.data?.message || error.message || 'Failed to update profile' 
-    };
+
+    try {
+      const response = await api.userAPI.updateProfile(profileData);
+      const result = response.data;
+      if (result.success && result.data) {
+        localStorage.setItem('furniqo_user', JSON.stringify(result.data));
+      }
+      return result;
+    } catch (error) {
+      console.error('Update user profile API error:', error);
+      return { 
+        success: false, 
+        message: error?.response?.data?.message || error.message || 'Failed to update profile' 
+      };
+    }
   }
-}
 
   async updateProfile(profileData) {
     await this.ensureInitialized();
@@ -802,13 +822,11 @@ class APIWrapper {
     }
 
     try {
-      // Ensure axios default header is synced with localStorage token (avoid race)
-      try { this.setAuthToken(localStorage.getItem('furniqo_token')); } catch (e) { /* ignore */ }
+      try { this.setAuthToken(localStorage.getItem('furniqo_token')); } catch (e) { }
 
       const response = await api.orderAPI.createOrder(orderData);
       return response.data;
     } catch (error) {
-      // If the API returned a client/auth error, propagate it so the UI can show correct message
       const status = error?.response?.status;
       const serverMessage = error?.response?.data?.message || error?.message;
       if (status === 400 || status === 401) {
@@ -816,7 +834,6 @@ class APIWrapper {
         return { success: false, message: serverMessage || 'Failed to create order' };
       }
 
-      // For server errors or network issues, fall back to local/offline order
       console.warn('Order creation API failed, using local fallback:', error);
       const order = {
         _id: 'local_order_' + Date.now(),
@@ -834,26 +851,23 @@ class APIWrapper {
   }
 
   async getOrders(params = {}) {
-  await this.ensureInitialized();
+    await this.ensureInitialized();
 
-  // For authenticated users, ALWAYS fetch from API first
-  // Only use localStorage as a LAST RESORT cache for the current user
-  if (this.useLocalFallback) {
-    // This should only happen when backend is completely unavailable
-    const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
-    return { success: true, data: orders };
+    if (this.useLocalFallback) {
+      const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+      return { success: true, data: orders };
+    }
+
+    try {
+      const response = await api.orderAPI.getOrders(params);
+      return response.data;
+    } catch (error) {
+      console.error('Get orders API error:', error);
+      const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+      return { success: true, data: orders, warning: 'Using cached data' };
+    }
   }
 
-  try {
-    const response = await api.orderAPI.getOrders(params);
-    return response.data;
-  } catch (error) {
-    console.error('Get orders API error:', error);
-    // Only return cached orders if API fails completely
-    const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
-    return { success: true, data: orders, warning: 'Using cached data' };
-  }
-}
   async getOrderById(id) {
     await this.ensureInitialized();
 
@@ -1123,7 +1137,6 @@ class APIWrapper {
       return response.data;
     } catch (error) {
       console.error('Delete gift card API failed:', error);
-      // Still return success for UI update even if API fails
       const cards = JSON.parse(localStorage.getItem('furniqo_giftcards') || '[]');
       const filtered = cards.filter(c => c._id !== id && c.code !== id);
       localStorage.setItem('furniqo_giftcards', JSON.stringify(filtered));
@@ -1371,109 +1384,106 @@ class APIWrapper {
   }
 
   // ============ TESTIMONIAL MANAGEMENT ============
-async getTestimonials(adminMode = false) {
-  await this.ensureInitialized();
+  async getTestimonials(adminMode = false) {
+    await this.ensureInitialized();
 
-  if (this.useLocalFallback) {
-    return { success: true, data: localData.testimonials || [] };
-  }
-
-  try {
-    let response;
-    
-    // If adminMode is true, get all testimonials (including unverified)
-    if (adminMode) {
-      response = await api.testimonialAPI.getAdminTestimonials();
-    } else {
-      response = await api.testimonialAPI.getTestimonials();
+    if (this.useLocalFallback) {
+      return { success: true, data: localData.testimonials || [] };
     }
-    
-    console.log('Get testimonials response:', response.data);
-    return response.data;
-  } catch (error) {
-    console.warn('Get testimonials API failed:', error);
-    // Fallback to local data
-    return { success: true, data: localData.testimonials || [] };
-  }
-}
 
-
-async createTestimonial(testimonialData) {
-  await this.ensureInitialized();
-
-  if (this.useLocalFallback) {
-    const newTestimonial = { 
-      _id: 'local_test_' + Date.now(), 
-      ...testimonialData,
-      created_at: new Date().toISOString()
-    };
-    if (!localData.testimonials) localData.testimonials = [];
-    localData.testimonials.push(newTestimonial);
-    return { success: true, data: newTestimonial };
-  }
-
-  try {
-    const response = await api.testimonialAPI.createTestimonial(testimonialData);
-    console.log('Create testimonial response:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Create testimonial API failed:', error);
-    return { 
-      success: false, 
-      message: error?.response?.data?.message || error.message || 'Failed to create testimonial' 
-    };
-  }
-}
-
-async updateTestimonial(id, testimonialData) {
-  await this.ensureInitialized();
-
-  if (this.useLocalFallback) {
-    const index = (localData.testimonials || []).findIndex(t => t._id === id);
-    if (index !== -1) {
-      localData.testimonials[index] = { ...localData.testimonials[index], ...testimonialData };
-      return { success: true, data: localData.testimonials[index] };
+    try {
+      let response;
+      
+      if (adminMode) {
+        response = await api.testimonialAPI.getAdminTestimonials();
+      } else {
+        response = await api.testimonialAPI.getTestimonials();
+      }
+      
+      console.log('Get testimonials response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.warn('Get testimonials API failed:', error);
+      return { success: true, data: localData.testimonials || [] };
     }
-    return { success: false, message: 'Testimonial not found' };
   }
 
-  try {
-    const response = await api.testimonialAPI.updateTestimonial(id, testimonialData);
-    console.log('Update testimonial response:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Update testimonial API failed:', error);
-    return { 
-      success: false, 
-      message: error?.response?.data?.message || error.message || 'Failed to update testimonial' 
-    };
-  }
-}
+  async createTestimonial(testimonialData) {
+    await this.ensureInitialized();
 
-async deleteTestimonial(id) {
-  await this.ensureInitialized();
-
-  if (this.useLocalFallback) {
-    const index = (localData.testimonials || []).findIndex(t => t._id === id);
-    if (index !== -1) {
-      localData.testimonials.splice(index, 1);
-      return { success: true };
+    if (this.useLocalFallback) {
+      const newTestimonial = { 
+        _id: 'local_test_' + Date.now(), 
+        ...testimonialData,
+        created_at: new Date().toISOString()
+      };
+      if (!localData.testimonials) localData.testimonials = [];
+      localData.testimonials.push(newTestimonial);
+      return { success: true, data: newTestimonial };
     }
-    return { success: false, message: 'Testimonial not found' };
+
+    try {
+      const response = await api.testimonialAPI.createTestimonial(testimonialData);
+      console.log('Create testimonial response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Create testimonial API failed:', error);
+      return { 
+        success: false, 
+        message: error?.response?.data?.message || error.message || 'Failed to create testimonial' 
+      };
+    }
   }
 
-  try {
-    const response = await api.testimonialAPI.deleteTestimonial(id);
-    console.log('Delete testimonial response:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Delete testimonial API failed:', error);
-    return { 
-      success: false, 
-      message: error?.response?.data?.message || error.message || 'Failed to delete testimonial' 
-    };
+  async updateTestimonial(id, testimonialData) {
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      const index = (localData.testimonials || []).findIndex(t => t._id === id);
+      if (index !== -1) {
+        localData.testimonials[index] = { ...localData.testimonials[index], ...testimonialData };
+        return { success: true, data: localData.testimonials[index] };
+      }
+      return { success: false, message: 'Testimonial not found' };
+    }
+
+    try {
+      const response = await api.testimonialAPI.updateTestimonial(id, testimonialData);
+      console.log('Update testimonial response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Update testimonial API failed:', error);
+      return { 
+        success: false, 
+        message: error?.response?.data?.message || error.message || 'Failed to update testimonial' 
+      };
+    }
   }
-}
+
+  async deleteTestimonial(id) {
+    await this.ensureInitialized();
+
+    if (this.useLocalFallback) {
+      const index = (localData.testimonials || []).findIndex(t => t._id === id);
+      if (index !== -1) {
+        localData.testimonials.splice(index, 1);
+        return { success: true };
+      }
+      return { success: false, message: 'Testimonial not found' };
+    }
+
+    try {
+      const response = await api.testimonialAPI.deleteTestimonial(id);
+      console.log('Delete testimonial response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Delete testimonial API failed:', error);
+      return { 
+        success: false, 
+        message: error?.response?.data?.message || error.message || 'Failed to delete testimonial' 
+      };
+    }
+  }
 
   // ============ BLOG MANAGEMENT ============
   async getBlogPosts(params = {}) {
@@ -2304,28 +2314,28 @@ async deleteTestimonial(id) {
     }
   }
 
- async updatePolicy(type, policyData) {
-  await this.ensureInitialized();
+  async updatePolicy(type, policyData) {
+    await this.ensureInitialized();
 
-  if (this.useLocalFallback) {
-    if (!localData.policies) localData.policies = {};
-    localData.policies[type] = policyData;
-    return { success: true, message: 'Policy updated locally' };
-  }
+    if (this.useLocalFallback) {
+      if (!localData.policies) localData.policies = {};
+      localData.policies[type] = policyData;
+      return { success: true, message: 'Policy updated locally' };
+    }
 
-  try {
-    const response = await api.policiesAPI.updatePolicy(type, policyData);
-    console.log('Update policy response:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Update policy API failed:', error);
-    console.error('Error details:', error.response?.data);
-    return { 
-      success: false, 
-      message: error?.response?.data?.message || error.message || 'Failed to update policy' 
-    };
+    try {
+      const response = await api.policiesAPI.updatePolicy(type, policyData);
+      console.log('Update policy response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Update policy API failed:', error);
+      console.error('Error details:', error.response?.data);
+      return { 
+        success: false, 
+        message: error?.response?.data?.message || error.message || 'Failed to update policy' 
+      };
+    }
   }
-}
 
   async deletePolicy(type) {
     await this.ensureInitialized();
@@ -2423,8 +2433,6 @@ async deleteTestimonial(id) {
     return { success: true };
   }
 }
-
-
 
 const apiWrapper = new APIWrapper();
 apiWrapper.init().catch(console.error);
