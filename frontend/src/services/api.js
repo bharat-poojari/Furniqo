@@ -80,7 +80,10 @@ api.interceptors.response.use(
           }
 
           if (/^\/blog(\/.*)?$/.test(path)) {
-            return buildResponse({ posts: mock.blogPosts || [] });
+            if (path === '/blog' || path === '/blog/') return buildResponse({ posts: mock.blogPosts || [] });
+            const slug = path.replace('/blog/', '');
+            const post = (mock.blogPosts || []).find(b => b._id === slug || b.slug === slug);
+            return buildResponse({ post: post || null });
           }
 
           if (/^\/rooms(\/.*)?$/.test(path)) {
@@ -91,8 +94,55 @@ api.interceptors.response.use(
             return buildResponse({ testimonials: mock.testimonials || [] });
           }
 
+          if (/^\/coupons(\/.*)?$/.test(path)) {
+            return buildResponse({ coupons: mock.coupons || [] });
+          }
+
+          if (/^\/faqs(\/.*)?$/.test(path)) {
+            return buildResponse({ faqs: mock.faqs || [] });
+          }
+
+          if (/^\/policies(\/.*)?$/.test(path)) {
+            return buildResponse({ policies: mock.policies || {} });
+          }
+
+          if (/^\/hero-slides(\/.*)?$/.test(path) || path === '/heroSlides') {
+            return buildResponse({ heroSlides: mock.heroSlides || [] });
+          }
+
           if (path === '/health') {
             return buildResponse({ ok: true });
+          }
+        }
+
+        // Handle some common POST fallbacks
+        if (method === 'post') {
+          // coupons validate
+          if (/^\/coupons\/validate/.test(path) || path === '/coupons/validate') {
+            try {
+              const body = typeof originalRequest.data === 'string' ? JSON.parse(originalRequest.data) : originalRequest.data || {};
+              const code = body.code || body.coupon || '';
+              const found = (mock.coupons || []).find(c => c.code === code);
+              if (found) return buildResponse({ valid: true, coupon: found });
+              return buildResponse({ valid: false });
+            } catch (e) {
+              return buildResponse({ valid: false });
+            }
+          }
+
+          // contact/submit -> echo success
+          if (/^\/contact\/submit/.test(path) || path === '/contact/submit') {
+            return buildResponse({ message: 'Message received', data: typeof originalRequest.data === 'string' ? JSON.parse(originalRequest.data || '{}') : originalRequest.data || {} });
+          }
+
+          // cart actions -> return mock cart (empty)
+          if (/^\/cart(\/.*)?$/.test(path)) {
+            return buildResponse({ cart: { items: [] } });
+          }
+
+          // wishlist actions -> empty
+          if (/^\/wishlist(\/.*)?$/.test(path)) {
+            return buildResponse({ wishlist: [] });
           }
         }
 
