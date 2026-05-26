@@ -18,7 +18,6 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Add timestamp to prevent caching for GET requests
     if (config.method === 'get') {
       config.params = {
         ...config.params,
@@ -41,7 +40,6 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     
-    // Handle token expiration
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
@@ -70,21 +68,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-// Local data object for apiWrapper.js
-export let localData = {
-  cart: [],
-  wishlist: [],
-  favorites: [],
-  recentlyViewed: [],
-  compareList: [],
-};
-
-// Helper function to update localData
-export const updateLocalData = (newData) => {
-  localData = { ...localData, ...newData };
-  return localData;
-};
 
 // ============ USER MANAGEMENT API ============
 export const userAPI = {
