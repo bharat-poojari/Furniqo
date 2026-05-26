@@ -7,6 +7,17 @@ export const API_BASE_URL = (rawApiUrl && !isPlaceholder)
     ? 'http://localhost:5000/api/v1'
     : '/api/v1';
 
+// Runtime warning to help detect misconfiguration in production
+if (typeof window !== 'undefined') {
+  if (!rawApiUrl || isPlaceholder) {
+    // Only warn in non-local environments
+    if (window.location.hostname !== 'localhost') {
+      // eslint-disable-next-line no-console
+      console.warn('Warning: VITE_API_URL is not set or is a placeholder. Frontend will use', API_BASE_URL, 'as API base. Set VITE_API_URL in your Vercel project to your backend URL to use real API.');
+    }
+  }
+}
+
 export const SITE_NAME = 'Furniqo';
 export const SITE_DESCRIPTION = 'Premium furniture for modern living';
 export const SITE_URL = 'https://furniqo.com';

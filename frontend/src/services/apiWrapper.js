@@ -1,6 +1,7 @@
 // apiWrapper.js - Complete with all methods
 
 import * as api from './api';
+import { API_BASE_URL } from '../utils/constants';
 
 // Create local data object directly
 let localData = {
@@ -71,10 +72,10 @@ class APIWrapper {
         }, 1500);
       });
 
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+      const apiUrl = API_BASE_URL;
 
       const response = await Promise.race([
-        fetch(`${apiUrl}/health`, {
+        fetch(`${apiUrl.replace(/\/api\/v1$/, '')}/health`, {
           method: 'GET',
           signal: controller.signal,
           headers: {

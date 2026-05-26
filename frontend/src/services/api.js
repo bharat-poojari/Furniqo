@@ -39,11 +39,26 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    const originalRequest = error.config;
-    // If network error or server error (5xx), try to return mock data quickly
+    const originalRequest = error.config || {};
+    // If transient network/server error, retry GETs a couple times before fallback
     const isNetworkError = !error.response;
-    const isServerError = error.response?.status >= 500;
+    const status = error.response?.status;
+    const isServerError = status >= 500;
 
+    const method = (originalRequest.method || 'get').toLowerCase();
+
+    // Retry idempotent GET requests up to 2 times with backoff
+    if (method === 'get' && (isNetworkError || isServerError)) {
+      originalRequest._retryCount = originalRequest._retryCount || 0;
+      if (originalRequest._retryCount < 2) {
+        originalRequest._retryCount += 1;
+        const backoff = 150 * Math.pow(2, originalRequest._retryCount - 1);
+        await new Promise((res) => setTimeout(res, backoff));
+        return api(originalRequest);
+      }
+    }
+
+    // If network error or server error (5xx), try to return mock data quickly
     if ((isNetworkError || isServerError) && !originalRequest?._mockFallback) {
       originalRequest._mockFallback = true;
 

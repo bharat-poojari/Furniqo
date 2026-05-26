@@ -6,6 +6,7 @@ import apiWrapper from '../services/apiWrapper';
 import MediaLibraryPicker from '../components/common/MediaLibraryPicker';
 import { getUploadUrl } from '../utils/uploadResponseUtils';
 import toast from 'react-hot-toast';
+import { API_BASE_URL } from '../utils/constants';
 
 const AdminCategories = () => {
   const [categories, setCategories] = useState([]);
@@ -65,8 +66,7 @@ const AdminCategories = () => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-    const baseWithoutApi = apiUrl.replace('/api/v1', '');
+    const baseWithoutApi = API_BASE_URL.replace('/api/v1', '');
     const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     return `${baseWithoutApi}${cleanPath}`;
   };
