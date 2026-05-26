@@ -1,4 +1,4 @@
-const CACHE_NAME = 'furniqo-v2';
+const CACHE_NAME = 'furniqo-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -6,7 +6,7 @@ const STATIC_ASSETS = [
   '/manifest.json',
 ];
 
-const DYNAMIC_CACHE = 'furniqo-dynamic-v2';
+const DYNAMIC_CACHE = 'furniqo-dynamic-v3';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

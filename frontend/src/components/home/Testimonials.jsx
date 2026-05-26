@@ -4,7 +4,7 @@ import { testimonials as mockTestimonials } from '../../data/data';
 import { Skeleton } from '../common/Skeleton';
 import apiWrapper from '../../services/apiWrapper';
 
-// Memoized Star Rating Component - Removed unnecessary animations
+// Memoized Star Rating Component
 const StarRating = memo(({ rating }) => (
   <div className="flex gap-0.5 sm:gap-1 mb-2 sm:mb-3">
     {[...Array(5)].map((_, i) => (
@@ -22,7 +22,7 @@ const StarRating = memo(({ rating }) => (
 
 StarRating.displayName = 'StarRating';
 
-// Optimized Author Info - Removed framer-motion, kept only essential CSS transitions
+// Optimized Author Info
 const AuthorInfo = memo(({ name, role, location, image, verified, isLiked, likes, onLike }) => {
   const [localLiked, setLocalLiked] = useState(isLiked);
   const [localLikes, setLocalLikes] = useState(likes);
@@ -48,6 +48,9 @@ const AuthorInfo = memo(({ name, role, location, image, verified, isLiked, likes
             alt={name}
             className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover ring-2 ring-primary-100 dark:ring-primary-900"
             loading="lazy"
+            onError={(e) => {
+              e.target.src = 'https://via.placeholder.com/48?text=User';
+            }}
           />
           <div className="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full w-2 h-2 sm:w-2 sm:h-2 border border-white dark:border-neutral-800" />
         </div>
@@ -70,7 +73,6 @@ const AuthorInfo = memo(({ name, role, location, image, verified, isLiked, likes
         </div>
       </div>
       
-      {/* Simplified like button - removed framer-motion animations, kept CSS transitions */}
       <button 
         onClick={handleLikeClick}
         className={`relative p-1.5 rounded-full transition-all duration-200 flex-shrink-0 ${
@@ -94,7 +96,7 @@ const AuthorInfo = memo(({ name, role, location, image, verified, isLiked, likes
 
 AuthorInfo.displayName = 'AuthorInfo';
 
-// Memoized Autoplay Button Component - Removed hover scale animation
+// Memoized Autoplay Button Component
 const AutoplayButton = memo(({ isPlaying, onClick }) => (
   <button
     onClick={onClick}
@@ -127,7 +129,7 @@ const AutoplayButton = memo(({ isPlaying, onClick }) => (
 
 AutoplayButton.displayName = 'AutoplayButton';
 
-// Optimized Stats Component - Removed framer-motion, using CSS-only
+// Optimized Stats Component
 const StatsSection = memo(() => {
   const stats = useMemo(() => [
     { value: '98%', label: 'Satisfaction' },
@@ -154,6 +156,21 @@ const StatsSection = memo(() => {
 
 StatsSection.displayName = 'StatsSection';
 
+// Helper function to normalize testimonial data from API
+const normalizeTestimonial = (item) => ({
+  id: item._id || item.id,
+  name: item.name || 'Anonymous',
+  role: item.role || 'Customer',
+  location: item.location || '',
+  image: item.image || 'https://via.placeholder.com/48?text=User',
+  content: item.content || '',
+  rating: item.rating || 5,
+  verified: item.verified === 1 || item.verified === true,
+  likes: item.helpful || item.likes || 0,
+  createdAt: item.created_at || item.createdAt,
+});
+
+// Main Testimonials Component
 const Testimonials = () => {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -161,6 +178,7 @@ const Testimonials = () => {
   const [autoplay, setAutoplay] = useState(true);
   const [likedTestimonials, setLikedTestimonials] = useState({});
   const [touchStart, setTouchStart] = useState(null);
+  const [apiError, setApiError] = useState(false);
   const intervalRef = useRef(null);
   const autoplayRef = useRef(autoplay);
 
@@ -173,7 +191,11 @@ const Testimonials = () => {
   useEffect(() => {
     const savedLikes = localStorage.getItem('furniqo_liked_testimonials');
     if (savedLikes) {
-      setLikedTestimonials(JSON.parse(savedLikes));
+      try {
+        setLikedTestimonials(JSON.parse(savedLikes));
+      } catch (e) {
+        console.error('Failed to parse saved likes:', e);
+      }
     }
   }, []);
 
@@ -189,32 +211,89 @@ const Testimonials = () => {
     });
   }, []);
 
-  // Load testimonials data from API first
+  // Load testimonials data - API first, then fallback to mock
   useEffect(() => {
     const fetchTestimonials = async () => {
       setLoading(true);
+      setApiError(false);
+      
       try {
-        const response = await apiWrapper.getTestimonials();
-        let testimonialsArray = [];
+        console.log('📡 Fetching testimonials from API...');
         
-        if (response?.data?.success && response.data.data) {
-          testimonialsArray = response.data.data;
-        } else if (response?.success && response?.data) {
-          testimonialsArray = response.data;
-        } else if (Array.isArray(response)) {
-          testimonialsArray = response;
-        } else if (response?.data && Array.isArray(response.data)) {
-          testimonialsArray = response.data;
+        // Try API first
+        const response = await apiWrapper.getTestimonials();
+        console.log('API Response:', response);
+        
+        let testimonialsArray = null;
+        
+        // Handle different response formats
+        if (response) {
+          // Format: { success: true, testimonials: [...] } - YOUR API FORMAT
+          if (response.success && Array.isArray(response.testimonials)) {
+            testimonialsArray = response.testimonials;
+            console.log('✅ Found testimonials in response.testimonials');
+          }
+          // Format: { success: true, data: [...] }
+          else if (response.success && Array.isArray(response.data)) {
+            testimonialsArray = response.data;
+            console.log('✅ Found testimonials in response.data');
+          }
+          // Format: { data: { success: true, data: [...] } }
+          else if (response.data?.success && Array.isArray(response.data?.data)) {
+            testimonialsArray = response.data.data;
+            console.log('✅ Found testimonials in response.data.data');
+          }
+          // Format: { data: [...] }
+          else if (response.data && Array.isArray(response.data)) {
+            testimonialsArray = response.data;
+            console.log('✅ Found testimonials in response.data (array)');
+          }
+          // Format: Direct array
+          else if (Array.isArray(response)) {
+            testimonialsArray = response;
+            console.log('✅ Found testimonials as direct array');
+          }
         }
         
         if (testimonialsArray && testimonialsArray.length > 0) {
-          setTestimonialsData(testimonialsArray);
+          // Filter only verified testimonials for public view
+          const verifiedTestimonials = testimonialsArray.filter(t => t.verified === 1 || t.verified === true);
+          
+          if (verifiedTestimonials.length > 0) {
+            // Normalize and set data from API
+            const normalizedData = verifiedTestimonials.map(normalizeTestimonial);
+            console.log(`✅ Loaded ${normalizedData.length} verified testimonials from API`);
+            setTestimonialsData(normalizedData);
+          } else {
+            console.log('⚠️ No verified testimonials found in API response');
+            throw new Error('No verified testimonials');
+          }
         } else {
-          setTestimonialsData(mockTestimonials);
+          // No data from API, fallback to mock
+          console.log('⚠️ No testimonials from API, falling back to mock data');
+          throw new Error('No testimonials data from API');
         }
+        
       } catch (error) {
-        console.warn('Failed to fetch testimonials from API, using mock data:', error);
-        setTestimonialsData(mockTestimonials);
+        console.warn('❌ API failed, falling back to mock data:', error.message);
+        setApiError(true);
+        
+        // Transform mock data to match expected format
+        const mockData = mockTestimonials.map(item => ({
+          id: item.id,
+          name: item.name,
+          role: item.role,
+          location: item.location,
+          image: item.image,
+          content: item.content,
+          rating: item.rating,
+          verified: item.verified || true,
+          likes: item.likes || Math.floor(Math.random() * 50) + 10,
+        }));
+        
+        setTestimonialsData(mockData);
+        console.log(`📦 Loaded ${mockData.length} testimonials from mock data`);
+        
       } finally {
         setLoading(false);
       }
@@ -245,7 +324,7 @@ const Testimonials = () => {
     setAutoplay(prev => !prev);
   }, []);
 
-  // Autoplay functionality - optimized
+  // Autoplay functionality
   useEffect(() => {
     if (autoplay && testimonialsData.length > 0) {
       intervalRef.current = setInterval(() => {
@@ -295,7 +374,7 @@ const Testimonials = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [prevTestimonial, nextTestimonial]);
 
-  // Loading skeleton - removed motion wrapper
+  // Loading skeleton
   const LoadingSkeleton = useMemo(() => (
     <section className="py-6 sm:py-8 bg-gradient-to-br from-primary-50 to-purple-50 dark:from-neutral-900 dark:to-neutral-800">
       <div className="w-full px-[1%] sm:px-[1.5%]">
@@ -312,7 +391,15 @@ const Testimonials = () => {
 
   if (loading) return LoadingSkeleton;
 
-  if (testimonialsData.length === 0) return null;
+  if (testimonialsData.length === 0) {
+    return (
+      <section className="py-6 sm:py-8 bg-gradient-to-br from-primary-50 to-purple-50 dark:from-neutral-900 dark:to-neutral-800">
+        <div className="text-center py-12">
+          <p className="text-neutral-600 dark:text-neutral-400">No testimonials available</p>
+        </div>
+      </section>
+    );
+  }
 
   const currentTestimonial = testimonialsData[currentIndex];
   const isLiked = likedTestimonials[currentTestimonial?.id];
@@ -325,48 +412,56 @@ const Testimonials = () => {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Background Decorations - Minimal for performance */}
+      {/* Background Decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-0 w-64 sm:w-96 h-64 sm:h-96 bg-primary-200/20 dark:bg-primary-900/10 rounded-full -translate-x-1/2 -translate-y-1/2" />
         <div className="absolute bottom-0 right-0 w-48 sm:w-64 h-48 sm:h-64 bg-purple-200/20 dark:bg-purple-900/10 rounded-full translate-x-1/2 translate-y-1/2" />
       </div>
       
       <div className="w-full px-[1%] sm:px-[1.5%] relative">
-        {/* Header - Removed motion wrapper, using CSS only */}
+        {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
           <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full mb-2 sm:mb-3">
             <FiMessageCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-            <span className="text-[10px] sm:text-xs font-medium">Trusted by 10,000+ customers</span>
+            <span className="text-[10px] sm:text-xs font-medium">
+              {apiError ? 'Customer Stories' : 'Trusted by 10,000+ customers'}
+            </span>
           </div>
           <h2 className="text-xl sm:text-2xl lg:text-4xl font-display font-bold bg-gradient-to-r from-neutral-900 to-primary-600 dark:from-white dark:to-primary-400 bg-clip-text text-transparent mb-1.5 sm:mb-2 px-4 sm:px-0">
             What Our Customers Say
           </h2>
           <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto px-4 sm:px-0">
-            Join thousands of satisfied customers who love their Furniqo furniture
+            {apiError 
+              ? 'Real stories from our satisfied customers' 
+              : 'Join thousands of satisfied customers who love their Furniqo furniture'}
           </p>
         </div>
 
-        {/* Testimonial Card - Simplified, removed AnimatePresence and motion */}
+        {/* Testimonial Card */}
         <div className="max-w-4xl mx-auto">
           <div className="relative px-4 sm:px-0">
-            {/* Navigation Buttons - Removed hover scale animations */}
-            <button
-              onClick={prevTestimonial}
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 sm:-translate-x-3 lg:-translate-x-10 z-10 w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full bg-white dark:bg-neutral-800 shadow-soft hover:shadow-medium border border-neutral-200 dark:border-neutral-700 flex items-center justify-center transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              aria-label="Previous testimonial"
-            >
-              <FiChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </button>
+            {/* Navigation Buttons */}
+            {testimonialsData.length > 1 && (
+              <>
+                <button
+                  onClick={prevTestimonial}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 sm:-translate-x-3 lg:-translate-x-10 z-10 w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full bg-white dark:bg-neutral-800 shadow-soft hover:shadow-medium border border-neutral-200 dark:border-neutral-700 flex items-center justify-center transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  aria-label="Previous testimonial"
+                >
+                  <FiChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                </button>
 
-            <button
-              onClick={nextTestimonial}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 sm:translate-x-3 lg:translate-x-10 z-10 w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full bg-white dark:bg-neutral-800 shadow-soft hover:shadow-medium border border-neutral-200 dark:border-neutral-700 flex items-center justify-center transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              aria-label="Next testimonial"
-            >
-              <FiChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            </button>
+                <button
+                  onClick={nextTestimonial}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 sm:translate-x-3 lg:translate-x-10 z-10 w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 rounded-full bg-white dark:bg-neutral-800 shadow-soft hover:shadow-medium border border-neutral-200 dark:border-neutral-700 flex items-center justify-center transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  aria-label="Next testimonial"
+                >
+                  <FiChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                </button>
+              </>
+            )}
 
-            {/* Simplified Card - Removed framer-motion, using CSS transitions */}
+            {/* Card */}
             <div className="bg-white dark:bg-neutral-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 shadow-xl relative transition-opacity duration-300">
               {/* Quote mark */}
               <div className="absolute top-3 right-3 sm:top-4 sm:right-4 text-4xl sm:text-5xl lg:text-6xl text-primary-100 dark:bg-primary-900/20 leading-none select-none">
@@ -397,24 +492,26 @@ const Testimonials = () => {
           </div>
 
           {/* Navigation Controls */}
-          <div className="flex items-center justify-center gap-2 sm:gap-3 mt-4 sm:mt-6">
-            <div className="flex gap-1 sm:gap-1.5">
-              {testimonialsData.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => goToTestimonial(index)}
-                  className={`rounded-full transition-all duration-200 ${
-                    index === currentIndex
-                      ? 'w-4 sm:w-6 h-1 bg-primary-600'
-                      : 'w-1 h-1 bg-neutral-300 dark:bg-neutral-600 hover:bg-primary-400'
-                  }`}
-                  aria-label={`Go to testimonial ${index + 1}`}
-                />
-              ))}
-            </div>
+          {testimonialsData.length > 1 && (
+            <div className="flex items-center justify-center gap-2 sm:gap-3 mt-4 sm:mt-6">
+              <div className="flex gap-1 sm:gap-1.5">
+                {testimonialsData.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => goToTestimonial(index)}
+                    className={`rounded-full transition-all duration-200 ${
+                      index === currentIndex
+                        ? 'w-4 sm:w-6 h-1 bg-primary-600'
+                        : 'w-1 h-1 bg-neutral-300 dark:bg-neutral-600 hover:bg-primary-400'
+                    }`}
+                    aria-label={`Go to testimonial ${index + 1}`}
+                  />
+                ))}
+              </div>
 
-            <AutoplayButton isPlaying={autoplay} onClick={toggleAutoplay} />
-          </div>
+              <AutoplayButton isPlaying={autoplay} onClick={toggleAutoplay} />
+            </div>
+          )}
         </div>
 
         {/* Stats Section */}

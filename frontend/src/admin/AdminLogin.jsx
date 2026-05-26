@@ -1,4 +1,4 @@
-// AdminLogin.jsx - Fixed version (no syntax errors)
+// AdminLogin.jsx - Fixed version (no syntax errors, no demo credentials)
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -179,12 +179,6 @@ const AdminLogin = () => {
               </Link>
             </div>
 
-            {/* Demo Credentials Notice */}
-            <div className="bg-white/5 rounded-lg p-3 text-center">
-              <p className="text-xs text-purple-300">Demo Admin Credentials:</p>
-              <p className="text-xs text-purple-200 font-mono mt-1">admin@furniqo.com / Admin123456</p>
-            </div>
-
             {/* Submit Button */}
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -218,7 +212,7 @@ const AdminLogin = () => {
 
         {/* Footer */}
         <p className="text-center text-purple-300 text-sm mt-8">
-          © 2024 Furniqo Admin Portal. All rights reserved.
+          © 2026 Furniqo Admin Portal. All rights reserved.
         </p>
       </motion.div>
     </div>

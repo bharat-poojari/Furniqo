@@ -110,15 +110,17 @@ const EditFieldModal = ({ isOpen, onClose, field, value, onSave }) => {
   );
 };
 
-// Avatar Upload Modal
+// Avatar Upload Modal - FIXED for better localStorage persistence
 const AvatarModal = ({ isOpen, onClose, onSave }) => {
   const [preview, setPreview] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const fileRef = useRef(null);
 
   const handleFile = (e) => {
     const file = e.target.files[0];
     if (file && file.size <= 5 * 1024 * 1024) {
+      setSelectedFile(file);
       const reader = new FileReader();
       reader.onload = (e) => setPreview(e.target.result);
       reader.readAsDataURL(file);
@@ -127,15 +129,18 @@ const AvatarModal = ({ isOpen, onClose, onSave }) => {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!preview) return;
     setLoading(true);
-    setTimeout(() => {
-      onSave(preview);
-      setLoading(false);
-      onClose();
-      toast.success('Profile photo updated!');
-    }, 800);
+    
+    // Simulate save delay
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // Save the base64 image data to localStorage
+    onSave(preview);
+    setLoading(false);
+    onClose();
+    toast.success('Profile photo updated!');
   };
 
   return (
@@ -179,7 +184,12 @@ const AvatarModal = ({ isOpen, onClose, onSave }) => {
               <div className="flex gap-2">
                 <button type="button" onClick={onClose} className="flex-1 px-4 py-2 text-sm font-semibold border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors dark:text-white">Cancel</button>
                 <button type="button" onClick={handleSave} disabled={!preview || loading} className="flex-1 px-4 py-2 text-sm font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-primary-400 transition-colors flex items-center justify-center gap-1.5">
-                  {loading ? 'Saving...' : 'Save Photo'}
+                  {loading ? (
+                    <motion.svg animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </motion.svg>
+                  ) : 'Save Photo'}
                 </button>
               </div>
             </div>
@@ -290,7 +300,7 @@ const Profile = () => {
     }
   };
 
-  // Load user data from context
+  // Load user data from context and localStorage
   useEffect(() => {
     if (user) {
       setFormData({
@@ -304,10 +314,19 @@ const Profile = () => {
       });
     }
     
-    // Load saved avatar
-    const savedAvatar = localStorage.getItem('userAvatar');
-    if (savedAvatar) setAvatar(savedAvatar);
+    // Load saved avatar from localStorage with better persistence
+    const savedAvatar = localStorage.getItem('furniqo_user_avatar');
+    if (savedAvatar && savedAvatar !== 'null' && savedAvatar !== 'undefined') {
+      setAvatar(savedAvatar);
+    }
   }, [user]);
+
+  // Save avatar to localStorage whenever it changes
+  useEffect(() => {
+    if (avatar) {
+      localStorage.setItem('furniqo_user_avatar', avatar);
+    }
+  }, [avatar]);
 
   // Fetch orders when authenticated and orders tab is active
   useEffect(() => {
@@ -377,10 +396,12 @@ const Profile = () => {
     }
   };
 
-  // Handle avatar save
-  const handleAvatarSave = (avatarUrl) => {
-    setAvatar(avatarUrl);
-    localStorage.setItem('userAvatar', avatarUrl);
+  // Handle avatar save - FIXED for better localStorage persistence
+  const handleAvatarSave = (avatarBase64) => {
+    setAvatar(avatarBase64);
+    // Save to localStorage with a specific key
+    localStorage.setItem('furniqo_user_avatar', avatarBase64);
+    toast.success('Profile photo saved!');
   };
 
   // Handle save all changes
@@ -401,8 +422,10 @@ const Profile = () => {
     }
   };
 
-  // Handle logout
+  // Handle logout - also clear avatar from localStorage if desired
   const handleLogout = () => {
+    // Optional: Uncomment if you want to clear avatar on logout
+    // localStorage.removeItem('furniqo_user_avatar');
     logout();
     navigate('/');
     toast.success('Signed out successfully');

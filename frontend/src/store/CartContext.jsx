@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useCallback, useContext, useMemo } from 'react';
 import apiWrapper from '../services/apiWrapper';
-import toast from 'react-hot-toast';
+import { useNotifications } from './NotificationContext';
 import { TAX_RATE, FREE_SHIPPING_THRESHOLD } from '../utils/constants';
 import { useAuth } from './AuthContext';
 
@@ -37,7 +37,9 @@ export const CartProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [shippingMethod, setShippingMethod] = useState('standard');
+  const [hydrated, setHydrated] = useState(false);
   const { isAuthenticated, token } = useAuth();
+  const { showManagedToast } = useNotifications();
 
   // Fetch cart from backend when authenticated
   const fetchCart = useCallback(async () => {
@@ -93,18 +95,21 @@ export const CartProvider = ({ children }) => {
   // Load cart on mount
   useEffect(() => {
     if (isAuthenticated) {
-      fetchCart();
+      fetchCart().finally(() => setHydrated(true));
     } else {
       loadCartFromLocal();
+      setHydrated(true);
     }
   }, [isAuthenticated, fetchCart]);
 
   // Save to localStorage whenever cart changes (for guests)
   useEffect(() => {
-    if (!isAuthenticated && cartItems.length >= 0) {
+    // Only save to localStorage after initial hydration to avoid overwriting
+    // previously stored data with initial empty state on mount.
+    if (!isAuthenticated && hydrated) {
       saveCartToLocal(cartItems);
     }
-  }, [cartItems, isAuthenticated, saveCartToLocal]);
+  }, [cartItems, isAuthenticated, saveCartToLocal, hydrated]);
 
   const getItemPrice = useCallback((item) => {
     return item.variant?.price || item.product?.price || 0;
@@ -119,7 +124,7 @@ export const CartProvider = ({ children }) => {
   const addToCart = useCallback(async (product, quantity = 1, variant = null, skipToast = false) => {
     if (!product || !product._id) {
       console.error('Invalid product:', product);
-      toast.error('Invalid product');
+      showManagedToast('Invalid product', 'error');
       return false;
     }
 
@@ -136,17 +141,15 @@ export const CartProvider = ({ children }) => {
         
         if (isSuccess) {
           await fetchCart();
-          if (!skipToast) {
-            toast.success(`${quantity} × ${product.name} added to cart!`);
-          }
+          if (!skipToast) showManagedToast(`${quantity} × ${product.name} added to cart!`, 'success', { icon: '🛒' });
           return true;
         } else {
-          toast.error(response?.data?.message || response?.message || 'Failed to add to cart');
+          showManagedToast(response?.data?.message || response?.message || 'Failed to add to cart', 'error');
           return false;
         }
-      } catch (error) {
+        } catch (error) {
         console.error('Error adding to cart:', error);
-        toast.error(error?.response?.data?.message || 'Failed to add to cart');
+        showManagedToast(error?.response?.data?.message || 'Failed to add to cart', 'error');
         return false;
       }
     } else {
@@ -164,7 +167,7 @@ export const CartProvider = ({ children }) => {
             ...updated[existingIndex],
             quantity: updated[existingIndex].quantity + quantity,
           };
-          if (!skipToast) toast.success(`Updated ${product.name} quantity`);
+          if (!skipToast) showManagedToast(`Updated ${product.name} quantity`, 'success');
           saveCartToLocal(updated);
           return updated;
         }
@@ -178,7 +181,7 @@ export const CartProvider = ({ children }) => {
         };
         
         const newCart = [...prev, newItem];
-        if (!skipToast) toast.success(`${product.name} added to cart!`);
+        if (!skipToast) showManagedToast(`${product.name} added to cart!`, 'success', { icon: '🛒' });
         saveCartToLocal(newCart);
         return newCart;
       });
@@ -194,20 +197,20 @@ export const CartProvider = ({ children }) => {
         
         if (isSuccess) {
           await fetchCart();
-          toast.success('Item removed from cart');
+          showManagedToast('Item removed from cart', 'success');
         } else {
-          toast.error('Failed to remove item');
+          showManagedToast('Failed to remove item', 'error');
         }
-      } catch (error) {
+        } catch (error) {
         console.error('Error removing from cart:', error);
-        toast.error('Failed to remove item');
+        showManagedToast('Failed to remove item', 'error');
       }
     } else {
       setCartItems(prev => {
         const item = prev.find(i => i._id === itemId);
         const newCart = prev.filter(item => item._id !== itemId);
         if (item) {
-          toast.success(`${item.product.name} removed from cart`);
+          showManagedToast(`${item.product.name} removed from cart`, 'success');
           saveCartToLocal(newCart);
         }
         return newCart;
@@ -229,11 +232,11 @@ export const CartProvider = ({ children }) => {
         if (isSuccess) {
           await fetchCart();
         } else {
-          toast.error('Failed to update quantity');
+          showManagedToast('Failed to update quantity', 'error');
         }
-      } catch (error) {
+        } catch (error) {
         console.error('Error updating quantity:', error);
-        toast.error('Failed to update quantity');
+        showManagedToast('Failed to update quantity', 'error');
       }
     } else {
       setCartItems(prev => {
@@ -256,18 +259,18 @@ export const CartProvider = ({ children }) => {
         
         if (isSuccess) {
           await fetchCart();
-          toast.success('Cart cleared');
+          showManagedToast('Cart cleared', 'success');
         } else {
-          toast.error('Failed to clear cart');
+          showManagedToast('Failed to clear cart', 'error');
         }
       } catch (error) {
         console.error('Error clearing cart:', error);
-        toast.error('Failed to clear cart');
+        showManagedToast('Failed to clear cart', 'error');
       }
     } else {
       setCartItems([]);
       saveCartToLocal([]);
-      toast.success('Cart cleared');
+      showManagedToast('Cart cleared', 'success');
     }
   }, [isAuthenticated, fetchCart, saveCartToLocal]);
 
@@ -277,19 +280,19 @@ export const CartProvider = ({ children }) => {
     
     setLoading(true);
     try {
-      // Sync each guest cart item to backend
-      for (const item of guestCart) {
-        await apiWrapper.addToCart({
-          productId: item.product?._id || item.productId || item.product,
-          quantity: item.quantity,
-          variantId: item.variant?.id || item.variant?._id || null,
-        });
+      const normalizedItems = (guestCart || []).map((item) => ({
+        productId: item.product?._id || item.productId || item.product,
+        quantity: item.quantity || 1,
+        variantId: item.variant?.id || item.variant?._id || null,
+      }));
+
+      if (normalizedItems.length > 0) {
+        await apiWrapper.syncCart(normalizedItems);
       }
-      // Fetch updated cart from backend
+
       await fetchCart();
-      // Clear guest cart from localStorage
       localStorage.removeItem('furniqo_cart');
-      toast.success('Cart synced successfully');
+      showManagedToast('Cart synced successfully', 'success');
     } catch (error) {
       console.error('Error syncing cart after login:', error);
     } finally {
@@ -305,22 +308,22 @@ export const CartProvider = ({ children }) => {
       if (response?.data?.success || response?.success) {
         const couponData = response?.data?.data || response?.data;
         setAppliedCoupon(couponData);
-        toast.success(`Coupon ${code} applied!`);
+        showManagedToast(`Coupon ${code} applied!`, 'success');
         return true;
       } else {
-        toast.error(response?.data?.message || response?.message || 'Invalid coupon code');
+        showManagedToast(response?.data?.message || response?.message || 'Invalid coupon code', 'error');
         return false;
       }
     } catch (error) {
       console.error('Failed to validate coupon:', error);
-      toast.error('Failed to apply coupon');
+      showManagedToast('Failed to apply coupon', 'error');
       return false;
     }
   }, [getSubtotal]);
 
   const removeCoupon = useCallback(() => {
     setAppliedCoupon(null);
-    toast.success('Coupon removed');
+    showManagedToast('Coupon removed', 'success');
   }, []);
 
   const getDiscount = useCallback(() => {

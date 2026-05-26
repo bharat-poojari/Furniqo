@@ -3,11 +3,15 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import './index.css';
 
 // Initialize API wrapper
 import apiWrapper from './services/apiWrapper';
 apiWrapper.init().catch(console.error);
+// Apply stored auth token (if any) so axios has Authorization header set
+const savedToken = localStorage.getItem('furniqo_token');
+if (savedToken) apiWrapper.setAuthToken(savedToken);
 
 // Register service worker for PWA
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
@@ -35,6 +39,19 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
       }
     );
   });
+    // Show a toast to prompt user to reload when new SW is available
+    window.addEventListener('swUpdateAvailable', () => {
+      toast(
+        'A new version is available. Refresh to update.',
+        {
+          duration: 10000,
+          action: {
+            text: 'Refresh',
+            onClick: () => window.location.reload()
+          }
+        }
+      );
+    });
 }
 
 const rootElement = document.getElementById('root');

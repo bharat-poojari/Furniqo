@@ -103,6 +103,15 @@ const shareProduct = async (product) => {
   }
 };
 
+// Helper function to generate unique key
+const generateUniqueKey = (item, index) => {
+  if (item._id && item._id !== '') return `cart-${item._id}`;
+  if (item.id && item.id !== '') return `cart-${item.id}`;
+  if (item.product?._id && item.product._id !== '') return `cart-product-${item.product._id}-${index}`;
+  if (item.product?.id && item.product.id !== '') return `cart-product-${item.product.id}-${index}`;
+  return `cart-fallback-${index}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+};
+
 // Memoized Product Row for List View - no motion animations on hover
 const CartProductRow = memo(({ 
   item, getItemPrice, updateQuantity, removeFromCart, moveToWishlist, 
@@ -599,7 +608,7 @@ const CategoryProductsSection = memo(({
         <div className="overflow-x-auto overflow-y-hidden pb-3 scrollbar-hide">
           <div className="flex gap-2 w-max">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="w-[130px] sm:w-[150px] flex-shrink-0">
+              <div key={`skeleton-${categoryId}-${i}`} className="w-[130px] sm:w-[150px] flex-shrink-0">
                 <div className="bg-neutral-200 dark:bg-neutral-700 animate-pulse rounded-lg aspect-square"></div>
                 <div className="mt-2 h-2 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4"></div>
                 <div className="mt-1 h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2"></div>
@@ -624,9 +633,9 @@ const CategoryProductsSection = memo(({
       
       <div className="overflow-x-auto overflow-y-hidden pb-3 scrollbar-hide">
         <div className="flex gap-2 w-max">
-          {products.map((product) => (
+          {products.map((product, idx) => (
             <CategoryProductCard
-              key={product._id}
+              key={`${categoryId}-${product._id || idx}`}
               product={product}
               onAddToCart={onAddToCart}
               onQuickView={onQuickView}
@@ -723,7 +732,7 @@ const RelatedProductsHorizontal = memo(({ cartItems, wishlistItems, onAddToCart,
         <div className="overflow-x-auto overflow-y-hidden pb-3 scrollbar-hide">
           <div className="flex gap-2 w-max">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="w-[130px] sm:w-[150px] flex-shrink-0">
+              <div key={`related-skeleton-${i}`} className="w-[130px] sm:w-[150px] flex-shrink-0">
                 <div className="bg-neutral-200 dark:bg-neutral-700 animate-pulse rounded-lg aspect-square"></div>
                 <div className="mt-2 h-2 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4"></div>
                 <div className="mt-1 h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2"></div>
@@ -748,9 +757,9 @@ const RelatedProductsHorizontal = memo(({ cartItems, wishlistItems, onAddToCart,
       
       <div className="overflow-x-auto overflow-y-hidden pb-3 scrollbar-hide">
         <div className="flex gap-2 w-max">
-          {products.map((product) => (
+          {products.map((product, idx) => (
             <CategoryProductCard
-              key={product._id}
+              key={`related-${product._id || idx}`}
               product={product}
               onAddToCart={onAddToCart}
               onQuickView={onQuickView}
@@ -800,7 +809,7 @@ const QuickViewModal = memo(({ product, isOpen, onClose, addToCart, isWishlisted
     try {
       await addToCart(product, quantity);
       setAddedToCart(true);
-      toast.success(`${quantity} × ${product.name} added to cart!`);
+      // CartContext displays the managed toast; avoid duplicate here
       setTimeout(() => {
         setAddedToCart(false);
         onClose();
@@ -1213,8 +1222,8 @@ const MobileOrderSummary = memo(({
                     { label: "Rush Delivery", price: rushDelivery ? `+₹${rushDeliveryCost}` : "+₹499", checked: rushDelivery, setter: setRushDelivery },
                     { label: "Shipping Insurance", price: "+₹199", checked: insurance, setter: setInsurance },
                     { label: "Donate to Charity", price: "+₹100", checked: donateToCharity, setter: setDonateToCharity },
-                  ].map((option) => (
-                    <label key={option.label} className="flex items-center justify-between py-1">
+                  ].map((option, idx) => (
+                    <label key={`gift-option-${idx}`} className="flex items-center justify-between py-1">
                       <div className="flex items-center gap-1.5">
                         <input type="checkbox" checked={option.checked} onChange={(e) => option.setter(e.target.checked)} className="w-3 h-3 rounded text-primary-600 focus:ring-primary-500" />
                         <span className="text-[9px] text-neutral-700 dark:text-neutral-300">{option.label}</span>
@@ -1232,7 +1241,7 @@ const MobileOrderSummary = memo(({
                 <div className="space-y-1">
                   {deliverySlots.slice(0, 2).map((slot, idx) => (
                     <label 
-                      key={idx} 
+                      key={`delivery-slot-${idx}`} 
                       className={cn(
                         "flex items-center gap-1.5 p-1.5 border rounded-lg cursor-pointer transition-all",
                         activeDeliverySlot === idx 
@@ -1504,7 +1513,7 @@ const Cart = () => {
     setIsAddingToCartRelated(prev => ({ ...prev, [product._id]: true }));
     try {
       await addToCart(product, 1);
-      toast.success(`${product.name} added to cart!`);
+      // CartContext displays the managed toast; avoid duplicate here
       confetti({ particleCount: 30, spread: 40, origin: { y: 0.5 } });
     } catch (error) {
       toast.error('Failed to add to cart');
@@ -1660,10 +1669,13 @@ const Cart = () => {
           <div className="lg:col-span-2 order-2 lg:order-none">
             <div className={viewMode === 'grid' ? "grid grid-cols-2 gap-3" : "space-y-2"}>
               <AnimatePresence mode="popLayout">
-                {cartItems.map((item) => (
-                  viewMode === 'grid' ? (
+                {cartItems.map((item, index) => {
+                  // Generate a guaranteed unique key using helper function
+                  const uniqueKey = generateUniqueKey(item, index);
+                  
+                  return viewMode === 'grid' ? (
                     <CartProductCard
-                      key={item._id}
+                      key={uniqueKey}
                       item={item}
                       getItemPrice={getItemPrice}
                       updateQuantity={handleUpdateQuantity}
@@ -1678,7 +1690,7 @@ const Cart = () => {
                     />
                   ) : (
                     <CartProductRow
-                      key={item._id}
+                      key={uniqueKey}
                       item={item}
                       getItemPrice={getItemPrice}
                       updateQuantity={handleUpdateQuantity}
@@ -1691,8 +1703,8 @@ const Cart = () => {
                       setShowRemoveConfirm={setShowRemoveConfirm}
                       setItemToRemove={setItemToRemove}
                     />
-                  )
-                ))}
+                  );
+                })}
               </AnimatePresence>
             </div>
 
@@ -1710,7 +1722,7 @@ const Cart = () => {
             {/* Dynamic Category Sections based on last added unique categories */}
             {getUniqueCategoriesFromCart.map((category) => (
               <CategoryProductsSection
-                key={category.id}
+                key={`category-section-${category.id}`}
                 title={`More ${category.name}`}
                 categoryId={category.id}
                 categoryName={category.name}
@@ -1810,8 +1822,8 @@ const Cart = () => {
                         { label: "Rush Delivery", price: rushDelivery ? `+₹${rushDeliveryCost}` : "+₹499", checked: rushDelivery, setter: setRushDelivery },
                         { label: "Shipping Insurance", price: "+₹199", checked: insurance, setter: setInsurance },
                         { label: "Donate to Charity", price: "+₹100", checked: donateToCharity, setter: setDonateToCharity },
-                      ].map((option) => (
-                        <label key={option.label} className="flex items-center justify-between py-1.5 px-1 rounded-lg cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                      ].map((option, idx) => (
+                        <label key={`desktop-gift-option-${idx}`} className="flex items-center justify-between py-1.5 px-1 rounded-lg cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800">
                           <div className="flex items-center gap-1.5">
                             <input type="checkbox" checked={option.checked} onChange={(e) => option.setter(e.target.checked)} className="w-3 h-3 rounded text-primary-600 focus:ring-primary-500" />
                             <span className="text-[10px] text-neutral-700 dark:text-neutral-300">{option.label}</span>
@@ -1828,7 +1840,7 @@ const Cart = () => {
                     </h4>
                     <div className="space-y-1">
                       {deliverySlots.slice(0, 2).map((slot, idx) => (
-                        <label key={idx} className={cn("flex items-center gap-1.5 p-1.5 border rounded-lg cursor-pointer", activeDeliverySlot === idx ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20" : "border-neutral-200 dark:border-neutral-700")}>
+                        <label key={`delivery-slot-desktop-${idx}`} className={cn("flex items-center gap-1.5 p-1.5 border rounded-lg cursor-pointer", activeDeliverySlot === idx ? "border-primary-500 bg-primary-50 dark:bg-primary-900/20" : "border-neutral-200 dark:border-neutral-700")}>
                           <input type="radio" name="delivery" className="text-primary-600 w-3 h-3" checked={activeDeliverySlot === idx} onChange={() => setActiveDeliverySlot(idx)} />
                           <div>
                             <p className="text-[10px] font-semibold text-neutral-900 dark:text-white">{slot.date}</p>
@@ -1867,8 +1879,8 @@ const Cart = () => {
       </div>
 
       <AnimatePresence>
-        <RemoveConfirmModal isOpen={showRemoveConfirm} onClose={() => { setShowRemoveConfirm(false); setItemToRemove(null); }} onConfirm={handleRemoveItem} itemName={itemToRemove?.name || ''} />
-        <ClearCartConfirmModal isOpen={showClearConfirm} onClose={() => setShowClearConfirm(false)} onConfirm={handleClearCart} itemCount={cartItems.length} />
+        <RemoveConfirmModal key="remove-modal" isOpen={showRemoveConfirm} onClose={() => { setShowRemoveConfirm(false); setItemToRemove(null); }} onConfirm={handleRemoveItem} itemName={itemToRemove?.name || ''} />
+        <ClearCartConfirmModal key="clear-modal" isOpen={showClearConfirm} onClose={() => setShowClearConfirm(false)} onConfirm={handleClearCart} itemCount={cartItems.length} />
       </AnimatePresence>
 
       <QuickViewModal product={selectedProductForQuickView} isOpen={isQuickViewOpen} onClose={() => { setIsQuickViewOpen(false); setSelectedProductForQuickView(null); }} addToCart={addToCart} isWishlisted={isWishlisted} toggleWishlist={toggleWishlist} />

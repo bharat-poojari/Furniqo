@@ -1,15 +1,15 @@
+// routes/policies.js
 const express = require('express');
 const router = express.Router();
 const { getDb } = require('../config/database');
 const { verifyToken, isAdmin } = require('../middleware/auth');
 
-// GET /api/policies - Get all policies as an object
+// GET /api/v1/policies - Get all policies as an object
 router.get('/', async (req, res) => {
   try {
     const db = getDb();
     const policies = await db.all('SELECT * FROM policies');
     
-    // Format as object with type as key
     const formattedPolicies = {};
     for (const policy of policies) {
       formattedPolicies[policy.type] = JSON.parse(policy.content);
@@ -22,13 +22,12 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/policies/:type - Get one policy by type (privacy, terms, shipping, returns)
+// GET /api/v1/policies/:type - Get one policy by type
 router.get('/:type', async (req, res) => {
   try {
     const db = getDb();
     const { type } = req.params;
     
-    // Validate policy type
     const validTypes = ['privacy', 'terms', 'shipping', 'returns'];
     if (!validTypes.includes(type)) {
       return res.status(400).json({ success: false, message: 'Invalid policy type' });
@@ -50,14 +49,14 @@ router.get('/:type', async (req, res) => {
   }
 });
 
-// PUT /api/admin/policies/:type - Update a policy (admin)
-router.put('/admin/policies/:type', verifyToken, isAdmin, async (req, res) => {
+// PUT /api/v1/policies/:type - Update a policy (admin)
+// Changed from /admin/policies/:type to /:type
+router.put('/:type', verifyToken, isAdmin, async (req, res) => {
   try {
     const db = getDb();
     const { type } = req.params;
     const { title, lastUpdated, sections } = req.body;
     
-    // Validate policy type
     const validTypes = ['privacy', 'terms', 'shipping', 'returns'];
     if (!validTypes.includes(type)) {
       return res.status(400).json({ success: false, message: 'Invalid policy type' });
@@ -73,11 +72,9 @@ router.put('/admin/policies/:type', verifyToken, isAdmin, async (req, res) => {
     
     const content = JSON.stringify({ title, lastUpdated, sections });
     
-    // Check if policy exists
     const existingPolicy = await db.get('SELECT * FROM policies WHERE type = ?', type);
     
     if (existingPolicy) {
-      // Update existing policy
       await db.run(`
         UPDATE policies 
         SET title = ?, last_updated = ?, content = ?, updated_at = ?
@@ -92,7 +89,6 @@ router.put('/admin/policies/:type', verifyToken, isAdmin, async (req, res) => {
         policy: JSON.parse(updatedPolicy.content)
       });
     } else {
-      // Create new policy
       await db.run(`
         INSERT INTO policies (type, title, last_updated, content, updated_at)
         VALUES (?, ?, ?, ?, ?)
@@ -112,8 +108,8 @@ router.put('/admin/policies/:type', verifyToken, isAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/admin/policies/:type - Delete a policy (admin)
-router.delete('/admin/policies/:type', verifyToken, isAdmin, async (req, res) => {
+// DELETE /api/v1/policies/:type - Delete a policy (admin)
+router.delete('/:type', verifyToken, isAdmin, async (req, res) => {
   try {
     const db = getDb();
     const { type } = req.params;

@@ -317,20 +317,16 @@ const QuickViewModal = ({ product, isOpen, onClose, addToCart, isWishlisted, tog
     
     setIsAddingToCart(true);
     try {
-      await addToCart(product, quantity);
-      setAddedToCart(true);
-      
-      toast.success(`${quantity} × ${product.name} added to cart!`, {
-        icon: '🛒',
-        duration: 1500,
-      });
-      
-      setTimeout(() => {
-        setAddedToCart(false);
-        onClose();
-      }, 1200);
+      const ok = await addToCart(product, quantity);
+      if (ok) {
+        setAddedToCart(true);
+        setTimeout(() => {
+          setAddedToCart(false);
+          onClose();
+        }, 1200);
+      }
     } catch (error) {
-      toast.error('Failed to add to cart');
+      // CartContext shows errors; do not duplicate toast here
     } finally {
       setIsAddingToCart(false);
     }
@@ -1099,7 +1095,7 @@ const Wishlist = () => {
       await addToCart(product, 1); 
       removeFromWishlist(product._id); 
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } }); 
-      toast.success(`${product.name} added to cart!`);
+      // CartContext displays the managed toast; avoid duplicate here
     } 
     catch (error) { 
       toast.error('Failed to add to cart'); 
@@ -1114,7 +1110,7 @@ const Wishlist = () => {
     setIsAddingToCartRelated(prev => ({ ...prev, [product._id]: true }));
     try {
       await addToCart(product, 1);
-      toast.success(`${product.name} added to cart!`);
+      // CartContext displays the managed toast; avoid duplicate here
     } catch (error) {
       toast.error('Failed to add to cart');
     } finally {

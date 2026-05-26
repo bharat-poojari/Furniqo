@@ -2,6 +2,45 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../config/database');
 const { verifyToken, isAdmin } = require('../middleware/auth');
+const bcrypt = require('bcryptjs');
+const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+
+// Dev-only admin registration endpoint (guarded)
+router.post('/register', async (req, res) => {
+  try {
+    // Only allow when explicitly enabled or in non-production
+    const allow = process.env.ALLOW_ADMIN_REGISTER === 'true' || process.env.NODE_ENV !== 'production';
+    if (!allow) {
+      return res.status(403).json({ success: false, message: 'Admin registration is disabled' });
+    }
+
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Name, email and password are required' });
+    }
+
+    const db = getDb();
+    const existing = await db.get('SELECT _id FROM users WHERE email = ?', [email.toLowerCase()]);
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'User already exists' });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    const id = 'admin_' + uuidv4();
+    const now = new Date().toISOString();
+
+    await db.run(`
+      INSERT INTO users (_id, name, email, password, role, isVerified, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [id, name, email.toLowerCase(), hashed, 'admin', 1, now, now]);
+
+    res.status(201).json({ success: true, message: 'Admin user created', data: { _id: id, email } });
+  } catch (error) {
+    console.error('Admin register error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
 
 // Get dashboard statistics
 router.get('/dashboard/stats', verifyToken, isAdmin, async (req, res) => {

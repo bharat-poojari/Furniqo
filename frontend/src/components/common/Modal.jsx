@@ -241,10 +241,7 @@ export const QuickViewModal = memo(({
     try {
       await addToCart(product, quantity);
       setAddedToCart(true);
-      toast.success(`${quantity} × ${product.name} added to cart`, {
-        icon: '🛒',
-        duration: 1500
-      });
+      // CartContext displays the managed toast; avoid duplicate here
       setTimeout(() => {
         setAddedToCart(false);
         onClose();

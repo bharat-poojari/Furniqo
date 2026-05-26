@@ -714,7 +714,7 @@ const ProductCard = memo(({ product, index, onQuickView, onWishlistToggle, onAdd
 
 ProductCard.displayName = 'ProductCard';
 
-// Main Trending Component
+// Main Trending Component - Exactly 8 products only
 const Trending = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -725,6 +725,8 @@ const Trending = () => {
   const { isWishlisted, toggleWishlist } = useWishlist();
   const fetchAttempted = useRef(false);
   const abortRef = useRef(null);
+  
+  const MAX_PRODUCTS_TO_SHOW = 8;
 
   const fetchTrendingProducts = useCallback(async () => {
     if (fetchAttempted.current) return;
@@ -734,7 +736,8 @@ const Trending = () => {
     abortRef.current = new AbortController();
     
     try {
-      const response = await apiWrapper.getTrendingProducts(8);
+      // Request trending products from API
+      const response = await apiWrapper.getTrendingProducts(MAX_PRODUCTS_TO_SHOW);
       
       // Handle different response formats
       let productsData = [];
@@ -750,7 +753,11 @@ const Trending = () => {
         productsData = response.products;
       }
       
-      setProducts(productsData);
+      // STRICT FILTER: Take exactly MAX_PRODUCTS_TO_SHOW products (8)
+      // If we have fewer than 8, show what we have
+      // If we have more than 8, slice to exactly 8
+      const exactProducts = productsData.slice(0, MAX_PRODUCTS_TO_SHOW);
+      setProducts(exactProducts);
     } catch (error) {
       if (error.name !== 'AbortError') {
         console.error('Error fetching trending products:', error);
@@ -786,7 +793,6 @@ const Trending = () => {
     
     try {
       await addToCart(product, 1);
-      toast.success(`${product.name} added to cart!`, { icon: '🛒', duration: 1500 });
     } catch (error) {
       toast.error('Failed to add to cart');
     } finally {
@@ -804,6 +810,9 @@ const Trending = () => {
     visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
   }), []);
 
+  // Loading skeleton - exactly 8 skeleton cards
+  const skeletonCount = MAX_PRODUCTS_TO_SHOW;
+
   // Loading skeleton
   if (loading && products.length === 0) {
     return (
@@ -815,7 +824,7 @@ const Trending = () => {
             <div className="h-5 w-72 sm:w-96 bg-neutral-200 dark:bg-neutral-700 rounded-full mx-auto animate-pulse" />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
-            {[...Array(8)].map((_, i) => (
+            {[...Array(skeletonCount)].map((_, i) => (
               <div key={i} className="rounded-xl sm:rounded-2xl bg-white dark:bg-neutral-800 shadow-lg overflow-hidden border border-neutral-200 dark:border-neutral-700">
                 <div className="aspect-square bg-gradient-to-r from-neutral-200 via-neutral-300 to-neutral-200 dark:from-neutral-700 dark:via-neutral-600 dark:to-neutral-700 animate-pulse" />
                 <div className="p-3 sm:p-5 space-y-2">
@@ -862,7 +871,7 @@ const Trending = () => {
           </p>
         </motion.div>
 
-        {/* Products Grid */}
+        {/* Products Grid - Exactly 8 products */}
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5 lg:gap-6 xl:gap-8">
           {products.map((product, index) => (
             <ProductCard
@@ -891,7 +900,7 @@ const Trending = () => {
               to="/products?sort=popular"
               className="inline-flex items-center gap-2 px-4 sm:px-6 md:px-8 py-2.5 sm:py-3 md:py-3.5 bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 text-white rounded-lg sm:rounded-xl font-semibold text-sm sm:text-base transition-all duration-150 shadow-lg hover:shadow-xl group"
             >
-              <span>Explore All Trending Products</span>
+              <span>Explore All Products</span>
               <FiArrowRight className="group-hover:translate-x-1 transition-transform duration-150" />
             </Link>
           </motion.div>

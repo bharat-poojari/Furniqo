@@ -1,5 +1,6 @@
-import { createContext, useState, useEffect, useCallback, useContext } from 'react';
+import { createContext, useState, useEffect, useCallback, useContext, useRef } from 'react';
 import { useAuth } from './AuthContext';
+import toast from 'react-hot-toast';
 
 export const NotificationContext = createContext(null);
 
@@ -7,6 +8,70 @@ export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const { isAuthenticated } = useAuth();
+  // Toast management: dedupe messages and limit concurrent toasts
+  const activeToastsRef = useRef([]); // array of { id, message }
+  const toastMapRef = useRef(new Map()); // message => id
+
+  // Preserve original toast methods so we can call them from the manager
+  const originalsRef = useRef({
+    success: toast.success.bind(toast),
+    error: toast.error.bind(toast),
+    main: toast.bind ? toast.bind(toast) : (m, o) => toast(m, o),
+    dismiss: toast.dismiss.bind(toast),
+  });
+
+  // Central managed toast
+  const showManagedToast = useCallback((message, type = 'success', options = {}) => {
+    if (!message) return;
+
+    // If same message already displayed, skip duplicate
+    if (toastMapRef.current.has(message)) return;
+
+    // Keep at most 2 active toasts by dismissing the oldest
+    if (activeToastsRef.current.length >= 2) {
+      const oldest = activeToastsRef.current.shift();
+      if (oldest && oldest.id) originalsRef.current.dismiss(oldest.id);
+      if (oldest && oldest.message) toastMapRef.current.delete(oldest.message);
+    }
+
+    let id;
+    const mergedOptions = {
+      duration: 3000,
+      ...options,
+      onClose: () => {
+        // cleanup
+        toastMapRef.current.delete(message);
+        activeToastsRef.current = activeToastsRef.current.filter(t => t.id !== id);
+        if (options && typeof options.onClose === 'function') options.onClose();
+      }
+    };
+
+    if (type === 'success') id = originalsRef.current.success(message, mergedOptions);
+    else if (type === 'error') id = originalsRef.current.error(message, mergedOptions);
+    else id = originalsRef.current.main(message, mergedOptions);
+
+    toastMapRef.current.set(message, id);
+    activeToastsRef.current.push({ id, message });
+    return id;
+  }, []);
+
+  // Patch the imported `toast` methods so all existing `toast.success/error(...)` calls
+  // route through the managed handler. We restore originals on cleanup.
+  useEffect(() => {
+    const orig = originalsRef.current;
+    const patchedSuccess = (message, options) => showManagedToast(message, 'success', options);
+    const patchedError = (message, options) => showManagedToast(message, 'error', options);
+
+    // Replace methods
+    toast.success = patchedSuccess;
+    toast.error = patchedError;
+
+    return () => {
+      // restore originals
+      toast.success = orig.success;
+      toast.error = orig.error;
+    };
+  }, [showManagedToast]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -88,6 +153,7 @@ export const NotificationProvider = ({ children }) => {
     markAllAsRead,
     deleteNotification,
     clearAll,
+    showManagedToast,
   };
 
   return (

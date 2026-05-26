@@ -2,6 +2,11 @@
 import React, { useState, useCallback, useRef, useEffect, memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../store/ThemeContext';
+import { useAuth } from '../store/AuthContext';
+import { useCart } from '../store/CartContext';
+import apiWrapper from '../services/apiWrapper';
+import toast from 'react-hot-toast';
+import confetti from 'canvas-confetti';
 
 // ─── SVG Icons (memoized) ────────────────────────────────────────────────────────────────
 const Icons = {
@@ -187,32 +192,42 @@ const getThemeTokens = (isDark) => ({
 
 // ─── MATERIAL PRESETS ─────────────────────────────────────────────────────────
 const MATERIALS = {
-  oak:      { name:'Oak',      texture:'Classic Grain',  top:'#E8A84A', front:'#C87830', side:'#A05A18', edge:'#7A4010', hi:'#F8C870', sh:'#6A3808', rough:0.65, refl:0.15, ao:'rgba(80,40,0,0.55)',  grain:'linear'  },
-  walnut:   { name:'Walnut',   texture:'Rich Dark',      top:'#7A4838', front:'#5C2C1C', side:'#3C1808', edge:'#280E04', hi:'#9A6048', sh:'#200804', rough:0.55, refl:0.2,  ao:'rgba(30,10,0,0.6)',   grain:'swirl'   },
-  maple:    { name:'Maple',    texture:'Fine Smooth',    top:'#F0CFA0', front:'#D4A870', side:'#B07840', edge:'#8A5820', hi:'#FFDFB0', sh:'#7A5018', rough:0.5,  refl:0.25, ao:'rgba(100,60,0,0.5)',  grain:'fine'    },
-  leather:  { name:'Leather',  texture:'Luxury Soft',    top:'#A04828', front:'#7A2E10', side:'#551808', edge:'#3C1004', hi:'#C86040', sh:'#300C04', rough:0.85, refl:0.05, ao:'rgba(50,10,0,0.6)',   grain:'pebble'  },
-  velvet:   { name:'Velvet',   texture:'Plush Deep',     top:'#7848B8', front:'#5A2898', side:'#3C1070', edge:'#280848', hi:'#9868D8', sh:'#1E0640', rough:0.9,  refl:0.02, ao:'rgba(30,0,80,0.6)',   grain:'fuzz'    },
-  metal:    { name:'Metal',    texture:'Industrial',     top:'#C8D8E0', front:'#98B0BC', side:'#607880', edge:'#405868', hi:'#E0EEF4', sh:'#384858', rough:0.25, refl:0.75, ao:'rgba(30,50,60,0.5)',  grain:'brushed' },
-  pine:     { name:'Pine',     texture:'Light Warm',     top:'#E0B060', front:'#C09040', side:'#987020', edge:'#705008', hi:'#F0C878', sh:'#584808', rough:0.7,  refl:0.1,  ao:'rgba(70,50,0,0.5)',   grain:'knotty'  },
-  ebony:    { name:'Ebony',    texture:'Bold Dark',      top:'#3A3030', front:'#221818', side:'#140C0C', edge:'#0C0808', hi:'#504040', sh:'#080404', rough:0.45, refl:0.3,  ao:'rgba(0,0,0,0.7)',     grain:'subtle'  },
+  oak:      { name:'Oak',      texture:'Classic Grain',  top:'#E8A84A', front:'#C87830', side:'#A05A18', edge:'#7A4010', hi:'#F8C870', sh:'#6A3808', rough:0.65, refl:0.15, ao:'rgba(80,40,0,0.55)',  grain:'linear', priceMultiplier: 1.0 },
+  walnut:   { name:'Walnut',   texture:'Rich Dark',      top:'#7A4838', front:'#5C2C1C', side:'#3C1808', edge:'#280E04', hi:'#9A6048', sh:'#200804', rough:0.55, refl:0.2,  ao:'rgba(30,10,0,0.6)',   grain:'swirl', priceMultiplier: 1.5 },
+  maple:    { name:'Maple',    texture:'Fine Smooth',    top:'#F0CFA0', front:'#D4A870', side:'#B07840', edge:'#8A5820', hi:'#FFDFB0', sh:'#7A5018', rough:0.5,  refl:0.25, ao:'rgba(100,60,0,0.5)',  grain:'fine', priceMultiplier: 1.2 },
+  leather:  { name:'Leather',  texture:'Luxury Soft',    top:'#A04828', front:'#7A2E10', side:'#551808', edge:'#3C1004', hi:'#C86040', sh:'#300C04', rough:0.85, refl:0.05, ao:'rgba(50,10,0,0.6)',   grain:'pebble', priceMultiplier: 2.0 },
+  velvet:   { name:'Velvet',   texture:'Plush Deep',     top:'#7848B8', front:'#5A2898', side:'#3C1070', edge:'#280848', hi:'#9868D8', sh:'#1E0640', rough:0.9,  refl:0.02, ao:'rgba(30,0,80,0.6)',   grain:'fuzz', priceMultiplier: 1.8 },
+  metal:    { name:'Metal',    texture:'Industrial',     top:'#C8D8E0', front:'#98B0BC', side:'#607880', edge:'#405868', hi:'#E0EEF4', sh:'#384858', rough:0.25, refl:0.75, ao:'rgba(30,50,60,0.5)',  grain:'brushed', priceMultiplier: 1.3 },
+  pine:     { name:'Pine',     texture:'Light Warm',     top:'#E0B060', front:'#C09040', side:'#987020', edge:'#705008', hi:'#F0C878', sh:'#584808', rough:0.7,  refl:0.1,  ao:'rgba(70,50,0,0.5)',   grain:'knotty', priceMultiplier: 0.8 },
+  ebony:    { name:'Ebony',    texture:'Bold Dark',      top:'#3A3030', front:'#221818', side:'#140C0C', edge:'#0C0808', hi:'#504040', sh:'#080404', rough:0.45, refl:0.3,  ao:'rgba(0,0,0,0.7)',     grain:'subtle', priceMultiplier: 1.6 },
 };
 
 const FINISHES = {
-  matte:      { label:'Matte',      gloss:0,    topBoost:0,    specOp:0,    },
-  satin:      { label:'Satin',      gloss:0.08, topBoost:0.05, specOp:0.12,       },
-  glossy:     { label:'Glossy',     gloss:0.22, topBoost:0.12, specOp:0.28,  },
-  brushed:    { label:'Brushed',    gloss:0.06, topBoost:0.04, specOp:0.09,     },
-  antique:    { label:'Antique',    gloss:0.04, topBoost:0.02, specOp:0.06,         },
-  distressed: { label:'Distressed', gloss:0,    topBoost:0,    specOp:0,      },
+  matte:      { label:'Matte',      gloss:0,    topBoost:0,    specOp:0,    priceMultiplier: 1.0 },
+  satin:      { label:'Satin',      gloss:0.08, topBoost:0.05, specOp:0.12, priceMultiplier: 1.1 },
+  glossy:     { label:'Glossy',     gloss:0.22, topBoost:0.12, specOp:0.28, priceMultiplier: 1.2 },
+  brushed:    { label:'Brushed',    gloss:0.06, topBoost:0.04, specOp:0.09, priceMultiplier: 1.05 },
+  antique:    { label:'Antique',    gloss:0.04, topBoost:0.02, specOp:0.06, priceMultiplier: 1.3 },
+  distressed: { label:'Distressed', gloss:0,    topBoost:0,    specOp:0,    priceMultiplier: 1.15 },
 };
 
 const STYLES = {
-  modern:       { name:'Modern',      legH:1.0, legT:0.8, cushF:1.0, backH:1.0,  roomBg:'#F0EDEA', roomFloor:'#D8D4CE', roomAccent:'#B0A898' },
-  scandinavian: { name:'Nordic',      legH:1.4, legT:0.6, cushF:0.85,backH:0.9,  roomBg:'#F5F3EE', roomFloor:'#E0DDD7', roomAccent:'#A8A098' },
-  industrial:   { name:'Industrial',  legH:1.2, legT:1.3, cushF:0.8, backH:0.85, roomBg:'#E8E4DF', roomFloor:'#C8C4BC', roomAccent:'#7A7060' },
-  'mid-century':{ name:'Mid-Century', legH:1.6, legT:0.55,cushF:0.95,backH:0.85, roomBg:'#EDE8E0', roomFloor:'#D4CEC6', roomAccent:'#B89868' },
-  bohemian:     { name:'Bohemian',    legH:0.85,legT:1.0, cushF:1.2, backH:1.05, roomBg:'#EDE0D4', roomFloor:'#C8B8A8', roomAccent:'#A07858' },
-  rustic:       { name:'Rustic',      legH:0.95,legT:1.5, cushF:1.1, backH:0.95, roomBg:'#EAE0D0', roomFloor:'#C0B098', roomAccent:'#887058' },
+  modern:       { name:'Modern',      legH:1.0, legT:0.8, cushF:1.0, backH:1.0,  roomBg:'#F0EDEA', roomFloor:'#D8D4CE', roomAccent:'#B0A898', priceMultiplier: 1.0 },
+  scandinavian: { name:'Nordic',      legH:1.4, legT:0.6, cushF:0.85,backH:0.9,  roomBg:'#F5F3EE', roomFloor:'#E0DDD7', roomAccent:'#A8A098', priceMultiplier: 1.1 },
+  industrial:   { name:'Industrial',  legH:1.2, legT:1.3, cushF:0.8, backH:0.85, roomBg:'#E8E4DF', roomFloor:'#C8C4BC', roomAccent:'#7A7060', priceMultiplier: 1.15 },
+  'mid-century':{ name:'Mid-Century', legH:1.6, legT:0.55,cushF:0.95,backH:0.85, roomBg:'#EDE8E0', roomFloor:'#D4CEC6', roomAccent:'#B89868', priceMultiplier: 1.2 },
+  bohemian:     { name:'Bohemian',    legH:0.85,legT:1.0, cushF:1.2, backH:1.05, roomBg:'#EDE0D4', roomFloor:'#C8B8A8', roomAccent:'#A07858', priceMultiplier: 1.05 },
+  rustic:       { name:'Rustic',      legH:0.95,legT:1.5, cushF:1.1, backH:0.95, roomBg:'#EAE0D0', roomFloor:'#C0B098', roomAccent:'#887058', priceMultiplier: 1.0 },
+};
+
+// Base prices for each furniture type (in INR)
+const BASE_PRICES = {
+  desk: 25000,
+  table: 35000,
+  bed: 45000,
+  cabinet: 30000,
+  sofa: 40000,
+  chair: 15000,
 };
 
 // ─── ISO ENGINE ───────────────────────────────────────────────────────────────
@@ -823,203 +838,293 @@ Confetti.displayName = 'Confetti';
 const QuoteModal = memo(({ config, onClose, isDarkTheme }) => {
   const T = getThemeTokens(isDarkTheme);
   const mat = MATERIALS[config.material] || MATERIALS.oak;
-  const sty = STYLES[config.style]       || STYLES.modern;
-  const fin = FINISHES[config.finish]    || FINISHES.matte;
-  const [form, setForm]     = useState({ name:'', email:'', phone:'', notes:'' });
+  const sty = STYLES[config.style] || STYLES.modern;
+  const fin = FINISHES[config.finish] || FINISHES.matte;
+  const { user, isAuthenticated } = useAuth();
+  const { clearCart } = useCart();
+  
+  const [form, setForm] = useState({ name: user?.name || '', email: user?.email || '', phone: '', address: '', city: '', state: '', zipCode: '', notes: '' });
   const [status, setStatus] = useState('idle');
-  const [aiResp, setAiResp] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
+  const [orderPlaced, setOrderPlaced] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const orderId = useRef(`FQ-${Math.floor(Math.random()*900000+100000)}`);
+  const calculatePrice = useCallback(() => {
+    const basePrice = BASE_PRICES[config.type] || 25000;
+    const materialMultiplier = mat.priceMultiplier || 1.0;
+    const styleMultiplier = sty.priceMultiplier || 1.0;
+    const finishMultiplier = fin.priceMultiplier || 1.0;
+    let finalPrice = basePrice * materialMultiplier * styleMultiplier * finishMultiplier;
+    
+    // Add dimension-based pricing if dimensions provided
+    if (config.dimensions) {
+      const dimensionMatch = config.dimensions.match(/(\d+)/g);
+      if (dimensionMatch && dimensionMatch.length >= 2) {
+        const area = parseInt(dimensionMatch[0]) * parseInt(dimensionMatch[1]);
+        finalPrice += (area / 100) * 500;
+      }
+    }
+    
+    return Math.round(finalPrice);
+  }, [config.type, config.dimensions, mat.priceMultiplier, sty.priceMultiplier, fin.priceMultiplier]);
+
   const getEstimatedDelivery = useCallback(() => {
     const d = new Date(); 
-    d.setDate(d.getDate() + 45 + Math.floor(Math.random()*30));
-    return d.toLocaleDateString('en-IN', {day:'numeric',month:'long',year:'numeric'});
+    d.setDate(d.getDate() + 45 + Math.floor(Math.random() * 30));
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
   }, []);
+
   const estimatedDelivery = useRef(getEstimatedDelivery());
+  const calculatedPrice = useRef(calculatePrice());
 
   const handleInputChange = useCallback((field) => (e) => {
     setForm(prev => ({ ...prev, [field]: e.target.value }));
   }, []);
 
-  const submit = useCallback(async () => {
-    if (!form.name || !form.email) return;
-    setStatus('loading'); 
-    setAiResp('');
-    try {
-      const prompt = `You are a luxury custom furniture consultant at FURNIQO. A client has configured a piece.
-
-Configuration:
-- Type: ${config.type.charAt(0).toUpperCase()+config.type.slice(1)}
-- Style: ${sty.name}
-- Material: ${mat.name} (${mat.texture})
-- Finish: ${fin.label}
-${config.dimensions ? `- Dimensions: ${config.dimensions}` : ''}
-- Client: ${form.name}
-${form.notes ? `- Notes: ${form.notes}` : ''}
-
-Write 3 warm, professional paragraphs:
-1. Personal greeting using their name, referencing their exact choices
-2. Poetic description of how this ${mat.name} with ${fin.label} finish will look/feel in real life in an Indian home
-3. Realistic price range in ₹ (Indian Rupees) for handcrafted luxury, delivery timeline of 6-10 weeks, and next steps
-
-Max 170 words. No bullet points. Warm, human, luxury tone.`;
-
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user',content:prompt}] }),
-      });
-      const data = await res.json();
-      const text = data.content?.find(b=>b.type==='text')?.text;
-      if (text) {
-        setAiResp(text);
-        setStatus('done');
-      } else {
-        throw new Error('No response');
-      }
-    } catch {
-      setStatus('done');
-      setAiResp(`Dear ${form.name}, thank you for choosing FURNIQO for your bespoke ${config.type}.\n\nYour selection of ${mat.name} with a ${fin.label} finish in ${sty.name} style is a truly distinguished choice. The rich warmth of ${mat.name} will bring character and soul to your space, with the ${fin.label} finish lending it just the right sense of refinement.\n\nFor a handcrafted piece of this calibre, our artisans estimate ₹${config.type === 'sofa' ? '1,20,000–1,85,000' : config.type === 'bed' ? '95,000–1,50,000' : config.type === 'desk' ? '65,000–1,10,000' : config.type === 'cabinet' ? '80,000–1,30,000' : '45,000–80,000'} with a crafting timeline of 6–8 weeks. Our design consultant will reach you within 24 hours to finalise dimensions.`);
+  const placeCustomOrder = useCallback(async () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to place an order');
+      return;
     }
-  }, [form, config, mat, sty, fin]);
-
-  const placeOrder = useCallback(() => {
-    setStatus('ordered');
-    setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 2500);
-  }, []);
+    
+    if (!form.name || !form.email || !form.address || !form.city) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Create order item for custom furniture with isCustomOrder flag
+      const customItem = {
+        productId: `custom_${config.type}_${Date.now()}`,
+        name: `Custom ${config.type.charAt(0).toUpperCase() + config.type.slice(1)} - ${sty.name} Style`,
+        quantity: 1,
+        price: calculatedPrice.current,
+        originalPrice: calculatedPrice.current,
+        variant: {
+          material: mat.name,
+          finish: fin.label,
+          style: sty.name,
+          dimensions: config.dimensions || 'Standard',
+          color: mat.name
+        },
+        image: null,
+        isCustomOrder: true,  // Important flag for backend
+        customConfig: {
+          type: config.type,
+          style: config.style,
+          material: config.material,
+          finish: config.finish,
+          dimensions: config.dimensions,
+          notes: form.notes
+        }
+      };
+      
+      const shippingAddress = {
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        address: form.address,
+        city: form.city,
+        state: form.state,
+        zipCode: form.zipCode,
+        country: 'India'
+      };
+      
+      const orderData = {
+        items: [customItem],
+        shippingAddress: shippingAddress,
+        shippingMethod: 'standard',
+        shippingCost: 0,
+        subtotal: calculatedPrice.current,
+        discount: 0,
+        tax: Math.round(calculatedPrice.current * 0.05),
+        total: Math.round(calculatedPrice.current * 1.05),
+        paymentMethod: 'custom_order',
+        paymentId: `CUSTOM_${Date.now()}`,
+        notes: JSON.stringify({
+          type: 'custom_furniture',
+          customConfig: {
+            type: config.type,
+            style: config.style,
+            material: config.material,
+            finish: config.finish,
+            dimensions: config.dimensions,
+            customerNotes: form.notes
+          },
+          message: `Custom Order: ${config.type} in ${mat.name} with ${fin.label} finish, ${sty.name} style. Dimensions: ${config.dimensions || 'Standard'}. ${form.notes || ''}`
+        }),
+        giftWrap: false,
+        isCustomOrder: true  // Flag for backend to identify custom order
+      };
+      
+      console.log('Placing custom order:', orderData);
+      
+      const response = await apiWrapper.createOrder(orderData);
+      
+      console.log('Order response:', response);
+      
+      if (response?.success) {
+        setOrderPlaced(response.data);
+        setStatus('ordered');
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 2500);
+        toast.success('Custom order placed successfully! Our team will contact you soon.');
+        
+        // Trigger confetti animation
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#9333ea', '#a855f7', '#8b5cf6']
+        });
+      } else {
+        throw new Error(response?.message || 'Failed to place order');
+      }
+    } catch (error) {
+      console.error('Error placing custom order:', error);
+      toast.error(error.response?.data?.message || error.message || 'Failed to place order. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [config, form, isAuthenticated, mat.name, fin.label, sty.name, calculatedPrice]);
 
   const handleClose = useCallback(() => onClose(), [onClose]);
 
   const inpStyle = useMemo(() => ({
-    width:'100%', background:T.surfaceAlt, border:`1px solid ${T.border}`,
-    borderRadius:7, padding:'7px 10px', fontSize:11, color:T.text, outline:'none',
-    fontFamily:"'DM Sans',sans-serif", transition:'border-color 0.15s',
+    width: '100%', background: T.surfaceAlt, border: `1px solid ${T.border}`,
+    borderRadius: 7, padding: '7px 10px', fontSize: 11, color: T.text, outline: 'none',
+    fontFamily: "'DM Sans',sans-serif", transition: 'border-color 0.15s',
   }), [T]);
 
   return (
-    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-      style={{position:'fixed',inset:0,zIndex:300,display:'flex',alignItems:'flex-start',justifyContent:'center',
-        padding:'1rem',background:'rgba(0,0,0,0.65)',backdropFilter:'blur(16px)',
-        overflowY:'auto',WebkitOverflowScrolling:'touch'}}
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ position: 'fixed', inset: 0, zIndex: 300, display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        padding: '1rem', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(16px)',
+        overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
       onClick={handleClose}>
-      <div style={{position:'fixed',inset:0,backgroundImage:'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.04\'/%3E%3C/svg%3E")',opacity:0.6,pointerEvents:'none',zIndex:-1}}/>
+      <div style={{ position: 'fixed', inset: 0, backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.04\'/%3E%3C/svg%3E")', opacity: 0.6, pointerEvents: 'none', zIndex: -1 }} />
       <motion.div
-        initial={{scale:0.88,opacity:0,y:24}} animate={{scale:1,opacity:1,y:0}} exit={{scale:0.88,opacity:0,y:24}}
-        transition={{type:'spring',stiffness:300,damping:28}}
+        initial={{ scale: 0.88, opacity: 0, y: 24 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.88, opacity: 0, y: 24 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
         className="q-inner"
-        style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:18,maxWidth:400,width:'100%',
-          maxHeight:'88vh',overflowY:'auto',margin:'auto',position:'relative',
-          boxShadow:'0 40px 80px rgba(0,0,0,0.22), 0 0 0 1px rgba(255,255,255,0.08)'}}
-        onClick={e=>e.stopPropagation()}>
-        {showConfetti && <Confetti/>}
-        <div style={{height:3,borderRadius:'18px 18px 0 0',background:`linear-gradient(90deg, ${mat.edge}, ${mat.front}, ${mat.top}, ${mat.hi}, ${T.primary}40)`,backgroundSize:'200% 100%'}}/>
-        <div style={{padding:'0.9rem 1rem 1rem'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'0.7rem'}}>
+        style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 18, maxWidth: 400, width: '100%',
+          maxHeight: '88vh', overflowY: 'auto', margin: 'auto', position: 'relative',
+          boxShadow: '0 40px 80px rgba(0,0,0,0.22), 0 0 0 1px rgba(255,255,255,0.08)' }}
+        onClick={e => e.stopPropagation()}>
+        {showConfetti && <Confetti />}
+        <div style={{ height: 3, borderRadius: '18px 18px 0 0', background: `linear-gradient(90deg, ${mat.edge}, ${mat.front}, ${mat.top}, ${mat.hi}, ${T.primary}40)`, backgroundSize: '200% 100%' }} />
+        <div style={{ padding: '0.9rem 1rem 1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.7rem' }}>
             <div>
-              <h2 className="q-h2" style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:400,
-                color:T.text,lineHeight:1.2}}>
-                {status === 'ordered' ? 'Order Confirmed' : 'Request Quote'}
+              <h2 className="q-h2" style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 400,
+                color: T.text, lineHeight: 1.2 }}>
+                {status === 'ordered' ? 'Order Confirmed' : 'Place Custom Order'}
               </h2>
-              <p style={{fontSize:8,color:T.textMuted,marginTop:2,fontFamily:"'DM Mono',monospace",letterSpacing:'0.05em'}}>
-                {status === 'ordered' ? `Order ID: ${orderId.current}` : 'AI-personalized'}
+              <p style={{ fontSize: 8, color: T.textMuted, marginTop: 2, fontFamily: "'DM Mono',monospace", letterSpacing: '0.05em' }}>
+                {status === 'ordered' ? `Order ID: ${orderPlaced?.orderNumber || 'CUSTOM'}` : 'Fill details to confirm'}
               </p>
             </div>
-            <button onClick={handleClose} className="btn-ghost" style={{padding:'2px 6px',fontSize:11,borderRadius:5,flexShrink:0}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <button onClick={handleClose} className="btn-ghost" style={{ padding: '2px 6px', fontSize: 11, borderRadius: 5, flexShrink: 0 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
             </button>
           </div>
 
-          <div style={{background:T.surfaceAlt,borderRadius:8,padding:'0.5rem',marginBottom:'0.7rem',
-            border:`1px solid ${T.border}`,display:'flex',alignItems:'center',gap:6}}>
-            <div style={{display:'flex',gap:1,borderRadius:4,overflow:'hidden',flexShrink:0,height:28,width:36,
-              boxShadow:`0 1px 6px ${mat.edge}60`}}>
-              {[mat.sh,mat.edge,mat.front,mat.top,mat.hi].map((c,i)=><div key={i} style={{flex:1,background:c}}/>)}
+          <div style={{ background: T.surfaceAlt, borderRadius: 8, padding: '0.5rem', marginBottom: '0.7rem',
+            border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 1, borderRadius: 4, overflow: 'hidden', flexShrink: 0, height: 28, width: 36,
+              boxShadow: `0 1px 6px ${mat.edge}60` }}>
+              {[mat.sh, mat.edge, mat.front, mat.top, mat.hi].map((c, i) => <div key={i} style={{ flex: 1, background: c }} />)}
             </div>
-            <div style={{flex:1,minWidth:0}}>
-              <p style={{fontSize:10,fontWeight:600,color:T.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                {config.type.charAt(0).toUpperCase()+config.type.slice(1)} · {sty.name} · {mat.name}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 10, fontWeight: 600, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {config.type.charAt(0).toUpperCase() + config.type.slice(1)} · {sty.name} · {mat.name}
               </p>
-              <p style={{fontSize:8,color:T.textMuted,marginTop:1,fontFamily:"'DM Mono',monospace"}}>
+              <p style={{ fontSize: 8, color: T.textMuted, marginTop: 1, fontFamily: "'DM Mono',monospace" }}>
                 {fin.label} finish{config.dimensions ? ` · ${config.dimensions}` : ''}
               </p>
             </div>
           </div>
 
           {status === 'ordered' && (
-            <motion.div initial={{opacity:0,scale:0.9}} animate={{opacity:1,scale:1}}>
-              <div style={{textAlign:'center',padding:'0.3rem 0 0.3rem'}}>
-                <motion.div initial={{scale:0}} animate={{scale:1}} transition={{type:'spring',stiffness:300,delay:0.1}}
-                  style={{width:48,height:48,borderRadius:'50%',background:`linear-gradient(135deg,${T.success},#059669)`,
-                    display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 0.6rem',
-                    boxShadow:`0 4px 12px ${T.success}50,0 0 0 5px ${T.successLight}`}}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+              <div style={{ textAlign: 'center', padding: '0.3rem 0 0.3rem' }}>
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300, delay: 0.1 }}
+                  style={{ width: 48, height: 48, borderRadius: '50%', background: `linear-gradient(135deg,${T.success},#059669)`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.6rem',
+                    boxShadow: `0 4px 12px ${T.success}50,0 0 0 5px ${T.successLight}` }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
                 </motion.div>
-                <h3 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:400,color:T.text,marginBottom:2}}>
+                <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 400, color: T.text, marginBottom: 2 }}>
                   Order Confirmed!
                 </h3>
-                <p style={{fontSize:10,color:T.textMuted,lineHeight:1.5,marginBottom:'0.6rem'}}>
-                  Your bespoke order has been received.
+                <p style={{ fontSize: 10, color: T.textMuted, lineHeight: 1.5, marginBottom: '0.6rem' }}>
+                  Your custom order has been received. Our team will contact you within 24 hours.
                 </p>
               </div>
-              <div style={{background:`linear-gradient(135deg,${T.successLight},${T.primaryLight})`,
-                border:`1px solid ${T.success}30`,borderRadius:10,padding:'0.6rem',marginBottom:'0.6rem'}}>
-                {[['Order ID', orderId.current], ['Client', form.name], ['Email', form.email],
-                  ['Piece', `${config.type.charAt(0).toUpperCase()+config.type.slice(1)} · ${sty.name}`],
+              <div style={{ background: `linear-gradient(135deg,${T.successLight},${T.primaryLight})`,
+                border: `1px solid ${T.success}30`, borderRadius: 10, padding: '0.6rem', marginBottom: '0.6rem' }}>
+                {[['Order ID', orderPlaced?.orderNumber || 'Processing'], ['Client', form.name], ['Email', form.email],
+                  ['Piece', `${config.type.charAt(0).toUpperCase() + config.type.slice(1)} · ${sty.name}`],
                   ['Material', `${mat.name} · ${fin.label}`], ['Est. Delivery', estimatedDelivery.current],
-                ].map(([k,v])=>(
-                  <div key={k} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'3px 0',borderBottom:`1px solid ${T.border}`}}>
-                    <span style={{fontSize:8,color:T.textMuted,fontFamily:"'DM Mono',monospace"}}>{k}</span>
-                    <span style={{fontSize:9,fontWeight:500,color:T.textMid,textAlign:'right',maxWidth:'60%',overflow:'hidden',textOverflow:'ellipsis'}}>{v}</span>
+                  ['Total Amount', `₹${calculatedPrice.current.toLocaleString()}`],
+                ].map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: `1px solid ${T.border}` }}>
+                    <span style={{ fontSize: 8, color: T.textMuted, fontFamily: "'DM Mono',monospace" }}>{k}</span>
+                    <span style={{ fontSize: 9, fontWeight: 500, color: T.textMid, textAlign: 'right', maxWidth: '60%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v}</span>
                   </div>
                 ))}
               </div>
-              <div style={{display:'flex',gap:5}}>
-                <button onClick={handleClose} className="btn-ghost" style={{flex:1,padding:'6px',fontSize:10}}>Close</button>
-                <button onClick={handleClose} className="btn-primary" style={{flex:2,padding:'6px',fontSize:10.5}}>Back to Designing</button>
+              <div style={{ display: 'flex', gap: 5 }}>
+                <button onClick={handleClose} className="btn-ghost" style={{ flex: 1, padding: '6px', fontSize: 10 }}>Close</button>
+                <button onClick={handleClose} className="btn-primary" style={{ flex: 2, padding: '6px', fontSize: 10.5 }}>Back to Designing</button>
               </div>
             </motion.div>
           )}
 
-          {status === 'done' && (
-            <motion.div initial={{opacity:0,y:10}} animate={{opacity:1,y:0}}>
-              <div style={{background:T.surfaceAlt,borderRadius:10,padding:'0.7rem',marginBottom:'0.7rem',
-                border:`1px solid ${T.border}`,position:'relative'}}>
-                <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,${mat.edge},${mat.front},${mat.hi})`}}/>
-                <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:9.5,fontStyle:'italic',color:T.textMuted,marginBottom:5,marginTop:4}}>Your quote</p>
-                <p className="q-aitext" style={{fontSize:10.5,color:T.textMid,lineHeight:1.65,whiteSpace:'pre-line'}}>{aiResp}</p>
-              </div>
-              <div style={{display:'flex',gap:5}}>
-                <button onClick={()=>setStatus('idle')} className="btn-ghost" style={{flex:1,padding:'6px',fontSize:10}}>← Edit</button>
-                <button onClick={placeOrder} className="btn-primary" style={{flex:2,padding:'6px',fontSize:10.5}}>Confirm Order</button>
-              </div>
-            </motion.div>
-          )}
-
-          {status === 'loading' && (
-            <div style={{textAlign:'center',padding:'1.2rem 0'}}>
-              <div style={{width:32,height:32,borderRadius:'50%',border:`2px solid ${T.border}`,borderTopColor:T.primary,margin:'0 auto 0.6rem',animation:'spin 0.8s linear infinite'}}/>
-              <p style={{fontSize:11,color:T.textMid}}>Crafting your quote...</p>
-            </div>
-          )}
-
-          {status === 'idle' && (
+          {status !== 'ordered' && (
             <>
-              <div style={{display:'flex',flexDirection:'column',gap:5}}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <input type="text" placeholder="Full name *" value={form.name} onChange={handleInputChange('name')}
-                  style={inpStyle} onFocus={e=>{e.target.style.borderColor=T.primaryMed}} onBlur={e=>{e.target.style.borderColor=T.border}}/>
+                  style={inpStyle} onFocus={e => { e.target.style.borderColor = T.primaryMed }} onBlur={e => { e.target.style.borderColor = T.border }} />
                 <input type="email" placeholder="Email *" value={form.email} onChange={handleInputChange('email')}
-                  style={inpStyle} onFocus={e=>{e.target.style.borderColor=T.primaryMed}} onBlur={e=>{e.target.style.borderColor=T.border}}/>
-                <textarea placeholder="Notes (optional)" value={form.notes} onChange={handleInputChange('notes')} rows={2}
-                  style={{...inpStyle,resize:'none'}} onFocus={e=>{e.target.style.borderColor=T.primaryMed}} onBlur={e=>{e.target.style.borderColor=T.border}}/>
+                  style={inpStyle} onFocus={e => { e.target.style.borderColor = T.primaryMed }} onBlur={e => { e.target.style.borderColor = T.border }} />
+                <input type="tel" placeholder="Phone" value={form.phone} onChange={handleInputChange('phone')}
+                  style={inpStyle} onFocus={e => { e.target.style.borderColor = T.primaryMed }} onBlur={e => { e.target.style.borderColor = T.border }} />
+                <textarea placeholder="Delivery Address *" value={form.address} onChange={handleInputChange('address')} rows={2}
+                  style={{ ...inpStyle, resize: 'none' }} onFocus={e => { e.target.style.borderColor = T.primaryMed }} onBlur={e => { e.target.style.borderColor = T.border }} />
+                <div style={{ display: 'flex', gap: 5 }}>
+                  <input type="text" placeholder="City *" value={form.city} onChange={handleInputChange('city')}
+                    style={{ ...inpStyle, flex: 1 }} />
+                  <input type="text" placeholder="State" value={form.state} onChange={handleInputChange('state')}
+                    style={{ ...inpStyle, flex: 1 }} />
+                  <input type="text" placeholder="PIN Code" value={form.zipCode} onChange={handleInputChange('zipCode')}
+                    style={{ ...inpStyle, flex: 1 }} />
+                </div>
+                <textarea placeholder="Special Instructions (optional)" value={form.notes} onChange={handleInputChange('notes')} rows={2}
+                  style={{ ...inpStyle, resize: 'none' }} onFocus={e => { e.target.style.borderColor = T.primaryMed }} onBlur={e => { e.target.style.borderColor = T.border }} />
               </div>
-              <button onClick={submit} disabled={!form.name||!form.email}
-                className="btn-primary" style={{marginTop:'0.6rem',width:'100%',padding:'7px',fontSize:11,
-                  background:form.name&&form.email?`linear-gradient(135deg,${T.primary},${T.primaryMed})`:T.surfaceDeep,
-                  cursor:form.name&&form.email?'pointer':'not-allowed'}}>
-                Get Quote
+              
+              <div style={{ marginTop: '0.6rem', padding: '0.5rem', background: T.primaryLight, borderRadius: 8, textAlign: 'center' }}>
+                <p style={{ fontSize: 9, color: T.primaryText }}>
+                  Total Amount: <strong>₹{calculatedPrice.current.toLocaleString()}</strong> (inclusive of taxes)
+                </p>
+                <p style={{ fontSize: 7, color: T.textMuted, marginTop: 2 }}>Estimated delivery in 6-8 weeks</p>
+              </div>
+              
+              <button onClick={placeCustomOrder} disabled={!form.name || !form.email || !form.address || !form.city || isSubmitting}
+                className="btn-primary" style={{ marginTop: '0.6rem', width: '100%', padding: '7px', fontSize: 11,
+                  background: (form.name && form.email && form.address && form.city) ? `linear-gradient(135deg,${T.primary},${T.primaryMed})` : T.surfaceDeep,
+                  cursor: (form.name && form.email && form.address && form.city && !isSubmitting) ? 'pointer' : 'not-allowed' }}>
+                {isSubmitting ? 'Placing Order...' : 'Confirm & Place Order'}
               </button>
+              
+              {!isAuthenticated && (
+                <p style={{ fontSize: 7, color: T.textMuted, textAlign: 'center', marginTop: 5 }}>
+                  Please login to complete your order
+                </p>
+              )}
             </>
           )}
         </div>
@@ -1031,20 +1136,20 @@ Max 170 words. No bullet points. Warm, human, luxury tone.`;
 QuoteModal.displayName = 'QuoteModal';
 
 // ─── COLLAPSIBLE SECTION (memoized) ──────────────────────────────────────────────────────
-const Section = memo(({ label, children, defaultOpen=true, isDarkTheme }) => {
+const Section = memo(({ label, children, defaultOpen = true, isDarkTheme }) => {
   const T = getThemeTokens(isDarkTheme);
   const [open, setOpen] = useState(defaultOpen);
   const toggle = useCallback(() => setOpen(o => !o), []);
   return (
-    <div style={{borderBottom:`1px solid ${T.border}`, marginBottom: 0 }}>
+    <div style={{ borderBottom: `1px solid ${T.border}`, marginBottom: 0 }}>
       <button onClick={toggle}
-        style={{width:'100%',display:'flex',justifyContent:'space-between',alignItems:'center',
-          background:'none',border:'none',cursor:'pointer',padding:'0.3rem 0',outline:'none'}}>
-        <span style={{fontSize:7.5,fontWeight:600,color:T.textMuted,textTransform:'uppercase',
-          letterSpacing:'0.1em',fontFamily:"'DM Mono',monospace"}}>{label}</span>
-        <span style={{fontSize:8,color:T.textMuted,transform:open?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.2s'}}>▼</span>
+        style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          background: 'none', border: 'none', cursor: 'pointer', padding: '0.3rem 0', outline: 'none' }}>
+        <span style={{ fontSize: 7.5, fontWeight: 600, color: T.textMuted, textTransform: 'uppercase',
+          letterSpacing: '0.1em', fontFamily: "'DM Mono',monospace" }}>{label}</span>
+        <span style={{ fontSize: 8, color: T.textMuted, transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>▼</span>
       </button>
-      <div className={`collapsible ${open?'open':'closed'}`}>
+      <div className={`collapsible ${open ? 'open' : 'closed'}`}>
         {children}
       </div>
     </div>
@@ -1058,11 +1163,11 @@ const Chip = memo(({ selected, onClick, children, isDarkTheme }) => {
   const T = getThemeTokens(isDarkTheme);
   return (
     <button onClick={onClick} className="chip-sm"
-      style={{padding:'3px 6px',borderRadius:5,fontSize:9,fontWeight:selected?600:400,
-        cursor:'pointer',transition:'all 0.12s',outline:'none',fontFamily:"'DM Sans',sans-serif",
-        border:`1px solid ${selected?T.primaryBorder:T.border}`,
-        background:selected?T.primaryLight:T.surface,
-        color:selected?T.primaryText:T.textMid}}>
+      style={{ padding: '3px 6px', borderRadius: 5, fontSize: 9, fontWeight: selected ? 600 : 400,
+        cursor: 'pointer', transition: 'all 0.12s', outline: 'none', fontFamily: "'DM Sans',sans-serif",
+        border: `1px solid ${selected ? T.primaryBorder : T.border}`,
+        background: selected ? T.primaryLight : T.surface,
+        color: selected ? T.primaryText : T.textMid }}>
       {children}
     </button>
   );
@@ -1073,17 +1178,16 @@ Chip.displayName = 'Chip';
 // ─── MAIN COMPONENT ─────────────────────────────────────────────────────────────────────
 export default function CustomFurniture() {
   const [step, setStep] = useState(1);
-  const [config, setConfig] = useState({ type:'desk', style:'modern', material:'oak', finish:'matte', dimensions:'' });
+  const [config, setConfig] = useState({ type: 'desk', style: 'modern', material: 'oak', finish: 'matte', dimensions: '' });
   const [rotation, setRotation] = useState(-22);
   const [isDragging, setIsDragging] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [showQuote, setShowQuote] = useState(false);
   const [spinning, setSpinning] = useState(false);
   
-  // Use the theme from your existing ThemeContext
   const { isDark } = useTheme();
 
-  const dragRef = useRef({ active:false, startX:0, startRot:0 });
+  const dragRef = useRef({ active: false, startX: 0, startRot: 0 });
   const canvasRef = useRef(null);
 
   const T = getThemeTokens(isDark);
@@ -1091,10 +1195,9 @@ export default function CustomFurniture() {
   const sty = STYLES[config.style] || STYLES.modern;
   const fin = FINISHES[config.finish] || FINISHES.matte;
 
-  // Memoized handlers
   const onPointerDown = useCallback(e => {
     const clientX = e.clientX || e.touches?.[0]?.clientX || 0;
-    dragRef.current = { active:true, startX:clientX, startRot:rotation };
+    dragRef.current = { active: true, startX: clientX, startRot: rotation };
     setIsDragging(true);
     e.currentTarget.setPointerCapture?.(e.pointerId);
   }, [rotation]);
@@ -1130,7 +1233,7 @@ export default function CustomFurniture() {
       const prog = Math.min((ts - t0) / 2800, 1);
       const eased = 1 - Math.pow(1 - prog, 3);
       setRotation(r0 + 360 * eased);
-      if (prog < 1) requestAnimationFrame(go); 
+      if (prog < 1) requestAnimationFrame(go);
       else setSpinning(false);
     };
     requestAnimationFrame(go);
@@ -1143,7 +1246,7 @@ export default function CustomFurniture() {
 
   const reset = useCallback(() => { 
     setStep(1); 
-    setConfig({ type:'desk', style:'modern', material:'oak', finish:'matte', dimensions:'' }); 
+    setConfig({ type: 'desk', style: 'modern', material: 'oak', finish: 'matte', dimensions: '' }); 
     setRotation(-22); 
     setZoom(1); 
   }, []);
@@ -1158,168 +1261,166 @@ export default function CustomFurniture() {
   }, []);
 
   const furnitureOpts = useMemo(() => [
-    {v:'desk', label:'Desk', icon:Icons.desk},
-    {v:'table', label:'Table', icon:Icons.table},
-    {v:'bed', label:'Bed', icon:Icons.bed},
-    {v:'cabinet', label:'Cabinet', icon:Icons.cabinet},
-    {v:'sofa', label:'Sofa', icon:Icons.sofa},
-    {v:'chair', label:'Chair', icon:Icons.chair},
+    { v: 'desk', label: 'Desk', icon: Icons.desk },
+    { v: 'table', label: 'Table', icon: Icons.table },
+    { v: 'bed', label: 'Bed', icon: Icons.bed },
+    { v: 'cabinet', label: 'Cabinet', icon: Icons.cabinet },
+    { v: 'sofa', label: 'Sofa', icon: Icons.sofa },
+    { v: 'chair', label: 'Chair', icon: Icons.chair },
   ], []);
 
-  const styleOpts = useMemo(() => Object.entries(STYLES).map(([v,s]) => ({v,label:s.name})), []);
-  const matOpts = useMemo(() => Object.entries(MATERIALS).map(([v,m]) => ({v,label:m.name,m})), []);
-  const finishOpts = useMemo(() => Object.entries(FINISHES).map(([v,f]) => ({v,label:f.label})), []);
+  const styleOpts = useMemo(() => Object.entries(STYLES).map(([v, s]) => ({ v, label: s.name })), []);
+  const matOpts = useMemo(() => Object.entries(MATERIALS).map(([v, m]) => ({ v, label: m.name, m })), []);
+  const finishOpts = useMemo(() => Object.entries(FINISHES).map(([v, f]) => ({ v, label: f.label })), []);
   
   const progress = useMemo(() => [config.style, config.material, config.finish].filter(Boolean).length / 3, [config]);
-  const card = useMemo(() => ({ background:T.surface, border:`1px solid ${T.border}`, borderRadius:10 }), [T]);
+  const card = useMemo(() => ({ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10 }), [T]);
   const canvasBg = isDark ? '#2a2824' : (sty.roomBg || '#EBE8E0');
 
   return (
-    <div style={{background:T.bg,fontFamily:"'DM Sans',sans-serif",width:'100%',overflowX:'hidden'}}>
-      <FontLoader/>
+    <div style={{ background: T.bg, fontFamily: "'DM Sans',sans-serif", width: '100%', overflowX: 'hidden' }}>
+      <FontLoader />
 
-      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`, padding:'1.2rem 1rem 1rem',textAlign:'center',position:'relative',overflow:'hidden'}}>
-        <div style={{position:'absolute',inset:0, background:`radial-gradient(ellipse at 50% -10%, ${T.primaryLight} 0%, ${T.primaryLight}60 35%, transparent 65%)`, pointerEvents:'none'}}/>
-        <motion.div initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} transition={{duration:0.4}} style={{position:'relative',zIndex:2}}>
-          <motion.p initial={{opacity:0,letterSpacing:'0.22em'}} animate={{opacity:1,letterSpacing:'0.1em'}} transition={{delay:0.15}}
-            style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:T.primary, marginBottom:6,textTransform:'uppercase',fontWeight:600,letterSpacing:'0.12em'}}>
+      <div style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, padding: '1.2rem 1rem 1rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, background: `radial-gradient(ellipse at 50% -10%, ${T.primaryLight} 0%, ${T.primaryLight}60 35%, transparent 65%)`, pointerEvents: 'none' }} />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} style={{ position: 'relative', zIndex: 2 }}>
+          <motion.p initial={{ opacity: 0, letterSpacing: '0.22em' }} animate={{ opacity: 1, letterSpacing: '0.1em' }} transition={{ delay: 0.15 }}
+            style={{ fontFamily: "'DM Mono',monospace", fontSize: 8, color: T.primary, marginBottom: 6, textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.12em' }}>
             FURNIQO · Bespoke Furniture
           </motion.p>
-          <motion.h1 initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{delay:0.22}}
+          <motion.h1 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}
             className="hero-title"
-            style={{fontFamily:"'Cormorant Garamond',serif",fontSize:'clamp(1.3rem,3.5vw,2.2rem)', fontWeight:350,color:T.text,lineHeight:1.15,marginBottom:'0.2rem',letterSpacing:'-0.01em'}}>
+            style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 'clamp(1.3rem,3.5vw,2.2rem)', fontWeight: 350, color: T.text, lineHeight: 1.15, marginBottom: '0.2rem', letterSpacing: '-0.01em' }}>
             Design Your{' '}
-            <em style={{fontStyle:'italic',color:T.primary, background:`linear-gradient(120deg,${T.primaryLight} 0%,${T.primaryLight} 40%,transparent 65%)`, padding:'0 0.2rem',display:'inline-block'}}>
+            <em style={{ fontStyle: 'italic', color: T.primary, background: `linear-gradient(120deg,${T.primaryLight} 0%,${T.primaryLight} 40%,transparent 65%)`, padding: '0 0.2rem', display: 'inline-block' }}>
               Signature Piece
             </em>
           </motion.h1>
-          <motion.p initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} transition={{delay:0.3}}
+          <motion.p initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
             className="hero-sub"
-            style={{color:T.textMid,fontSize:'clamp(0.7rem,2vw,0.8rem)',maxWidth:380,margin:'0 auto',lineHeight:1.5,fontWeight:450}}>
-            Configure, preview in live 3D, and receive an AI-personalized quote
+            style={{ color: T.textMid, fontSize: 'clamp(0.7rem,2vw,0.8rem)', maxWidth: 380, margin: '0 auto', lineHeight: 1.5, fontWeight: 450 }}>
+            Configure, preview in live 3D, and place your custom order
           </motion.p>
         </motion.div>
       </div>
 
-      <div className="stepper-bar" style={{background:T.surface,borderBottom:`1px solid ${T.border}`,display:'flex', alignItems:'center',justifyContent:'center',padding:'0.4rem 0.8rem',gap:0}}>
-        {[{n:1,l:'Type'},{n:2,l:'Style'},{n:3,l:'Quote'}].map((s,i)=>(
+      <div className="stepper-bar" style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.4rem 0.8rem', gap: 0 }}>
+        {[{ n: 1, l: 'Type' }, { n: 2, l: 'Style' }, { n: 3, l: 'Order' }].map((s, i) => (
           <React.Fragment key={s.n}>
-            <div style={{display:'flex',flexDirection:'column',alignItems:'center'}}>
-              <div style={{width:20,height:20,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center', fontSize:9,fontWeight:600,
-                background:step>=s.n?T.primary:T.surfaceAlt, color:step>=s.n?'#fff':T.textMuted,
-                border:`1px solid ${step>=s.n?T.primary:T.border}`}}>
-                {step>s.n?<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>:s.n}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 600,
+                background: step >= s.n ? T.primary : T.surfaceAlt, color: step >= s.n ? '#fff' : T.textMuted,
+                border: `1px solid ${step >= s.n ? T.primary : T.border}` }}>
+                {step > s.n ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg> : s.n}
               </div>
-              <span className="step-label" style={{fontSize:7,marginTop:1,color:step>=s.n?T.primary:T.textMuted, fontFamily:"'DM Mono',monospace"}}>{s.l}</span>
+              <span className="step-label" style={{ fontSize: 7, marginTop: 1, color: step >= s.n ? T.primary : T.textMuted, fontFamily: "'DM Mono',monospace" }}>{s.l}</span>
             </div>
-            {i<2 && <div style={{width:24,height:1.5,background:step>s.n?T.primary:T.border, margin:'0 2px 8px',transition:'background 0.3s'}}/>}
+            {i < 2 && <div style={{ width: 24, height: 1.5, background: step > s.n ? T.primary : T.border, margin: '0 2px 8px', transition: 'background 0.3s' }} />}
           </React.Fragment>
         ))}
       </div>
 
       <div className="cf-layout">
         <div className="cf-panel">
-          <div className="panel-inner" style={{...card,padding:'0.6rem',overflow:'hidden'}}>
+          <div className="panel-inner" style={{ ...card, padding: '0.6rem', overflow: 'hidden' }}>
             <AnimatePresence mode="wait">
-              {step===1 && (
-                <motion.div key="s1" initial={{opacity:0,x:-8}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-8}} transition={{duration:0.15}}>
-                  <h3 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:13,fontWeight:400, color:T.text,marginBottom:'0.4rem'}}>Choose type</h3>
-                  <div className="furniture-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:5,marginBottom:'0.5rem'}}>
-                    {furnitureOpts.map(o=>(
-                      <button key={o.v} onClick={()=>setTypeAndNext(o.v)}
+              {step === 1 && (
+                <motion.div key="s1" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.15 }}>
+                  <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontWeight: 400, color: T.text, marginBottom: '0.4rem' }}>Choose type</h3>
+                  <div className="furniture-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 5, marginBottom: '0.5rem' }}>
+                    {furnitureOpts.map(o => (
+                      <button key={o.v} onClick={() => setTypeAndNext(o.v)}
                         className="furniture-btn"
-                        style={{padding:'5px 2px',borderRadius:6,cursor:'pointer',display:'flex',flexDirection:'column', alignItems:'center',gap:2,transition:'all 0.12s',
-                          border:`1px solid ${config.type===o.v?T.primaryBorder:T.border}`, background:config.type===o.v?T.primaryLight:T.surface}}>
-                        <span className="furniture-icon" style={{width:18,height:18,color:config.type===o.v?T.primary:T.textMid,display:'flex',alignItems:'center',justifyContent:'center',strokeWidth:1.6}}>
+                        style={{ padding: '5px 2px', borderRadius: 6, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, transition: 'all 0.12s',
+                          border: `1px solid ${config.type === o.v ? T.primaryBorder : T.border}`, background: config.type === o.v ? T.primaryLight : T.surface }}>
+                        <span className="furniture-icon" style={{ width: 18, height: 18, color: config.type === o.v ? T.primary : T.textMid, display: 'flex', alignItems: 'center', justifyContent: 'center', strokeWidth: 1.6 }}>
                           {React.createElement(o.icon)}
                         </span>
-                        <span className="furniture-label" style={{fontSize:8.5,fontWeight:config.type===o.v?600:400, color:config.type===o.v?T.primaryText:T.textMid}}>{o.label}</span>
+                        <span className="furniture-label" style={{ fontSize: 8.5, fontWeight: config.type === o.v ? 600 : 400, color: config.type === o.v ? T.primaryText : T.textMid }}>{o.label}</span>
                       </button>
                     ))}
                   </div>
-                  <button onClick={()=>setStep(2)} className="btn-primary" style={{width:'100%',padding:'6px',fontSize:10}}>Continue →</button>
+                  <button onClick={() => setStep(2)} className="btn-primary" style={{ width: '100%', padding: '6px', fontSize: 10 }}>Continue →</button>
                 </motion.div>
               )}
 
-              {step===2 && (
-                <motion.div key="s2" initial={{opacity:0,x:-8}} animate={{opacity:1,x:0}} exit={{opacity:0,x:-8}} transition={{duration:0.15}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.3rem'}}>
-                    <h3 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:13,fontWeight:400,color:T.text}}>Customize</h3>
-                    <button onClick={reset} className="btn-ghost" style={{fontSize:8,fontFamily:"'DM Mono',monospace",padding:'1px 4px'}}>
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+              {step === 2 && (
+                <motion.div key="s2" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -8 }} transition={{ duration: 0.15 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                    <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, fontWeight: 400, color: T.text }}>Customize</h3>
+                    <button onClick={reset} className="btn-ghost" style={{ fontSize: 8, fontFamily: "'DM Mono',monospace", padding: '1px 4px' }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
                     </button>
                   </div>
 
                   <Section label="Type" isDarkTheme={isDark}>
-                    <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:3,paddingTop:2}}>
-                      {furnitureOpts.map(o=><Chip key={o.v} selected={config.type===o.v} onClick={()=>updateConfig('type',o.v)} isDarkTheme={isDark}>{o.label}</Chip>)}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 3, paddingTop: 2 }}>
+                      {furnitureOpts.map(o => <Chip key={o.v} selected={config.type === o.v} onClick={() => updateConfig('type', o.v)} isDarkTheme={isDark}>{o.label}</Chip>)}
                     </div>
                   </Section>
 
                   <Section label="Style" isDarkTheme={isDark}>
-                    <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:3,paddingTop:2}}>
-                      {styleOpts.map(o=><Chip key={o.v} selected={config.style===o.v} onClick={()=>updateConfig('style',o.v)} isDarkTheme={isDark}>{o.label}</Chip>)}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 3, paddingTop: 2 }}>
+                      {styleOpts.map(o => <Chip key={o.v} selected={config.style === o.v} onClick={() => updateConfig('style', o.v)} isDarkTheme={isDark}>{o.label}</Chip>)}
                     </div>
                   </Section>
 
                   <Section label="Material" isDarkTheme={isDark}>
-                    <div className="mat-grid" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:3,paddingTop:2}}>
-                      {matOpts.map(o=>(
-                        <button key={o.v} onClick={()=>updateConfig('material',o.v)}
-                          style={{background:T.surface,border:`1px solid ${config.material===o.v?o.m.front:T.border}`, borderRadius:5,padding:'3px 1px',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:1}}>
-                          <div className="mat-swatch" style={{width:22,height:22,borderRadius:3,overflow:'hidden',display:'flex',boxShadow:'0 1px 2px rgba(0,0,0,0.15)'}}>
-                            {[o.m.edge,o.m.front,o.m.top,o.m.hi].map((c,i)=><div key={i} style={{flex:1,background:c}}/>)}
+                    <div className="mat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 3, paddingTop: 2 }}>
+                      {matOpts.map(o => (
+                        <button key={o.v} onClick={() => updateConfig('material', o.v)}
+                          style={{ background: T.surface, border: `1px solid ${config.material === o.v ? o.m.front : T.border}`, borderRadius: 5, padding: '3px 1px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                          <div className="mat-swatch" style={{ width: 22, height: 22, borderRadius: 3, overflow: 'hidden', display: 'flex', boxShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>
+                            {[o.m.edge, o.m.front, o.m.top, o.m.hi].map((c, i) => <div key={i} style={{ flex: 1, background: c }} />)}
                           </div>
-                          <span className="mat-name" style={{fontSize:7,color:config.material===o.v?T.primaryText:T.textMuted}}>{o.label}</span>
+                          <span className="mat-name" style={{ fontSize: 7, color: config.material === o.v ? T.primaryText : T.textMuted }}>{o.label}</span>
                         </button>
                       ))}
                     </div>
                   </Section>
 
                   <Section label="Finish" isDarkTheme={isDark}>
-                    <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:3,paddingTop:2}}>
-                      {finishOpts.map(o=>(
-                        <Chip key={o.v} selected={config.finish===o.v} onClick={()=>updateConfig('finish',o.v)} isDarkTheme={isDark}>{o.label}</Chip>
-                      ))}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 3, paddingTop: 2 }}>
+                      {finishOpts.map(o => <Chip key={o.v} selected={config.finish === o.v} onClick={() => updateConfig('finish', o.v)} isDarkTheme={isDark}>{o.label}</Chip>)}
                     </div>
                   </Section>
 
                   <Section label="Dimensions" defaultOpen={false} isDarkTheme={isDark}>
-                    <input type="text" value={config.dimensions} onChange={e=>updateConfig('dimensions',e.target.value)}
-                      placeholder='e.g. 72" × 36" × 30"' style={{width:'100%',background:T.surfaceAlt,border:`1px solid ${T.border}`, borderRadius:5,padding:'4px 6px',fontSize:9,color:T.text,outline:'none',marginTop:2}}/>
+                    <input type="text" value={config.dimensions} onChange={e => updateConfig('dimensions', e.target.value)}
+                      placeholder='e.g. 72" × 36" × 30"' style={{ width: '100%', background: T.surfaceAlt, border: `1px solid ${T.border}`, borderRadius: 5, padding: '4px 6px', fontSize: 9, color: T.text, outline: 'none', marginTop: 2 }} />
                   </Section>
 
-                  <div style={{paddingTop:'0.3rem'}}>
-                    <div style={{height:2,background:T.surfaceAlt,borderRadius:1,overflow:'hidden',marginBottom:1}}>
-                      <div style={{width:`${progress*100}%`,height:'100%',background:`linear-gradient(90deg,${T.primaryMed},${T.primary})`,borderRadius:1}}/>
+                  <div style={{ paddingTop: '0.3rem' }}>
+                    <div style={{ height: 2, background: T.surfaceAlt, borderRadius: 1, overflow: 'hidden', marginBottom: 1 }}>
+                      <div style={{ width: `${progress * 100}%`, height: '100%', background: `linear-gradient(90deg,${T.primaryMed},${T.primary})`, borderRadius: 1 }} />
                     </div>
-                    <p style={{fontSize:7,color:T.textMuted,fontFamily:"'DM Mono',monospace"}}>{Math.round(progress*100)}% configured</p>
+                    <p style={{ fontSize: 7, color: T.textMuted, fontFamily: "'DM Mono',monospace" }}>{Math.round(progress * 100)}% configured</p>
                   </div>
 
-                  <button onClick={goStep3} className="btn-primary" style={{marginTop:'0.4rem',width:'100%',padding:'6px',fontSize:10}}>Complete Design ✦</button>
+                  <button onClick={goStep3} className="btn-primary" style={{ marginTop: '0.4rem', width: '100%', padding: '6px', fontSize: 10 }}>Complete Design ✦</button>
                 </motion.div>
               )}
 
-              {step===3 && (
-                <motion.div key="s3" initial={{opacity:0,scale:0.96}} animate={{opacity:1,scale:1}} exit={{opacity:0}} transition={{duration:0.12}} style={{textAlign:'center'}}>
-                  <div style={{width:36,height:36,borderRadius:'50%',background:T.primaryLight, border:`1px solid ${T.primaryBorder}`,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 0.4rem'}}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              {step === 3 && (
+                <motion.div key="s3" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} style={{ textAlign: 'center' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: T.primaryLight, border: `1px solid ${T.primaryBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.4rem' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.primary} strokeWidth="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
                   </div>
-                  <h3 style={{fontFamily:"'Cormorant Garamond',serif",fontSize:14,fontWeight:400,color:T.text,marginBottom:1}}>Design Complete</h3>
-                  <p style={{fontSize:8,color:T.textMuted,marginBottom:'0.5rem'}}>ready for quote</p>
+                  <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 14, fontWeight: 400, color: T.text, marginBottom: 1 }}>Design Complete</h3>
+                  <p style={{ fontSize: 8, color: T.textMuted, marginBottom: '0.5rem' }}>ready for order</p>
 
-                  <div style={{background:T.surfaceAlt,borderRadius:7,padding:'0.4rem',marginBottom:'0.5rem',textAlign:'left',border:`1px solid ${T.border}`}}>
-                    {[['Type', config.type.charAt(0).toUpperCase()+config.type.slice(1)], ['Style', sty.name], ['Material', mat.name], ['Finish', fin.label], ...(config.dimensions?[['Size',config.dimensions]]:[])].map(([k,v])=>(
-                      <div key={k} style={{display:'flex',justifyContent:'space-between',padding:'2px 0',borderBottom:`1px solid ${T.border}`}}>
-                        <span style={{fontSize:8,color:T.textMuted}}>{k}</span><span style={{fontSize:9,fontWeight:500,color:T.textMid}}>{v}</span>
+                  <div style={{ background: T.surfaceAlt, borderRadius: 7, padding: '0.4rem', marginBottom: '0.5rem', textAlign: 'left', border: `1px solid ${T.border}` }}>
+                    {[['Type', config.type.charAt(0).toUpperCase() + config.type.slice(1)], ['Style', sty.name], ['Material', mat.name], ['Finish', fin.label], ...(config.dimensions ? [['Size', config.dimensions]] : [])].map(([k, v]) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', borderBottom: `1px solid ${T.border}` }}>
+                        <span style={{ fontSize: 8, color: T.textMuted }}>{k}</span><span style={{ fontSize: 9, fontWeight: 500, color: T.textMid }}>{v}</span>
                       </div>
                     ))}
-                    <div style={{height:3,borderRadius:1,marginTop:4,background:`linear-gradient(90deg,${mat.edge},${mat.sh},${mat.front},${mat.top},${mat.hi})`}}/>
+                    <div style={{ height: 3, borderRadius: 1, marginTop: 4, background: `linear-gradient(90deg,${mat.edge},${mat.sh},${mat.front},${mat.top},${mat.hi})` }} />
                   </div>
 
-                  <div style={{display:'flex',gap:4}}>
-                    <button onClick={reset} className="btn-ghost" style={{flex:1,padding:'5px',fontSize:9}}>Start Over</button>
-                    <button onClick={()=>setShowQuote(true)} className="btn-primary" style={{flex:2,padding:'5px',fontSize:10}}>Get Quote</button>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button onClick={reset} className="btn-ghost" style={{ flex: 1, padding: '5px', fontSize: 9 }}>Start Over</button>
+                    <button onClick={() => setShowQuote(true)} className="btn-primary" style={{ flex: 2, padding: '5px', fontSize: 10 }}>Place Order</button>
                   </div>
                 </motion.div>
               )}
@@ -1328,62 +1429,62 @@ export default function CustomFurniture() {
         </div>
 
         <div className="cf-canvas">
-          <div style={{...card,padding:0,overflow:'hidden'}}>
-            <div className="canvas-controls-top" style={{display:'flex',alignItems:'center',justifyContent:'space-between', padding:'0.35rem 0.6rem',borderBottom:`1px solid ${T.border}`,background:T.surface}}>
-              <div><p style={{fontSize:10,fontWeight:600,color:T.text}}>3D Preview</p><p style={{fontSize:7,color:T.textMuted,fontFamily:"'DM Mono',monospace"}}>drag · scroll</p></div>
-              <div style={{display:'flex',alignItems:'center',gap:4}}>
-                <div style={{display:'flex',alignItems:'center',gap:2}}>
-                  <button onClick={()=>setZoom(z=>Math.max(0.5,z-0.1))} className="btn-ghost" style={{width:18,height:18,borderRadius:'50%',padding:0,fontSize:12}}>−</button>
-                  <span style={{fontSize:7,color:T.textMuted,minWidth:22,textAlign:'center'}}>{Math.round(zoom*100)}%</span>
-                  <button onClick={()=>setZoom(z=>Math.min(1.65,z+0.1))} className="btn-ghost" style={{width:18,height:18,borderRadius:'50%',padding:0,fontSize:12}}>+</button>
+          <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
+            <div className="canvas-controls-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0.6rem', borderBottom: `1px solid ${T.border}`, background: T.surface }}>
+              <div><p style={{ fontSize: 10, fontWeight: 600, color: T.text }}>3D Preview</p><p style={{ fontSize: 7, color: T.textMuted, fontFamily: "'DM Mono',monospace" }}>drag · scroll</p></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <button onClick={() => setZoom(z => Math.max(0.5, z - 0.1))} className="btn-ghost" style={{ width: 18, height: 18, borderRadius: '50%', padding: 0, fontSize: 12 }}>−</button>
+                  <span style={{ fontSize: 7, color: T.textMuted, minWidth: 22, textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
+                  <button onClick={() => setZoom(z => Math.min(1.65, z + 0.1))} className="btn-ghost" style={{ width: 18, height: 18, borderRadius: '50%', padding: 0, fontSize: 12 }}>+</button>
                 </div>
-                <div style={{display:'flex',alignItems:'center',gap:2,background:T.surfaceAlt,borderRadius:10,padding:'1px 5px'}}>
-                  <div style={{display:'flex',gap:1,height:5,width:10}}>{[mat.edge,mat.front,mat.top,mat.hi].map((c,i)=><div key={i} style={{flex:1,background:c}}/>)}</div>
-                  <span style={{fontSize:7,color:T.textMid}}>{mat.name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 2, background: T.surfaceAlt, borderRadius: 10, padding: '1px 5px' }}>
+                  <div style={{ display: 'flex', gap: 1, height: 5, width: 10 }}>{[mat.edge, mat.front, mat.top, mat.hi].map((c, i) => <div key={i} style={{ flex: 1, background: c }} />)}</div>
+                  <span style={{ fontSize: 7, color: T.textMid }}>{mat.name}</span>
                 </div>
-                <div style={{background:T.primaryLight,borderRadius:9,padding:'1px 5px'}}><span style={{fontSize:7,color:T.primaryText}}>{sty.name}</span></div>
+                <div style={{ background: T.primaryLight, borderRadius: 9, padding: '1px 5px' }}><span style={{ fontSize: 7, color: T.primaryText }}>{sty.name}</span></div>
               </div>
             </div>
 
             <div ref={canvasRef} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
-              className="canvas-h" style={{height:320,cursor:isDragging?'grabbing':'grab',position:'relative',background:canvasBg,overflow:'hidden',userSelect:'none',transition:'background 0.4s'}}>
-              <FurnitureRenderer type={config.type} material={config.material} style={config.style} finish={config.finish} rotation={rotation} zoom={zoom} isDark={isDark}/>
-              <div style={{position:'absolute',top:6,left:8,background:'rgba(255,255,255,0.7)',backdropFilter:'blur(6px)',borderRadius:5,padding:'1px 5px'}}>
-                <span style={{fontSize:7,color:T.textMuted}}>{sty.name} room</span>
+              className="canvas-h" style={{ height: 320, cursor: isDragging ? 'grabbing' : 'grab', position: 'relative', background: canvasBg, overflow: 'hidden', userSelect: 'none', transition: 'background 0.4s' }}>
+              <FurnitureRenderer type={config.type} material={config.material} style={config.style} finish={config.finish} rotation={rotation} zoom={zoom} isDark={isDark} />
+              <div style={{ position: 'absolute', top: 6, left: 8, background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(6px)', borderRadius: 5, padding: '1px 5px' }}>
+                <span style={{ fontSize: 7, color: T.textMuted }}>{sty.name} room</span>
               </div>
-              <div style={{position:'absolute',top:6,right:8,background:'rgba(255,255,255,0.7)',backdropFilter:'blur(6px)',borderRadius:5,padding:'1px 5px'}}>
-                <span style={{fontSize:7,color:T.textMuted}}>{fin.label}</span>
+              <div style={{ position: 'absolute', top: 6, right: 8, background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(6px)', borderRadius: 5, padding: '1px 5px' }}>
+                <span style={{ fontSize: 7, color: T.textMuted }}>{fin.label}</span>
               </div>
-              {spinning && <div style={{position:'absolute',bottom:8,left:'50%',transform:'translateX(-50%)',background:T.surface,borderRadius:12,padding:'1px 8px',border:`1px solid ${T.border}`}}><p style={{fontSize:8,color:T.primary}}>360° view</p></div>}
+              {spinning && <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', background: T.surface, borderRadius: 12, padding: '1px 8px', border: `1px solid ${T.border}` }}><p style={{ fontSize: 8, color: T.primary }}>360° view</p></div>}
             </div>
 
-            <div className="canvas-controls-bot" style={{display:'flex',alignItems:'center',justifyContent:'space-between', padding:'0.35rem 0.6rem',borderTop:`1px solid ${T.border}`,background:T.surface}}>
-              <div style={{display:'flex',alignItems:'center',gap:2}}>
-                <button onClick={()=>setRotation(r=>r-45)} className="btn-ghost" style={{width:20,height:20,borderRadius:'50%',padding:0,fontSize:12}}>←</button>
-                <span style={{fontSize:7,color:T.textMuted}}>rotate</span>
-                <button onClick={()=>setRotation(r=>r+45)} className="btn-ghost" style={{width:20,height:20,borderRadius:'50%',padding:0,fontSize:12}}>→</button>
+            <div className="canvas-controls-bot" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.35rem 0.6rem', borderTop: `1px solid ${T.border}`, background: T.surface }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <button onClick={() => setRotation(r => r - 45)} className="btn-ghost" style={{ width: 20, height: 20, borderRadius: '50%', padding: 0, fontSize: 12 }}>←</button>
+                <span style={{ fontSize: 7, color: T.textMuted }}>rotate</span>
+                <button onClick={() => setRotation(r => r + 45)} className="btn-ghost" style={{ width: 20, height: 20, borderRadius: '50%', padding: 0, fontSize: 12 }}>→</button>
               </div>
-              <div style={{display:'flex',gap:4}}>
-                <button onClick={()=>setRotation(-22)} className="btn-ghost" style={{fontSize:8,padding:'2px 5px'}}>↺</button>
-                <button onClick={()=>step===3?setShowQuote(true):goStep3()} className="btn-primary" style={{padding:'3px 8px',fontSize:9}}>{step===3?'Quote':'Complete'}</button>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button onClick={() => setRotation(-22)} className="btn-ghost" style={{ fontSize: 8, padding: '2px 5px' }}>↺</button>
+                <button onClick={() => step === 3 ? setShowQuote(true) : goStep3()} className="btn-primary" style={{ padding: '3px 8px', fontSize: 9 }}>{step === 3 ? 'Order' : 'Complete'}</button>
               </div>
             </div>
           </div>
 
-          <div className="mat-info-bar" style={{marginTop:4,...card,padding:'0.4rem 0.6rem',display:'flex',alignItems:'center',gap:6}}>
-            <div style={{display:'flex',borderRadius:4,overflow:'hidden',height:24,width:40}}>
-              {[mat.sh,mat.edge,mat.front,mat.top,mat.hi].map((c,i)=><div key={i} style={{flex:1,background:c}}/>)}
+          <div className="mat-info-bar" style={{ marginTop: 4, ...card, padding: '0.4rem 0.6rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', borderRadius: 4, overflow: 'hidden', height: 24, width: 40 }}>
+              {[mat.sh, mat.edge, mat.front, mat.top, mat.hi].map((c, i) => <div key={i} style={{ flex: 1, background: c }} />)}
             </div>
-            <div style={{flex:1}}>
-              <p style={{fontSize:9,fontWeight:500,color:T.text}}>{mat.name} · <em style={{fontStyle:'italic',color:T.primary}}>{mat.texture}</em></p>
-              <p style={{fontSize:7,color:T.textMuted}}>rough {Math.round(mat.rough*100)}% · refl {Math.round(mat.refl*100)}%</p>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 9, fontWeight: 500, color: T.text }}>{mat.name} · <em style={{ fontStyle: 'italic', color: T.primary }}>{mat.texture}</em></p>
+              <p style={{ fontSize: 7, color: T.textMuted }}>rough {Math.round(mat.rough * 100)}% · refl {Math.round(mat.refl * 100)}%</p>
             </div>
-            <div style={{width:24,height:4,borderRadius:2,background:`linear-gradient(90deg,${mat.edge},${mat.top})`,filter:`brightness(${1+fin.gloss*0.8})`}}/>
+            <div style={{ width: 24, height: 4, borderRadius: 2, background: `linear-gradient(90deg,${mat.edge},${mat.top})`, filter: `brightness(${1 + fin.gloss * 0.8})` }} />
           </div>
         </div>
       </div>
 
-      <AnimatePresence>{showQuote && <QuoteModal config={config} onClose={()=>setShowQuote(false)} isDarkTheme={isDark}/>}</AnimatePresence>
+      <AnimatePresence>{showQuote && <QuoteModal config={config} onClose={() => setShowQuote(false)} isDarkTheme={isDark} />}</AnimatePresence>
     </div>
   );
 }

@@ -71,6 +71,21 @@ api.interceptors.response.use(
   }
 );
 
+// Local data object for apiWrapper.js
+export let localData = {
+  cart: [],
+  wishlist: [],
+  favorites: [],
+  recentlyViewed: [],
+  compareList: [],
+};
+
+// Helper function to update localData
+export const updateLocalData = (newData) => {
+  localData = { ...localData, ...newData };
+  return localData;
+};
+
 // ============ USER MANAGEMENT API ============
 export const userAPI = {
   register: (userData) => api.post('/users/register', userData),
@@ -122,6 +137,7 @@ export const orderAPI = {
 export const productAPI = {
   getAllProducts: (params = {}) => api.get('/products', { params }),
   getProductByIdentifier: (identifier) => api.get(`/products/${identifier}`),
+  getRelatedProducts: (productId, limit = 10) => api.get(`/products/${productId}/related`, { params: { limit } }),
   createProduct: (productData) => api.post('/products', productData),
   updateProduct: (id, productData) => api.put(`/products/${id}`, productData),
   deleteProduct: (id) => api.delete(`/products/${id}`),
@@ -141,6 +157,7 @@ export const categoryAPI = {
 // ============ TESTIMONIAL MANAGEMENT API ============
 export const testimonialAPI = {
   getTestimonials: () => api.get('/testimonials'),
+  getAdminTestimonials: () => api.get('/testimonials/admin/all'),
   getTestimonialById: (id) => api.get(`/testimonials/${id}`),
   createTestimonial: (testimonialData) => api.post('/testimonials', testimonialData),
   updateTestimonial: (id, testimonialData) => api.put(`/testimonials/${id}`, testimonialData),
@@ -213,19 +230,20 @@ export const contactAPI = {
 export const heroSlidesAPI = {
   getActiveSlides: () => api.get('/hero-slides'),
   getSlideById: (id) => api.get(`/hero-slides/${id}`),
-  getAllSlides: () => api.get('/hero-slides/all'),  // Changed from /admin/all
-  createSlide: (slideData) => api.post('/hero-slides', slideData),  // Changed from /admin/hero-slides
-  updateSlide: (id, slideData) => api.put(`/hero-slides/${id}`, slideData),  // Changed from /admin/hero-slides/:id
-  deleteSlide: (id) => api.delete(`/hero-slides/${id}`),  // Changed from /admin/hero-slides/:id
-  toggleSlideStatus: (id) => api.patch(`/hero-slides/${id}/toggle`),  // Changed from /admin/hero-slides/:id/toggle
-  reorderSlides: (orderData) => api.post('/hero-slides/reorder', orderData),  // Changed from /admin/hero-slides/reorder
+  getAllSlides: () => api.get('/hero-slides/all'),
+  createSlide: (slideData) => api.post('/hero-slides', slideData),
+  updateSlide: (id, slideData) => api.put(`/hero-slides/${id}`, slideData),
+  deleteSlide: (id) => api.delete(`/hero-slides/${id}`),
+  toggleSlideStatus: (id) => api.patch(`/hero-slides/${id}/toggle`),
+  reorderSlides: (orderData) => api.post('/hero-slides/reorder', orderData),
 };
+
 // ============ POLICIES API ============
 export const policiesAPI = {
   getAllPolicies: () => api.get('/policies'),
   getPolicyByType: (type) => api.get(`/policies/${type}`),
-  updatePolicy: (type, policyData) => api.put(`/admin/policies/${type}`, policyData),
-  deletePolicy: (type) => api.delete(`/admin/policies/${type}`),
+  updatePolicy: (type, policyData) => api.put(`/policies/${type}`, policyData),
+  deletePolicy: (type) => api.delete(`/policies/${type}`),
 };
 
 // ============ ADMIN DASHBOARD API ============
@@ -252,6 +270,31 @@ export const giftCardAPI = {
   deleteGiftCard: (code) => api.delete(`/gift-cards/admin/${code}`),
   getGiftCardStats: () => api.get('/gift-cards/admin/stats/summary'),
   bulkDeleteGiftCards: (codes) => api.delete('/gift-cards/admin/bulk', { data: { codes } })
+};
+
+// ============ ANALYTICS API ============
+export const analyticsAPI = {
+  trackEvent: (eventName, eventData = {}) => {
+    return api.post('/analytics/track', { eventName, eventData, timestamp: new Date().toISOString() });
+  },
+  trackPageView: (pageName, pageData = {}) => {
+    return api.post('/analytics/page-view', { pageName, pageData, timestamp: new Date().toISOString() });
+  },
+  getAnalytics: (params = {}) => {
+    return api.get('/analytics', { params });
+  },
+  getUserAnalytics: (userId, params = {}) => {
+    return api.get(`/analytics/user/${userId}`, { params });
+  },
+  getProductAnalytics: (productId, params = {}) => {
+    return api.get(`/analytics/product/${productId}`, { params });
+  },
+  getSalesAnalytics: (params = {}) => {
+    return api.get('/analytics/sales', { params });
+  },
+  getDashboardAnalytics: (params = {}) => {
+    return api.get('/analytics/dashboard', { params });
+  }
 };
 
 export default api;

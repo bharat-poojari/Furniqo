@@ -43,13 +43,46 @@ const statusColors = {
 
 const getProductImage = (item) => {
   try {
+    if (item.image) return item.image;
     if (item.product?.images && Array.isArray(item.product.images) && item.product.images[0]) {
       return item.product.images[0];
     }
-    if (item.image) return item.image;
     return 'https://placehold.co/400x400/eee/999?text=No+Image';
   } catch {
     return 'https://placehold.co/400x400/eee/999?text=No+Image';
+  }
+};
+
+const parseOrderItems = (order) => {
+  try {
+    if (Array.isArray(order.items)) {
+      return order.items;
+    }
+    if (order.items && typeof order.items === 'string') {
+      return JSON.parse(order.items);
+    }
+    return [];
+  } catch (e) {
+    console.error('Error parsing order items:', e);
+    return [];
+  }
+};
+
+const parseShippingAddress = (order) => {
+  try {
+    if (order.shippingAddress && typeof order.shippingAddress === 'object') {
+      return order.shippingAddress;
+    }
+    if (order.shippingAddress && typeof order.shippingAddress === 'string') {
+      return JSON.parse(order.shippingAddress);
+    }
+    if (order.shipping && typeof order.shipping === 'object') {
+      return order.shipping;
+    }
+    return {};
+  } catch (e) {
+    console.error('Error parsing shipping address:', e);
+    return {};
   }
 };
 
@@ -57,7 +90,7 @@ const OrderDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, token, user } = useAuth();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -81,21 +114,34 @@ const OrderDetails = () => {
           orderData = response.data.data;
         }
       } catch (apiError) {
-        console.warn('API fetch failed, checking localStorage:', apiError);
+        console.warn('API fetch failed:', apiError);
       }
       
-      // If API fails, try localStorage
+      // If API fails or returns no data, try localStorage
       if (!orderData) {
         const localOrders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
         orderData = localOrders.find(o => o._id === id || o.orderNumber === id);
       }
       
       if (orderData) {
-        // Parse items if they're a string
-        if (orderData.items && typeof orderData.items === 'string') {
-          orderData.items = JSON.parse(orderData.items);
-        }
-        setOrder(orderData);
+        // Normalize the order data
+        const normalizedOrder = {
+          ...orderData,
+          items: parseOrderItems(orderData),
+          shippingAddress: parseShippingAddress(orderData),
+          shippingCost: orderData.shippingCost ?? orderData.shipping ?? 0,
+          subtotal: orderData.subtotal || 0,
+          discount: orderData.discount || 0,
+          tax: orderData.tax || 0,
+          total: orderData.total || 0,
+          status: orderData.status || 'pending',
+          createdAt: orderData.createdAt,
+          updatedAt: orderData.updatedAt,
+          orderNumber: orderData.orderNumber,
+          _id: orderData._id,
+        };
+        
+        setOrder(normalizedOrder);
       } else {
         setError('Order not found');
       }
@@ -109,15 +155,45 @@ const OrderDetails = () => {
   }, [id]);
 
   useEffect(() => {
+    // Check if order was passed via state
     if (location.state?.order) {
-      setOrder(location.state.order);
+      const passedOrder = location.state.order;
+      const normalizedOrder = {
+        ...passedOrder,
+        items: parseOrderItems(passedOrder),
+        shippingAddress: parseShippingAddress(passedOrder),
+        shippingCost: passedOrder.shippingCost ?? passedOrder.shipping ?? 0,
+        subtotal: passedOrder.subtotal || 0,
+        discount: passedOrder.discount || 0,
+        tax: passedOrder.tax || 0,
+        total: passedOrder.total || 0,
+        status: passedOrder.status || 'confirmed',
+      };
+      setOrder(normalizedOrder);
       setLoading(false);
       return;
     }
     
     if (isAuthenticated && id) {
       fetchOrderDetails();
-    } else if (!isAuthenticated) {
+    } else if (!isAuthenticated && id) {
+      // Try to load from localStorage even if not authenticated
+      const localOrders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+      const foundOrder = localOrders.find(o => o._id === id || o.orderNumber === id);
+      if (foundOrder) {
+        const normalizedOrder = {
+          ...foundOrder,
+          items: parseOrderItems(foundOrder),
+          shippingAddress: parseShippingAddress(foundOrder),
+          shippingCost: foundOrder.shippingCost ?? foundOrder.shipping ?? 0,
+        };
+        setOrder(normalizedOrder);
+        setLoading(false);
+      } else {
+        setLoading(false);
+        setError('Order not found. Please sign in to view your orders.');
+      }
+    } else {
       setLoading(false);
     }
   }, [id, isAuthenticated, location.state, fetchOrderDetails]);
@@ -136,7 +212,14 @@ const OrderDetails = () => {
       const response = await apiWrapper.cancelOrder(id);
       if (response?.success) {
         toast.success('Order cancelled successfully', { id: loadingToast });
-        await fetchOrderDetails(true);
+        // Update local order status
+        setOrder(prev => ({ ...prev, status: 'cancelled' }));
+        // Update localStorage
+        const localOrders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+        const updatedOrders = localOrders.map(o => 
+          (o._id === id || o.orderNumber === id) ? { ...o, status: 'cancelled' } : o
+        );
+        localStorage.setItem('furniqo_orders', JSON.stringify(updatedOrders));
       } else {
         throw new Error(response?.message || 'Cancellation failed');
       }
@@ -159,7 +242,7 @@ const OrderDetails = () => {
     return statusIndex !== -1 ? statusIndex : 0;
   };
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !order && !loading) {
     return (
       <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center px-4 py-16">
         <div className="text-center max-w-md">
@@ -221,8 +304,14 @@ const OrderDetails = () => {
 
   const StatusIcon = statusIcons[order.status] || FiClock;
   const currentStep = getCurrentStepIndex();
-  const orderItems = Array.isArray(order.items) ? order.items : (order.items ? JSON.parse(order.items) : []);
-  const shippingAddress = order.shippingAddress || order.shipping || {};
+  const orderItems = order.items || [];
+  const shippingAddress = order.shippingAddress || {};
+  const shippingCost = order.shippingCost || 0;
+  const subtotal = order.subtotal || 0;
+  const discount = order.discount || 0;
+  const tax = order.tax || 0;
+  const total = order.total || 0;
+  const giftWrapCost = order.giftWrapCost || (order.giftWrap ? 5.99 : 0);
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
@@ -267,7 +356,7 @@ const OrderDetails = () => {
                 <div>
                   <p className="text-primary-100 text-sm">Order Number</p>
                   <p className="text-xl sm:text-2xl font-bold font-mono text-white tracking-wider">
-                    {order.orderNumber || order._id}
+                    {order.orderNumber || order._id?.slice(-8).toUpperCase()}
                   </p>
                 </div>
                 <div className="flex gap-6 flex-wrap">
@@ -281,7 +370,7 @@ const OrderDetails = () => {
                   <div>
                     <p className="text-primary-100 text-sm">Total Amount</p>
                     <p className="text-white font-bold text-2xl">
-                      {formatPrice(order.total || 0)}
+                      {formatPrice(total)}
                     </p>
                   </div>
                 </div>
@@ -297,12 +386,12 @@ const OrderDetails = () => {
                   <div>
                     <p className="text-sm text-neutral-500">Current Status</p>
                     <Badge variant={statusColors[order.status] || 'warning'} size="lg">
-                      {order.status?.toUpperCase()}
+                      {order.status?.toUpperCase() || 'PENDING'}
                     </Badge>
                   </div>
                 </div>
                 
-                {order.status === 'pending' && (
+                {(order.status === 'pending' || order.status === 'confirmed') && (
                   <button
                     onClick={handleCancelOrder}
                     disabled={cancelling}
@@ -370,9 +459,10 @@ const OrderDetails = () => {
             <div className="p-5 sm:p-6">
               <div className="space-y-4">
                 {orderItems.map((item, index) => {
-                  const itemPrice = item.variant?.price || item.product?.price || item.price || 0;
-                  const itemName = item.product?.name || item.name || 'Product';
-                  const itemImage = item.product?.images?.[0] || item.image || 'https://placehold.co/400x400/eee/999?text=No+Image';
+                  const itemPrice = item.variant?.price || item.price || 0;
+                  const itemName = item.name || item.product?.name || 'Product';
+                  const itemImage = getProductImage(item);
+                  const itemQuantity = item.quantity || 1;
                   
                   return (
                     <motion.div
@@ -389,13 +479,10 @@ const OrderDetails = () => {
                         onError={(e) => { e.target.src = 'https://placehold.co/400x400/eee/999?text=No+Image'; }}
                       />
                       <div className="flex-grow min-w-0">
-                        <Link 
-                          to={`/products/${item.product?.slug || item.product?._id || '#'}`}
-                          className="font-semibold text-sm sm:text-base text-neutral-900 dark:text-white hover:text-primary-600 transition-colors"
-                        >
+                        <p className="font-semibold text-sm sm:text-base text-neutral-900 dark:text-white truncate">
                           {itemName}
-                        </Link>
-                        <p className="text-xs text-neutral-500 mt-1">Qty: {item.quantity}</p>
+                        </p>
+                        <p className="text-xs text-neutral-500 mt-1">Qty: {itemQuantity}</p>
                         {item.variant && (
                           <p className="text-xs text-neutral-400 mt-1">
                             {item.variant.color && `Color: ${item.variant.color}`}
@@ -403,14 +490,17 @@ const OrderDetails = () => {
                             {item.variant.size && ` • Size: ${item.variant.size}`}
                           </p>
                         )}
-                        <button className="text-xs text-primary-600 hover:text-primary-700 mt-2 flex items-center gap-1">
+                        <button 
+                          onClick={() => toast.info('Review feature coming soon!')}
+                          className="text-xs text-primary-600 hover:text-primary-700 mt-1 flex items-center gap-1"
+                        >
                           <FiStar className="h-3 w-3" />
                           Write a Review
                         </button>
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-primary-600 text-sm sm:text-base">
-                          {formatPrice(itemPrice * item.quantity)}
+                          {formatPrice(itemPrice * itemQuantity)}
                         </p>
                         <p className="text-xs text-neutral-500 mt-1">
                           {formatPrice(itemPrice)} each
@@ -442,27 +532,33 @@ const OrderDetails = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-neutral-500">Subtotal</span>
-                    <span className="font-medium">{formatPrice(order.subtotal || 0)}</span>
+                    <span className="font-medium">{formatPrice(subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-neutral-500">Shipping</span>
                     <span className="font-medium">
-                      {order.shippingCost === 0 ? 'FREE' : formatPrice(order.shippingCost || 0)}
+                      {shippingCost === 0 ? 'FREE' : formatPrice(shippingCost)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-neutral-500">Tax</span>
-                    <span className="font-medium">{formatPrice(order.tax || 0)}</span>
+                    <span className="font-medium">{formatPrice(tax)}</span>
                   </div>
-                  {order.discount > 0 && (
+                  {discount > 0 && (
                     <div className="flex justify-between text-sm text-green-600">
                       <span>Discount</span>
-                      <span>-{formatPrice(order.discount)}</span>
+                      <span>-{formatPrice(discount)}</span>
+                    </div>
+                  )}
+                  {giftWrapCost > 0 && (
+                    <div className="flex justify-between text-sm text-rose-500">
+                      <span>Gift Wrap</span>
+                      <span>{formatPrice(giftWrapCost)}</span>
                     </div>
                   )}
                   <div className="flex justify-between items-center pt-3 border-t border-neutral-200 dark:border-neutral-700">
                     <span className="text-lg font-bold text-neutral-900 dark:text-white">Total</span>
-                    <span className="text-2xl font-bold text-primary-600">{formatPrice(order.total || 0)}</span>
+                    <span className="text-2xl font-bold text-primary-600">{formatPrice(total)}</span>
                   </div>
                 </div>
               </div>
@@ -482,14 +578,14 @@ const OrderDetails = () => {
                 </h3>
               </div>
               <div className="p-5 sm:p-6">
-                {shippingAddress ? (
+                {shippingAddress && Object.keys(shippingAddress).length > 0 ? (
                   <div>
                     <p className="font-medium text-neutral-900 dark:text-white">
-                      {shippingAddress.firstName} {shippingAddress.lastName}
+                      {shippingAddress.firstName || ''} {shippingAddress.lastName || ''}
                     </p>
                     <p className="text-sm text-neutral-500 mt-2 leading-relaxed">
-                      {shippingAddress.address}<br />
-                      {shippingAddress.city}, {shippingAddress.state} {shippingAddress.zipCode}<br />
+                      {shippingAddress.address && `${shippingAddress.address}<br />`}
+                      {shippingAddress.city && `${shippingAddress.city}, `}{shippingAddress.state && `${shippingAddress.state} `}{shippingAddress.zipCode && shippingAddress.zipCode}<br />
                       {shippingAddress.country || 'United States'}
                     </p>
                     <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
@@ -530,8 +626,8 @@ const OrderDetails = () => {
               <Link to="/contact">
                 <Button variant="primary" size="sm">Contact Support</Button>
               </Link>
-              <Link to="/track-order">
-                <Button variant="outline" size="sm">Track Another Order</Button>
+              <Link to="/">
+                <Button variant="outline" size="sm">Back to Home</Button>
               </Link>
             </div>
           </motion.div>

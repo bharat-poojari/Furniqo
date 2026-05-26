@@ -1,14 +1,19 @@
-[phases.setup]
-nixPkgs = ["nodejs_24", "npm-9_x"]
+# nixpacks.toml
+name = "furniqo-backend"
 
-# Install only production dependencies – no devDependencies
+[phases.setup]
+nixPkgs = ["nodejs_20", "npm_9"]
+
 [phases.install]
 cmds = ["npm ci --omit=dev"]
 
-# Skip the default build command (which would re-run npm ci)
 [phases.build]
-cmds = ["echo 'Build skipped – production dependencies already installed'"]
+cmds = ["echo 'Build completed'"]
 
-# Start command (Railway will automatically use npm run start)
-[phases.start]
-cmds = ["npm run start"]
+[start]
+cmd = "npm run start"
+
+[deploy]
+healthcheck = "/api/health"
+healthcheck_timeout = 100
+healthcheck_interval = 15

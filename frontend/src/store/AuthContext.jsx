@@ -1,3 +1,4 @@
+// src/store/AuthContext.jsx
 import { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import apiWrapper from '../services/apiWrapper';
 import toast from 'react-hot-toast';
@@ -23,13 +24,15 @@ export const AuthProvider = ({ children }) => {
 
       if (savedToken && savedUser) {
         setToken(savedToken);
+        // IMPORTANT: Set token in apiWrapper immediately
         apiWrapper.setAuthToken(savedToken);
+        
         try {
           const parsedUser = JSON.parse(savedUser);
           setUser(parsedUser);
           setIsAuthenticated(true);
           
-          // Try to refresh token if needed
+          // Try to refresh token if needed (optional, can be skipped for simplicity)
           if (savedRefreshToken) {
             try {
               const response = await apiWrapper.refreshToken(savedRefreshToken);
@@ -38,15 +41,19 @@ export const AuthProvider = ({ children }) => {
                 setToken(newToken);
                 localStorage.setItem('furniqo_token', newToken);
                 apiWrapper.setAuthToken(newToken);
+                console.log('Token refreshed successfully');
               }
             } catch (refreshError) {
-              console.debug('Token refresh skipped');
+              console.debug('Token refresh skipped or failed:', refreshError);
+              // Don't logout on refresh failure, token might still be valid
             }
           }
         } catch (e) {
+          console.error('Error parsing user data:', e);
           localStorage.removeItem('furniqo_user');
           localStorage.removeItem('furniqo_token');
           localStorage.removeItem('furniqo_refresh_token');
+          apiWrapper.setAuthToken(null);
         }
       }
     } catch (error) {
@@ -58,6 +65,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = useCallback(async (email, password, rememberMe = false) => {
+    setLoading(true);
     try {
       const response = await apiWrapper.login({ email, password });
 
@@ -68,6 +76,7 @@ export const AuthProvider = ({ children }) => {
         setToken(accessToken);
         setIsAuthenticated(true);
         
+        // IMPORTANT: Set token in apiWrapper
         apiWrapper.setAuthToken(accessToken);
         localStorage.setItem('furniqo_token', accessToken);
         localStorage.setItem('furniqo_refresh_token', refreshToken);
@@ -78,6 +87,7 @@ export const AuthProvider = ({ children }) => {
         } else {
           localStorage.removeItem('furniqo_remembered_email');
         }
+        
         toast.success(`Welcome back, ${userData.name || userData.email}!`);
 
         // Sync guest cart and wishlist to backend so data persists to DB
@@ -106,18 +116,23 @@ export const AuthProvider = ({ children }) => {
         } catch (syncErr) {
           console.warn('Guest sync to backend failed:', syncErr);
         }
+        
+        setLoading(false);
         return { success: true, data: response.data };
       }
 
+      setLoading(false);
       return { success: false, error: response?.message || 'Login failed' };
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Login failed';
       toast.error(message);
+      setLoading(false);
       return { success: false, error: message };
     }
   }, []);
 
   const signup = useCallback(async (userData) => {
+    setLoading(true);
     try {
       const response = await apiWrapper.register(userData);
 
@@ -128,12 +143,14 @@ export const AuthProvider = ({ children }) => {
         setToken(accessToken);
         setIsAuthenticated(true);
         
+        // IMPORTANT: Set token in apiWrapper
         apiWrapper.setAuthToken(accessToken);
         localStorage.setItem('furniqo_token', accessToken);
         localStorage.setItem('furniqo_refresh_token', refreshToken);
         localStorage.setItem('furniqo_user', JSON.stringify(newUser));
         
         toast.success('Account created successfully!');
+        
         // After signup, sync any guest data to the new account
         try {
           const guestCart = JSON.parse(localStorage.getItem('furniqo_cart') || '[]');
@@ -160,13 +177,17 @@ export const AuthProvider = ({ children }) => {
         } catch (syncErr) {
           console.warn('Guest sync to backend failed after signup:', syncErr);
         }
+        
+        setLoading(false);
         return { success: true, data: response.data };
       }
 
+      setLoading(false);
       return { success: false, error: response?.message || 'Signup failed' };
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Signup failed';
       toast.error(message);
+      setLoading(false);
       return { success: false, error: message };
     }
   }, []);
@@ -209,6 +230,7 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setToken(null);
       setIsAuthenticated(false);
+      // IMPORTANT: Clear token from apiWrapper
       apiWrapper.setAuthToken(null);
       localStorage.removeItem('furniqo_token');
       localStorage.removeItem('furniqo_refresh_token');

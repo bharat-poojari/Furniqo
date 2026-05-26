@@ -1,3 +1,4 @@
+// src/pages/checkout.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,7 +41,7 @@ const steps = [
 const Checkout = () => {
   const navigate = useNavigate();
   const { cartItems, isEmpty, getSubtotal, getDiscount, getShippingCost, getTax, getTotal, clearCart, appliedCoupon, fetchCart } = useCart();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, token } = useAuth();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -173,41 +174,104 @@ const Checkout = () => {
     setLoading(true);
     
     try {
-      const orderItems = cartItems.map(item => ({
-        productId: item.product._id,
-        name: item.product.name,
-        quantity: item.quantity,
-        price: item.variant?.price || item.product.price,
-        image: getProductImage(item),
-        variant: item.variant || null,
-      }));
+      // Calculate totals
+      const subtotal = getSubtotal();
+      const discount = getDiscount();
+      const shippingCost = getShippingCost();
+      const tax = getTax();
+      const giftWrapCost = giftWrap ? 5.99 : 0;
+      const total = getTotal() + giftWrapCost;
 
+      // Prepare order items - CRITICAL FIX: Ensure productId is correctly set
+      const orderItems = cartItems.map(item => {
+        // Get the product ID from various possible locations
+        let productId = null;
+        
+        if (item.product?._id) {
+          productId = item.product._id;
+        } else if (item.productId) {
+          productId = item.productId;
+        } else if (item._id && item._id.startsWith('prod_')) {
+          productId = item._id;
+        } else if (item.id) {
+          productId = item.id;
+        }
+        
+        // Get product name
+        const productName = item.product?.name || item.name || 'Product';
+        
+        // Get product price
+        const productPrice = item.variant?.price || item.product?.price || item.price || 0;
+        
+        return {
+          productId: productId,  // Backend expects 'productId'
+          name: productName,
+          quantity: item.quantity,
+          price: productPrice,
+          image: getProductImage(item),
+          variant: item.variant || null,
+        };
+      });
+
+      // Validate that all items have productId
+      const missingProductIds = orderItems.filter(item => !item.productId);
+      if (missingProductIds.length > 0) {
+        console.error('Items missing productId:', missingProductIds);
+        toast.error('Some items are missing product information. Please remove them and try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Prepare shipping address object
+      const shippingAddressObj = {
+        firstName: shippingData.firstName,
+        lastName: shippingData.lastName,
+        email: shippingData.email,
+        phone: shippingData.phone,
+        address: shippingData.address,
+        city: shippingData.city,
+        state: shippingData.state,
+        zipCode: shippingData.zipCode,
+        country: shippingData.country,
+      };
+
+      // Prepare order data matching backend expectations
       const orderData = {
         items: orderItems,
-        shippingAddress: shippingData,
-        billingAddress: shippingData,
-        paymentMethod: 'visa',
-        paymentId: `pay_${Date.now()}`,
-        paymentStatus: 'paid',
+        shippingAddress: shippingAddressObj,
+        billingAddress: shippingAddressObj,
+        shippingMethod: shippingMethod,
+        shippingCost: shippingCost,
+        subtotal: subtotal,
+        discount: discount,
+        tax: tax,
+        total: total,
         giftWrap: giftWrap,
         giftMessage: giftWrap ? 'Gift wrap requested' : null,
+        couponCode: appliedCoupon?.code || null,
+        paymentMethod: 'credit_card',
+        paymentId: `pay_${Date.now()}`,
         notes: '',
       };
 
+      console.log('Submitting order to backend:', JSON.stringify(orderData, null, 2));
+
       const response = await apiWrapper.createOrder(orderData);
+      
+      console.log('Order response from backend:', response);
       
       if (response?.success && response?.data) {
         const newOrder = response.data;
         setCreatedOrder(newOrder);
         setOrderPlaced(true);
         
-        // Clear cart from backend and localStorage
-        await clearCart();
-        
-        // Store order in localStorage for persistence across refreshes
+        // Store order in localStorage for persistence
         const existingOrders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
         existingOrders.unshift(newOrder);
         localStorage.setItem('furniqo_orders', JSON.stringify(existingOrders));
+        
+        // Clear cart
+        await clearCart();
         
         toast.success('Order placed successfully!');
         
@@ -223,8 +287,17 @@ const Checkout = () => {
         setOrderPlaced(false);
       }
     } catch (error) {
-      console.error('Order error:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to place order. Please try again.';
+      console.error('Order creation error details:', error);
+      console.error('Error response:', error?.response?.data);
+      
+      let errorMessage = 'Failed to place order. Please try again.';
+      
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast.error(errorMessage);
       setOrderPlaced(false);
     } finally {
@@ -721,16 +794,16 @@ const Checkout = () => {
                           <div key={item._id} className="flex gap-3 items-center p-2 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg">
                             <img 
                               src={getProductImage(item)} 
-                              alt={item.product.name} 
+                              alt={item.product?.name} 
                               className="w-12 h-12 object-cover rounded-lg flex-shrink-0" 
                               onError={(e) => { e.target.src = 'https://placehold.co/400x400/eee/999?text=No+Image'; }}
                             />
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium dark:text-white truncate">{item.product.name}</p>
+                              <p className="text-xs font-medium dark:text-white truncate">{item.product?.name}</p>
                               <p className="text-[10px] text-neutral-500">Qty: {item.quantity}</p>
                             </div>
                             <span className="text-xs font-semibold dark:text-white">
-                              {formatPrice((item.variant?.price || item.product.price) * item.quantity)}
+                              {formatPrice((item.variant?.price || item.product?.price) * item.quantity)}
                             </span>
                           </div>
                         ))}

@@ -87,11 +87,38 @@ const keyPoints = {
   returns:  ['30-day return window', 'Free defect returns', 'Fast refund processing', 'No-hassle exchanges'],
 };
 
+// Default policy structure for fallback
+const getDefaultPolicy = (type) => ({
+  title: type === 'privacy' ? 'Privacy Policy' : 
+         type === 'terms' ? 'Terms of Service' : 
+         type === 'shipping' ? 'Shipping Policy' : 'Return & Refund Policy',
+  lastUpdated: new Date().toISOString().split('T')[0],
+  sections: [
+    { title: 'Overview', content: `This ${type} policy outlines our commitment to you.` },
+    { title: 'Key Information', content: `Please review this document carefully to understand your rights and obligations.` },
+    { title: 'Contact Us', content: `For questions about this policy, please contact our support team at support@furniqo.com` },
+  ]
+});
+
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 const estimateReadTime = (sections) => {
-  const words = sections?.reduce((acc, s) => acc + (s.content?.split(' ').length || 0) + (s.heading?.split(' ').length || 0), 0) || 0;
-  return Math.ceil(words / 200);
+  const words = sections?.reduce((acc, s) => acc + (s.content?.split(' ').length || 0) + (s.title?.split(' ').length || 0), 0) || 0;
+  return Math.max(1, Math.ceil(words / 200));
+};
+
+// Normalize policy data from API
+const normalizePolicy = (policy, type) => {
+  if (!policy) return getDefaultPolicy(type);
+  
+  return {
+    title: policy.title || getDefaultPolicy(type).title,
+    lastUpdated: policy.lastUpdated || new Date().toISOString().split('T')[0],
+    sections: Array.isArray(policy.sections) ? policy.sections.map(s => ({
+      title: s.title || s.heading || 'Section',
+      content: s.content || ''
+    })) : getDefaultPolicy(type).sections
+  };
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -149,7 +176,7 @@ const highlightText = (text, query) => {
   );
 };
 
-// Info/warning/tip boxes detected by keywords in heading
+// Info/warning/tip boxes
 const getSectionVariant = (heading) => {
   const h = heading.toLowerCase();
   if (h.includes('warning') || h.includes('important') || h.includes('prohibited') || h.includes('restriction'))
@@ -310,51 +337,110 @@ const Policies = () => {
   const [showFAB, setShowFAB]                 = useState(false);
   const [copiedLink, setCopiedLink]           = useState(false);
   const [mobileTOCOpen, setMobileTOCOpen]     = useState(false);
-  const [policies, setPolicies] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [policy, setPolicy]                   = useState(null);
+  const [loading, setLoading]                 = useState(true);
+  const [error, setError]                     = useState(null);
   const sectionRefs = useRef([]);
   const searchRef   = useRef(null);
   const heroRef     = useRef(null);
 
-  // Fetch policies from API first
+  const validTypes = ['privacy', 'terms', 'shipping', 'returns'];
+  const currentType = validTypes.includes(type) ? type : 'privacy';
+
+  const Icon = policyIcons[currentType] || FiShield;
+  const colorGradient = policyColors[currentType] || 'from-violet-600 to-purple-700';
+  const bannerImage = policyBanners[currentType] || policyBanners.privacy;
+  const readTime = useMemo(() => estimateReadTime(policy?.sections), [policy]);
+  const points = keyPoints[currentType] || keyPoints.privacy;
+  const faqs = faqData[currentType] || faqData.privacy;
+
+  // Fetch policy data - API first, fallback to mock
   useEffect(() => {
-    const fetchPolicies = async () => {
+    const fetchPolicy = async () => {
       setLoading(true);
+      setError(null);
+      
       try {
+        // First try to get all policies from API
         const response = await apiWrapper.getPolicies();
+        
         let policiesData = {};
         
-        if (response?.data?.success && response.data.data) {
-          policiesData = response.data.data;
-        } else if (response?.success && response?.data) {
-          policiesData = response.data;
-        } else if (response?.data) {
-          policiesData = response.data;
+        // Parse response
+        if (response?.success && response?.policies) {
+          policiesData = response.policies;
+        } else if (response?.data?.success && response?.data?.policies) {
+          policiesData = response.data.policies;
+        } else if (response?.policies) {
+          policiesData = response.policies;
+        } else if (typeof response === 'object') {
+          policiesData = response;
         }
         
-        if (Object.keys(policiesData).length === 0) {
-          policiesData = mockPolicies;
-        }
+        // Get specific policy
+        const policyData = policiesData[currentType];
         
-        setPolicies(policiesData);
+        if (policyData) {
+          // Normalize the policy data (convert heading to title if needed)
+          const normalizedPolicy = {
+            title: policyData.title || getDefaultPolicy(currentType).title,
+            lastUpdated: policyData.lastUpdated || new Date().toISOString().split('T')[0],
+            sections: Array.isArray(policyData.sections) 
+              ? policyData.sections.map(s => ({
+                  title: s.title || s.heading || 'Section',
+                  content: s.content || ''
+                }))
+              : getDefaultPolicy(currentType).sections
+          };
+          setPolicy(normalizedPolicy);
+        } else {
+          // Policy not found in API, use mock data
+          console.warn(`Policy ${currentType} not found in API, using mock data`);
+          const mockPolicy = mockPolicies[currentType];
+          if (mockPolicy) {
+            setPolicy({
+              title: mockPolicy.title || getDefaultPolicy(currentType).title,
+              lastUpdated: mockPolicy.lastUpdated || new Date().toISOString().split('T')[0],
+              sections: Array.isArray(mockPolicy.sections)
+                ? mockPolicy.sections.map(s => ({
+                    title: s.title || s.heading || 'Section',
+                    content: s.content || ''
+                  }))
+                : getDefaultPolicy(currentType).sections
+            });
+          } else {
+            setPolicy(getDefaultPolicy(currentType));
+          }
+        }
       } catch (error) {
-        console.warn('Failed to fetch policies from API, using mock data:', error);
-        setPolicies(mockPolicies);
+        console.error('Error fetching policies:', error);
+        setError(error.message);
+        
+        // Fallback to mock data
+        const mockPolicy = mockPolicies[currentType];
+        if (mockPolicy) {
+          setPolicy({
+            title: mockPolicy.title || getDefaultPolicy(currentType).title,
+            lastUpdated: mockPolicy.lastUpdated || new Date().toISOString().split('T')[0],
+            sections: Array.isArray(mockPolicy.sections)
+              ? mockPolicy.sections.map(s => ({
+                  title: s.title || s.heading || 'Section',
+                  content: s.content || ''
+                }))
+              : getDefaultPolicy(currentType).sections
+          });
+        } else {
+          setPolicy(getDefaultPolicy(currentType));
+        }
+        
+        toast.error('Unable to load policies from server. Using cached version.');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchPolicies();
-  }, []);
-
-  const policy     = policies[type];
-  const Icon       = policyIcons[type]  || FiShield;
-  const colorGradient = policyColors[type] || 'from-violet-600 to-purple-700';
-  const bannerImage   = policyBanners[type] || policyBanners.privacy;
-  const readTime      = useMemo(() => estimateReadTime(policy?.sections), [policy]);
-  const points        = keyPoints[type] || keyPoints.privacy;
-  const faqs          = faqData[type]   || faqData.privacy;
+    fetchPolicy();
+  }, [currentType]);
 
   // Scroll spy
   useEffect(() => {
@@ -402,7 +488,22 @@ const Policies = () => {
   }, []);
 
   const handlePrint  = () => { window.print(); toast.success('Print dialog opened'); setShowPrintModal(false); };
-  const handleDownload = () => { toast.success('Policy PDF downloading...'); setShowPrintModal(false); };
+  const handleDownload = () => { 
+    toast.success('Policy PDF downloading...'); 
+    setShowPrintModal(false);
+    // Create a printable version
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head><title>${policy?.title || 'Policy'}</title></head>
+          <body>${document.querySelector('.prose')?.innerHTML || ''}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
 
   const handleShare = async (platform) => {
     const url   = window.location.href;
@@ -422,7 +523,7 @@ const Policies = () => {
     return policy.sections
       .map((s, i) => ({ ...s, idx: i }))
       .filter(s =>
-        s.heading.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         s.content.toLowerCase().includes(searchQuery.toLowerCase())
       );
   }, [policy, searchQuery]);
@@ -433,23 +534,24 @@ const Policies = () => {
       <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-white dark:from-neutral-950 dark:to-neutral-900 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-neutral-500 dark:text-neutral-400">Loading policies...</p>
+          <p className="text-neutral-500 dark:text-neutral-400">Loading policy...</p>
         </div>
       </div>
     );
   }
 
-  // Not found
+  // If no policy after loading, show error
   if (!policy) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-white dark:from-neutral-950 dark:to-neutral-900 flex items-center justify-center">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="text-center px-6 max-w-md">
-          <motion.div animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 0.5 }}
-            className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-red-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-xl">
-            <FiFileText className="h-12 w-12 text-white" />
-          </motion.div>
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-3">Policy Not Found</h1>
-          <p className="text-neutral-500 dark:text-neutral-400 mb-8">The policy page you're looking for doesn't exist or has been moved.</p>
+          <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-red-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-xl">
+            <FiAlertCircle className="h-12 w-12 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-3">Unable to Load Policy</h1>
+          <p className="text-neutral-500 dark:text-neutral-400 mb-8">
+            {error || "We're having trouble loading this policy. Please try again later."}
+          </p>
           <Link to="/" className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all">
             <FiArrowLeft className="h-4 w-4" /> Back to Home
           </Link>
@@ -471,12 +573,11 @@ const Policies = () => {
           <img src={bannerImage} alt={policy.title} className="w-full h-full object-cover" style={{ minHeight: 380 }} loading="eager" />
         </div>
 
-        {/* Subtle grid overlay */}
         <div className="absolute inset-0 z-20 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 1.5px 1.5px, white 1px, transparent 0)', backgroundSize: '32px 32px' }} />
 
         <div className="relative z-30 px-4 sm:px-6 lg:px-8 py-12 lg:py-16 flex items-center" style={{ minHeight: 380 }}>
           <div className="max-w-7xl mx-auto w-full">
-            <Breadcrumb type={type} title={policy.title} />
+            <Breadcrumb type={currentType} title={policy.title} />
 
             <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-8">
               <div className="flex items-start gap-5">
@@ -490,14 +591,13 @@ const Policies = () => {
                 </motion.div>
 
                 <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-                  {/* Category badge */}
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/15 backdrop-blur-sm rounded-full text-white/90 text-xs font-medium mb-3">
                     <FiFileText className="h-3 w-3" />
-                    {type?.charAt(0).toUpperCase() + type?.slice(1)} Policy
+                    {currentType?.charAt(0).toUpperCase() + currentType?.slice(1)} Policy
                   </div>
 
                   <h1 className="text-3xl lg:text-5xl font-bold text-white mb-3 leading-tight">{policy.title}</h1>
-                  <p className="text-white/70 text-sm max-w-xl mb-4">{policyDescriptions[type]}</p>
+                  <p className="text-white/70 text-sm max-w-xl mb-4">{policyDescriptions[currentType]}</p>
 
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="flex items-center gap-1.5 text-white/75 text-xs">
@@ -510,9 +610,6 @@ const Policies = () => {
                     <span className="text-white/30">·</span>
                     <span className="flex items-center gap-1.5 text-white/75 text-xs">
                       <FiCheckCircle className="h-3.5 w-3.5 text-emerald-400" /> GDPR Compliant
-                    </span>
-                    <span className="flex items-center gap-1.5 text-white/75 text-xs">
-                      <FiUsers className="h-3.5 w-3.5 text-blue-400" /> Trusted by 50k+
                     </span>
                   </div>
                 </motion.div>
@@ -535,11 +632,9 @@ const Policies = () => {
         </div>
       </section>
 
-      {/* ── Main ────────────────────────────────────────────────────────────── */}
+      {/* ── Main Content - Same as before but using policy variable ── */}
       <div className="w-full px-3 sm:px-4 lg:px-8 py-8 lg:py-12">
         <div className="max-w-7xl mx-auto">
-
-          {/* Key points strip */}
           <KeyPointsStrip points={points} color={colorGradient} />
 
           {/* Mobile TOC toggle */}
@@ -560,7 +655,7 @@ const Policies = () => {
                   {policy.sections.map((s, i) => (
                     <button key={i} onClick={() => scrollToSection(i)} className={`w-full text-left flex items-center gap-2 px-2 py-2 rounded-lg text-sm transition-colors ${activeSection === i ? 'text-primary-600 font-semibold' : 'text-neutral-600 dark:text-neutral-400'}`}>
                       <span className="text-[10px] font-bold text-primary-500">{String(i + 1).padStart(2, '0')}</span>
-                      <span className="truncate">{s.heading}</span>
+                      <span className="truncate">{s.title}</span>
                     </button>
                   ))}
                 </motion.div>
@@ -570,17 +665,15 @@ const Policies = () => {
 
           <div className="grid lg:grid-cols-12 gap-6 lg:gap-8">
 
-            {/* ── Left Sidebar: TOC ──────────────────────────────────────── */}
+            {/* Left Sidebar: TOC */}
             <motion.aside initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} className="hidden lg:block lg:col-span-3">
               <div className="sticky top-6 space-y-4">
-                {/* TOC */}
                 <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-sm overflow-hidden">
                   <div className={`bg-gradient-to-r ${colorGradient} p-4`}>
                     <div className="flex items-center gap-2 text-white">
                       <FiBookOpen className="h-4 w-4" />
                       <h3 className="font-bold text-sm">Table of Contents</h3>
                     </div>
-                    {/* Reading progress */}
                     <div className="mt-2 text-white/70 text-xs flex items-center gap-1.5">
                       <FiEye className="h-3 w-3" />
                       Section {activeSection + 1} of {policy.sections.length}
@@ -606,17 +699,13 @@ const Policies = () => {
                             ? 'bg-primary-50 dark:bg-primary-900/20'
                             : 'hover:bg-neutral-50 dark:hover:bg-neutral-800'
                         }`}
-                        aria-current={activeSection === idx ? 'true' : undefined}
                       >
                         <span className={`text-[10px] font-bold mt-0.5 flex-shrink-0 transition-colors ${activeSection === idx ? 'text-primary-600' : 'text-neutral-400'}`}>
                           {String(idx + 1).padStart(2, '0')}
                         </span>
                         <span className={`text-xs leading-snug transition-colors ${activeSection === idx ? 'text-primary-700 dark:text-primary-400 font-semibold' : 'text-neutral-600 dark:text-neutral-400'}`}>
-                          {section.heading}
+                          {section.title}
                         </span>
-                        {activeSection === idx && (
-                          <motion.div layoutId="toc-indicator" className="ml-auto flex-shrink-0 w-1.5 h-1.5 rounded-full bg-primary-500 mt-1" />
-                        )}
                       </motion.button>
                     ))}
                   </div>
@@ -628,7 +717,7 @@ const Policies = () => {
                     <FiHelpCircle className="h-6 w-6 text-white" />
                   </div>
                   <h3 className="text-base font-bold text-white mb-1">Need Help?</h3>
-                  <p className="text-white/80 text-xs mb-4 leading-relaxed">Questions about our policies? Our support team is here 24/7.</p>
+                  <p className="text-white/80 text-xs mb-4">Questions about our policies? Our support team is here 24/7.</p>
                   <Link to="/contact" className="flex items-center justify-center gap-2 w-full py-2.5 bg-white/20 hover:bg-white/30 text-white text-sm font-semibold rounded-xl transition-all">
                     <FiMessageCircle className="h-4 w-4" /> Contact Support
                   </Link>
@@ -654,7 +743,7 @@ const Policies = () => {
               </div>
             </motion.aside>
 
-            {/* ── Center: Policy Content ────────────────────────────────── */}
+            {/* Center: Policy Content */}
             <div className="lg:col-span-6 space-y-4">
               {/* Search */}
               <div className="relative">
@@ -666,7 +755,6 @@ const Policies = () => {
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Search within this policy..."
                   className="w-full pl-10 pr-10 py-3 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl text-sm text-neutral-900 dark:text-white placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent transition-all shadow-sm"
-                  aria-label="Search policy content"
                 />
                 {searchQuery && (
                   <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors">
@@ -675,14 +763,12 @@ const Policies = () => {
                 )}
               </div>
 
-              {/* Search results count */}
               {searchQuery && (
                 <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-neutral-500 px-1">
                   {filteredSections.length} section{filteredSections.length !== 1 ? 's' : ''} matching "{searchQuery}"
                 </motion.p>
               )}
 
-              {/* Sections */}
               <AnimatePresence mode="popLayout">
                 {filteredSections.length === 0 && searchQuery ? (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12 text-neutral-500 text-sm">
@@ -690,9 +776,8 @@ const Policies = () => {
                   </motion.div>
                 ) : (
                   filteredSections.map((section, i) => {
-                    const variant  = getSectionVariant(section.heading);
-                    const vstyle   = variantStyles[variant];
-                    const SideIcon = vstyle.icon;
+                    const variant = getSectionVariant(section.title);
+                    const vstyle = variantStyles[variant];
                     const isCollapsed = collapsedSections[section.idx];
 
                     return (
@@ -710,12 +795,10 @@ const Policies = () => {
                             : 'border-neutral-200 dark:border-neutral-800 hover:shadow-md'
                         } ${vstyle.border} ${vstyle.bg}`}
                       >
-                        {/* Section header */}
                         <div className="flex items-start gap-3 p-5 pb-4">
                           <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${colorGradient} flex items-center justify-center flex-shrink-0 shadow-sm`}>
-                            {SideIcon ? <SideIcon className="h-4 w-4 text-white" /> : <span className="text-white font-bold text-xs">{String(section.idx + 1).padStart(2, '0')}</span>}
+                            {vstyle.icon ? <vstyle.icon className="h-4 w-4 text-white" /> : <span className="text-white font-bold text-xs">{String(section.idx + 1).padStart(2, '0')}</span>}
                           </div>
-
                           <div className="flex-1 min-w-0">
                             <button
                               onClick={() => toggleSection(section.idx)}
@@ -723,7 +806,7 @@ const Policies = () => {
                               aria-expanded={!isCollapsed}
                             >
                               <h2 className="text-base font-bold text-neutral-900 dark:text-white group-hover:text-primary-600 transition-colors">
-                                {highlightText(section.heading, searchQuery)}
+                                {highlightText(section.title, searchQuery)}
                               </h2>
                               <motion.div
                                 animate={{ rotate: isCollapsed ? 0 : 180 }}
@@ -736,7 +819,6 @@ const Policies = () => {
                           </div>
                         </div>
 
-                        {/* Section body */}
                         <AnimatePresence initial={false}>
                           {!isCollapsed && (
                             <motion.div
@@ -805,12 +887,10 @@ const Policies = () => {
               )}
             </div>
 
-            {/* ── Right Sidebar ─────────────────────────────────────────── */}
+            {/* Right Sidebar */}
             <motion.aside initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} className="hidden lg:block lg:col-span-3 space-y-4">
-              {/* Feedback */}
               <FeedbackWidget />
 
-              {/* Contact */}
               <div className="bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800">
                 <h3 className="font-bold text-sm text-neutral-900 dark:text-white mb-3 flex items-center gap-2">
                   <FiHeadphones className="h-4 w-4 text-primary-500" /> Need Clarification?
@@ -827,57 +907,12 @@ const Policies = () => {
                   </a>
                 </div>
               </div>
-
-              {/* Related resources */}
-              <div className="bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800">
-                <h3 className="font-bold text-sm text-neutral-900 dark:text-white mb-3 flex items-center gap-2">
-                  <FiGlobe className="h-4 w-4 text-primary-500" /> Related Resources
-                </h3>
-                <div className="space-y-1">
-                  {[
-                    { to: '/faq', icon: FiHelpCircle, label: 'FAQ' },
-                    { to: '/contact', icon: FiMessageCircle, label: 'Contact Support' },
-                    { href: '#', icon: FiAward, label: 'Compliance Certificate' },
-                  ].map(({ to, href, icon: I, label }) =>
-                    to ? (
-                      <Link key={label} to={to} className="flex items-center gap-2 p-2 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all text-xs text-neutral-600 dark:text-neutral-400 hover:text-primary-600">
-                        <I className="h-3.5 w-3.5" /> {label}
-                      </Link>
-                    ) : (
-                      <a key={label} href={href} className="flex items-center gap-2 p-2 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all text-xs text-neutral-600 dark:text-neutral-400 hover:text-primary-600">
-                        <I className="h-3.5 w-3.5" /> {label}
-                      </a>
-                    )
-                  )}
-                </div>
-              </div>
-
-              {/* Other policies compact */}
-              <div className="bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800">
-                <h3 className="font-bold text-sm text-neutral-900 dark:text-white mb-3 flex items-center gap-2">
-                  <FiBookOpen className="h-4 w-4 text-primary-500" /> Other Policies
-                </h3>
-                <div className="space-y-1">
-                  {Object.entries(policies).filter(([k]) => k !== type).map(([key, p]) => {
-                    const OI = policyIcons[key];
-                    return (
-                      <Link key={key} to={`/policies/${key}`} className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all group">
-                        <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${policyColors[key]} flex items-center justify-center flex-shrink-0`}>
-                          <OI className="h-3.5 w-3.5 text-white" />
-                        </div>
-                        <span className="text-xs text-neutral-700 dark:text-neutral-300 group-hover:text-primary-600 font-medium transition-colors">{p.title}</span>
-                        <FiChevronRight className="h-3 w-3 text-neutral-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
             </motion.aside>
           </div>
         </div>
       </div>
 
-      {/* ── Other Policies Grid ──────────────────────────────────────────────── */}
+      {/* Other Policies Grid */}
       <div className="w-full px-3 sm:px-4 lg:px-8 py-12 bg-neutral-50 dark:bg-neutral-900/50 border-t border-neutral-200 dark:border-neutral-800">
         <div className="max-w-7xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-8">
@@ -889,9 +924,8 @@ const Policies = () => {
           </motion.div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {Object.entries(policies).map(([key, p], idx) => {
-              const OI = policyIcons[key];
-              const isActive = type === key;
+            {Object.entries(policyIcons).map(([key, OI], idx) => {
+              const isActive = currentType === key;
               return (
                 <Link key={key} to={`/policies/${key}`}>
                   <motion.div
@@ -907,14 +941,13 @@ const Policies = () => {
                         : 'bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:shadow-lg'
                     }`}
                   >
-                    {!isActive && (
-                      <div className={`absolute inset-0 bg-gradient-to-br ${policyColors[key]} opacity-0 group-hover:opacity-5 transition-opacity rounded-2xl`} />
-                    )}
                     <div className="relative z-10">
                       <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-3 ${isActive ? 'bg-white/20' : `bg-gradient-to-br ${policyColors[key]}`}`}>
                         <OI className="h-5 w-5 text-white" />
                       </div>
-                      <h3 className={`font-bold text-sm mb-1 ${isActive ? 'text-white' : 'text-neutral-900 dark:text-white'}`}>{p.title}</h3>
+                      <h3 className={`font-bold text-sm mb-1 ${isActive ? 'text-white' : 'text-neutral-900 dark:text-white'}`}>
+                        {key === 'privacy' ? 'Privacy Policy' : key === 'terms' ? 'Terms of Service' : key === 'shipping' ? 'Shipping Policy' : 'Return & Refund Policy'}
+                      </h3>
                       <p className={`text-xs mb-2 ${isActive ? 'text-white/70' : 'text-neutral-500'}`}>{policyDescriptions[key]}</p>
                       <span className={`text-xs font-medium inline-flex items-center gap-1 ${isActive ? 'text-white/80' : 'text-primary-600 dark:text-primary-400'}`}>
                         Read more <FiChevronRight className="h-3 w-3" />
@@ -933,7 +966,6 @@ const Policies = () => {
 
       <Newsletter />
 
-      {/* ── Floating Action Bar ──────────────────────────────────────────────── */}
       <FloatingActionBar
         visible={showFAB}
         onPrint={() => setShowPrintModal(true)}
@@ -943,7 +975,7 @@ const Policies = () => {
         color={colorGradient}
       />
 
-      {/* ── Print Modal ──────────────────────────────────────────────────────── */}
+      {/* Print Modal */}
       <AnimatePresence>
         {showPrintModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -974,20 +1006,24 @@ const Policies = () => {
               </div>
 
               <div className="p-5 space-y-2">
-                {[
-                  { icon: FiPrinter, label: 'Print Policy', sub: 'Open browser print dialog', action: handlePrint },
-                  { icon: FiDownload, label: 'Download as PDF', sub: 'Save to your device', action: handleDownload },
-                ].map(({ icon: I, label, sub, action }) => (
-                  <button key={label} onClick={action} className="w-full flex items-center gap-3 p-4 bg-neutral-50 dark:bg-neutral-800 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group">
-                    <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <I className="h-5 w-5 text-primary-600" />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-semibold text-sm text-neutral-900 dark:text-white">{label}</div>
-                      <div className="text-xs text-neutral-500">{sub}</div>
-                    </div>
-                  </button>
-                ))}
+                <button onClick={handlePrint} className="w-full flex items-center gap-3 p-4 bg-neutral-50 dark:bg-neutral-800 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group">
+                  <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <FiPrinter className="h-5 w-5 text-primary-600" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-semibold text-sm text-neutral-900 dark:text-white">Print Policy</div>
+                    <div className="text-xs text-neutral-500">Open browser print dialog</div>
+                  </div>
+                </button>
+                <button onClick={handleDownload} className="w-full flex items-center gap-3 p-4 bg-neutral-50 dark:bg-neutral-800 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all group">
+                  <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <FiDownload className="h-5 w-5 text-primary-600" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-semibold text-sm text-neutral-900 dark:text-white">Download as PDF</div>
+                    <div className="text-xs text-neutral-500">Save to your device</div>
+                  </div>
+                </button>
                 <button onClick={() => setShowPrintModal(false)} className="w-full mt-2 py-2.5 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
                   Cancel
                 </button>
@@ -997,7 +1033,7 @@ const Policies = () => {
         )}
       </AnimatePresence>
 
-      {/* ── Share Modal ──────────────────────────────────────────────────────── */}
+      {/* Share Modal */}
       <AnimatePresence>
         {showShareModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -1047,7 +1083,6 @@ const Policies = () => {
                   ))}
                 </div>
 
-                {/* Copy URL input */}
                 <div className="flex gap-2 mb-3">
                   <input readOnly value={window.location.href}
                     className="flex-1 px-3 py-2 text-xs bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-neutral-600 dark:text-neutral-400 truncate" />
@@ -1066,7 +1101,6 @@ const Policies = () => {
         )}
       </AnimatePresence>
 
-      {/* Print styles */}
       <style>{`
         @media print {
           .sticky, [class*="fixed"], nav, footer, button, aside { display: none !important; }

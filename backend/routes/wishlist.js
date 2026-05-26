@@ -176,7 +176,7 @@ router.post('/move-to-cart', protect, async (req, res, next) => {
       
       // Check if already in cart
       const existingCart = await db.get(
-        'SELECT id, quantity FROM cart_items WHERE user_id = ? AND product_id = ? AND variant IS NULL',
+        'SELECT id, quantity FROM cart_items WHERE user_id = ? AND product_id = ? AND variant_id IS NULL',
         [req.user._id, productId]
       );
       

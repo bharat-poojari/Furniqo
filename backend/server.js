@@ -1,20 +1,35 @@
-// server.js (updated with all routes)
+// server.js - Complete corrected version (relevant section only)
 
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
+const { v4: uuidv4 } = require('uuid');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
+const fs = require('fs');
 
 // Load environment variables
 dotenv.config();
 
-// Import database
-const { initDatabase } = require('./config/database');
+// Basic env validation/warnings
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change_me_to_a_strong_secret') {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ JWT_SECRET is not set. Aborting in production.');
+    process.exit(1);
+  } else {
+    console.warn('⚠️ JWT_SECRET is not set or using default. This is OK for development but change it for production.');
+  }
+}
 
-// Import routes
+// Import database
+const { initDatabase, runMigrations, getDb } = require('./config/database');
+// FIXED: Import seedDatabase instead of seedAllData
+const { seedDatabase } = require('./utils/seedData');
+
+// Import routes (your existing imports remain the same)
 const productRoutes = require('./routes/products');
 const categoryRoutes = require('./routes/categories');
 const testimonialRoutes = require('./routes/testimonials');
@@ -31,17 +46,31 @@ const adminRoutes = require('./routes/admin');
 const contactRoutes = require('./routes/contact');
 const heroSlideRoutes = require('./routes/heroSlides');
 const policyRoutes = require('./routes/policies');
-const giftCardRoutes = require('./routes/giftCards'); // New
+const giftCardRoutes = require('./routes/giftCards');
 
 // Import error handler
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('📁 Created uploads directory');
+}
+
+// Create testimonials upload directory
+const testimonialsUploadDir = path.join(__dirname, 'uploads', 'testimonials');
+if (!fs.existsSync(testimonialsUploadDir)) {
+  fs.mkdirSync(testimonialsUploadDir, { recursive: true });
+  console.log('📁 Created testimonials upload directory');
+}
+
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: 'Too many requests from this IP, please try again later.',
   skipSuccessfulRequests: true
 });
@@ -50,15 +79,33 @@ const limiter = rateLimit({
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:5173,http://localhost:5000').split(',');
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175'],
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    console.warn(`CORS blocked origin: ${origin}`);
+    return cb(null, false);
+  },
   credentials: true,
   exposedHeaders: ['Authorization']
 }));
+
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Compression
+app.use(compression());
+
+// Request ID middleware
+app.use((req, res, next) => {
+  req.id = req.headers['x-request-id'] || uuidv4();
+  res.setHeader('X-Request-Id', req.id);
+  next();
+});
 
 // Apply rate limiting to API routes
 app.use('/api/', limiter);
@@ -80,7 +127,7 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/contact', contactRoutes);
 app.use('/api/v1/hero-slides', heroSlideRoutes);
 app.use('/api/v1/policies', policyRoutes);
-app.use('/api/v1/gift-cards', giftCardRoutes); // New
+app.use('/api/v1/gift-cards', giftCardRoutes);
 
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {
@@ -90,6 +137,18 @@ app.get('/api/v1/health', (req, res) => {
     timestamp: new Date().toISOString(),
     version: '2.0.0'
   });
+});
+
+// Seed endpoint (admin only - protected in production)
+app.post('/api/v1/admin/seed', async (req, res) => {
+  try {
+    const db = getDb();
+    await seedDatabase(db);
+    res.json({ success: true, message: 'Database seeded successfully' });
+  } catch (error) {
+    console.error('Seeding error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 // 404 handler
@@ -105,12 +164,24 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
+    // Initialize database (creates tables)
     await initDatabase();
+    
+    // Run migrations
+    await runMigrations();
+    
+    // Seed all data (testimonials, categories, products, etc.)
+    const db = getDb();
+    // FIXED: Call seedDatabase instead of seedAllData
+    await seedDatabase(db);
+    
+    // Start server
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`\n🚀 Server running on port ${PORT}`);
       console.log(`📁 API URL: http://localhost:${PORT}/api/v1`);
       console.log(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔐 JWT Auth: Enabled`);
+      console.log(`\n📝 Testimonials seeded: Check your database!`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

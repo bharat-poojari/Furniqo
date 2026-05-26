@@ -105,6 +105,54 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get related products for a specific product
+router.get('/:identifier/related', async (req, res) => {
+  try {
+    const db = getDb();
+    const { identifier } = req.params;
+    const limit = parseInt(req.query.limit, 10) || 10;
+
+    const product = await db.get(
+      'SELECT * FROM products WHERE slug = ? OR _id = ?',
+      [identifier, identifier]
+    );
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    let relatedProducts = await db.all(
+      'SELECT * FROM products WHERE category = ? AND _id != ? ORDER BY createdAt DESC LIMIT ?',
+      [product.category, product._id, limit]
+    );
+
+    if (!relatedProducts || relatedProducts.length === 0) {
+      relatedProducts = await db.all(
+        'SELECT * FROM products WHERE _id != ? ORDER BY createdAt DESC LIMIT ?',
+        [product._id, limit]
+      );
+    }
+
+    const parsedProducts = relatedProducts.map((item) => ({
+      ...item,
+      images: item.images ? JSON.parse(item.images) : [],
+      features: item.features ? JSON.parse(item.features) : [],
+      tags: item.tags ? JSON.parse(item.tags) : [],
+      inStock: item.inStock === 1,
+      featured: item.featured === 1,
+      trending: item.trending === 1,
+      bestSeller: item.bestSeller === 1,
+      newArrival: item.newArrival === 1,
+      onSale: item.onSale === 1,
+    }));
+
+    return res.json({ success: true, data: parsedProducts });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // Get single product by slug or ID
 router.get('/:identifier', async (req, res) => {
   try {

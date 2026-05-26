@@ -90,6 +90,9 @@ router.post('/register', async (req, res, next) => {
     // Store refresh token
     const userAgent = req.headers['user-agent'];
     const ipAddress = req.ip || req.connection.remoteAddress;
+    if (process.env.SINGLE_SESSION === 'true') {
+      await revokeAllUserSessions(userId);
+    }
     await storeRefreshToken(userId, refreshToken, userAgent, ipAddress);
     
     // Get the created user (without password)
@@ -167,6 +170,9 @@ router.post('/login', async (req, res, next) => {
     // Store refresh token
     const userAgent = req.headers['user-agent'];
     const ipAddress = req.ip || req.connection.remoteAddress;
+    if (process.env.SINGLE_SESSION === 'true') {
+      await revokeAllUserSessions(user._id);
+    }
     await storeRefreshToken(user._id, refreshToken, userAgent, ipAddress);
     
     // Return user without password

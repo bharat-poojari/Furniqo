@@ -64,36 +64,102 @@ const AdminOrders = () => {
       
       let ordersData = [];
       
-      // Handle different response formats
-      if (response?.data && Array.isArray(response.data)) {
-        ordersData = response.data;
-      } else if (response?.data?.data && Array.isArray(response.data.data)) {
-        ordersData = response.data.data;
-      } else if (response?.orders && Array.isArray(response.orders)) {
-        ordersData = response.orders;
+      // Handle different response formats from backend
+      if (response?.success && response?.data) {
+        if (Array.isArray(response.data)) {
+          ordersData = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          ordersData = response.data.data;
+        } else if (response.data.orders && Array.isArray(response.data.orders)) {
+          ordersData = response.data.orders;
+        }
+      } else if (response?.data && response?.data?.success && response?.data?.data) {
+        if (Array.isArray(response.data.data)) {
+          ordersData = response.data.data;
+        }
       } else if (Array.isArray(response)) {
         ordersData = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        ordersData = response.data;
       }
       
-      setOrders(ordersData);
+      // Parse items and shippingAddress for each order
+      const parsedOrders = ordersData.map(order => ({
+        ...order,
+        items: parseOrderItems(order),
+        shippingAddress: parseShippingAddress(order),
+        subtotal: order.subtotal || 0,
+        discount: order.discount || 0,
+        shipping: order.shipping || order.shippingCost || 0,
+        tax: order.tax || 0,
+        total: order.total || 0,
+        userName: order.userName || order.user?.name || order.userName || 'Guest',
+        userEmail: order.userEmail || order.user?.email || 'N/A',
+      }));
+      
+      setOrders(parsedOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
-      toast.error('Failed to load orders');
+      toast.error(error?.response?.data?.message || 'Failed to load orders');
+      
+      // Fallback to localStorage
+      const localOrders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+      if (localOrders.length > 0) {
+        setOrders(localOrders);
+        toast.success('Loaded orders from cache', { icon: '📦' });
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const parseOrderItems = (order) => {
+    try {
+      if (Array.isArray(order.items)) {
+        return order.items;
+      }
+      if (order.items && typeof order.items === 'string') {
+        return JSON.parse(order.items);
+      }
+      return [];
+    } catch (e) {
+      console.error('Error parsing order items:', e);
+      return [];
+    }
+  };
+
+  const parseShippingAddress = (order) => {
+    try {
+      if (order.shippingAddress && typeof order.shippingAddress === 'object') {
+        return order.shippingAddress;
+      }
+      if (order.shippingAddress && typeof order.shippingAddress === 'string') {
+        return JSON.parse(order.shippingAddress);
+      }
+      if (order.shipping && typeof order.shipping === 'object') {
+        return order.shipping;
+      }
+      return null;
+    } catch (e) {
+      console.error('Error parsing shipping address:', e);
+      return null;
     }
   };
 
   const handleUpdateStatus = async (orderId, newStatus) => {
     setUpdatingStatus(true);
     try {
-      await apiWrapper.updateOrderStatus(orderId, { status: newStatus });
-      toast.success(`Order status updated to ${newStatus}`);
-      await fetchOrders();
-      setShowDetailsModal(false);
+      const response = await apiWrapper.updateOrderStatus(orderId, { status: newStatus });
+      if (response?.success) {
+        toast.success(`Order status updated to ${newStatus}`);
+        await fetchOrders();
+        setShowDetailsModal(false);
+      } else {
+        throw new Error(response?.message || 'Failed to update status');
+      }
     } catch (error) {
       console.error('Error updating status:', error);
-      toast.error(error?.response?.data?.message || 'Failed to update order status');
+      toast.error(error?.response?.data?.message || error?.message || 'Failed to update order status');
     } finally {
       setUpdatingStatus(false);
     }
@@ -101,10 +167,16 @@ const AdminOrders = () => {
 
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
+      const orderNumber = (order.orderNumber || order._id || '').toLowerCase();
+      const userName = (order.userName || order.user?.name || '').toLowerCase();
+      const userEmail = (order.userEmail || order.user?.email || '').toLowerCase();
+      const searchLower = searchTerm.toLowerCase();
+      
       const matchesSearch = searchTerm === '' ||
-        order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.userName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.userEmail?.toLowerCase().includes(searchTerm.toLowerCase());
+        orderNumber.includes(searchLower) ||
+        userName.includes(searchLower) ||
+        userEmail.includes(searchLower);
+      
       const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
@@ -125,7 +197,7 @@ const AdminOrders = () => {
       o.userName || o.user?.name || 'Guest',
       o.userEmail || o.user?.email || 'N/A',
       `$${(o.total || 0).toFixed(2)}`,
-      o.status,
+      o.status || 'pending',
       new Date(o.createdAt).toLocaleDateString()
     ]);
     
@@ -140,20 +212,11 @@ const AdminOrders = () => {
     toast.success('Orders exported successfully');
   };
 
-  const getOrderItems = (order) => {
-    if (order.items) {
-      return typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-    }
-    return [];
-  };
-
   const OrderDetailsModal = () => {
     if (!selectedOrder) return null;
     
-    const items = getOrderItems(selectedOrder);
-    const shippingAddress = selectedOrder.shippingAddress ? 
-      (typeof selectedOrder.shippingAddress === 'string' ? JSON.parse(selectedOrder.shippingAddress) : selectedOrder.shippingAddress) 
-      : null;
+    const items = selectedOrder.items || [];
+    const shippingAddress = selectedOrder.shippingAddress;
     
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -166,7 +229,7 @@ const AdminOrders = () => {
           <div className="sticky top-0 bg-white dark:bg-neutral-900 p-5 border-b border-neutral-200 dark:border-neutral-800 flex justify-between items-center z-10">
             <div>
               <h2 className="text-xl font-bold">Order Details</h2>
-              <p className="text-sm text-neutral-500 mt-0.5">{selectedOrder.orderNumber}</p>
+              <p className="text-sm text-neutral-500 mt-0.5">{selectedOrder.orderNumber || selectedOrder._id?.slice(-8)}</p>
             </div>
             <button 
               onClick={() => setShowDetailsModal(false)} 
@@ -239,9 +302,9 @@ const AdminOrders = () => {
                     <p className="flex items-start gap-1 text-sm">
                       <FiMapPin className="h-3 w-3 mt-0.5 flex-shrink-0" />
                       <span>
-                        {shippingAddress.street}<br />
+                        {shippingAddress.address || shippingAddress.street}<br />
                         {shippingAddress.city}, {shippingAddress.state} {shippingAddress.zipCode}<br />
-                        {shippingAddress.country}
+                        {shippingAddress.country || 'United States'}
                       </span>
                     </p>
                   </div>
@@ -251,7 +314,7 @@ const AdminOrders = () => {
 
             {/* Order Items */}
             <div>
-              <h3 className="text-md font-semibold mb-3">Order Items</h3>
+              <h3 className="text-md font-semibold mb-3">Order Items ({items.length})</h3>
               <div className="space-y-3">
                 {items.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-4 p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl">
@@ -269,7 +332,9 @@ const AdminOrders = () => {
                       <p className="text-xs text-neutral-500">Quantity: {item.quantity}</p>
                       {item.variant && (
                         <p className="text-xs text-neutral-500">
-                          {item.variant.color} / {item.variant.size}
+                          {item.variant.color && `Color: ${item.variant.color}`}
+                          {item.variant.material && ` / Material: ${item.variant.material}`}
+                          {item.variant.size && ` / Size: ${item.variant.size}`}
                         </p>
                       )}
                     </div>
@@ -294,12 +359,18 @@ const AdminOrders = () => {
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="text-neutral-500">Shipping</span>
-                  <span>${(selectedOrder.shipping || 0).toFixed(2)}</span>
+                  <span>${(selectedOrder.shipping || selectedOrder.shippingCost || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-neutral-500">Tax</span>
                   <span>${(selectedOrder.tax || 0).toFixed(2)}</span>
                 </div>
+                {(selectedOrder.giftWrapCost || selectedOrder.giftWrap) && (
+                  <div className="flex justify-between text-sm text-rose-500">
+                    <span>Gift Wrap</span>
+                    <span>${(selectedOrder.giftWrapCost || 5.99).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center pt-2 border-t">
                   <span className="font-semibold">Total</span>
                   <span className="text-xl font-bold text-primary-600">${(selectedOrder.total || 0).toFixed(2)}</span>
@@ -314,15 +385,23 @@ const AdminOrders = () => {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <p className="text-xs text-neutral-500">Method</p>
-                    <p>{selectedOrder.paymentMethod}</p>
+                    <p className="capitalize">{selectedOrder.paymentMethod}</p>
                   </div>
                   <div>
                     <p className="text-xs text-neutral-500">Status</p>
-                    <p className={`capitalize ${selectedOrder.paymentStatus === 'completed' ? 'text-green-600' : 'text-yellow-600'}`}>
-                      {selectedOrder.paymentStatus}
+                    <p className={`capitalize ${selectedOrder.paymentStatus === 'paid' || selectedOrder.paymentStatus === 'completed' ? 'text-green-600' : 'text-yellow-600'}`}>
+                      {selectedOrder.paymentStatus || 'pending'}
                     </p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            {selectedOrder.notes && (
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-semibold mb-2">Order Notes</h3>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">{selectedOrder.notes}</p>
               </div>
             )}
           </div>
@@ -400,6 +479,7 @@ const AdminOrders = () => {
             <button 
               onClick={fetchOrders} 
               className="p-2 rounded-xl border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+              title="Refresh Orders"
             >
               <FiRefreshCw className="h-4 w-4" />
             </button>
@@ -437,7 +517,7 @@ const AdminOrders = () => {
                   const StatusIcon = statusIcons[order.status] || FiClock;
                   return (
                     <motion.tr
-                      key={order._id}
+                      key={order._id || idx}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.02 }}
@@ -448,19 +528,19 @@ const AdminOrders = () => {
                       </td>
                       <td className="p-3 sm:p-4">
                         <div>
-                          <p className="text-sm font-medium">{order.userName || order.user?.name || 'Guest'}</p>
-                          <p className="text-xs text-neutral-500 hidden sm:block">{order.userEmail || order.user?.email}</p>
+                          <p className="text-sm font-medium">{order.userName || 'Guest'}</p>
+                          <p className="text-xs text-neutral-500 hidden sm:block">{order.userEmail}</p>
                         </div>
                       </td>
                       <td className="p-3 sm:p-4 font-semibold text-sm">${(order.total || 0).toFixed(2)}</td>
                       <td className="p-3 sm:p-4">
                         <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${statusColors[order.status] || statusColors.pending}`}>
                           <StatusIcon className="h-3 w-3" />
-                          {order.status}
+                          {order.status || 'pending'}
                         </span>
                       </td>
                       <td className="p-3 sm:p-4 text-sm hidden sm:table-cell">
-                        {new Date(order.createdAt).toLocaleDateString()}
+                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
                       </td>
                       <td className="p-3 sm:p-4">
                         <button

@@ -1,5 +1,6 @@
 // src/pages/OrderConfirmation.jsx
 import { useState, useEffect } from 'react';
+import { FiXCircle } from 'react-icons/fi'; 
 import { useParams, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -9,14 +10,16 @@ import {
 } from 'react-icons/fi';
 import Button from '../components/common/Button';
 import { formatPrice, formatDate } from '../utils/helpers';
+import apiWrapper from '../services/apiWrapper';
 import toast from 'react-hot-toast';
+import { useAuth } from '../store/AuthContext';
 
 const getProductImage = (item) => {
   try {
+    if (item.image) return item.image;
     if (item.product?.images && Array.isArray(item.product.images) && item.product.images[0]) {
       return item.product.images[0];
     }
-    if (item.image) return item.image;
     return 'https://placehold.co/400x400/eee/999?text=No+Image';
   } catch {
     return 'https://placehold.co/400x400/eee/999?text=No+Image';
@@ -26,35 +29,129 @@ const getProductImage = (item) => {
 const OrderConfirmation = () => {
   const { id } = useParams();
   const location = useLocation();
-  const [order, setOrder] = useState(location.state?.order || null);
+  const { isAuthenticated } = useAuth();
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
+  useEffect(() => {
     const fetchOrder = async () => {
+      if (!id) {
+        setLoading(false);
+        return;
+      }
+      
+      setLoading(true);
+      
       try {
-        const response = await apiWrapper.getOrderById(id);
-        if (response?.success && response?.data) {
-          setOrder(response.data);
+        // First, check if order was passed via location state
+        if (location.state?.order) {
+          const passedOrder = location.state.order;
+          // Parse items if they're a string
+          let parsedOrder = { ...passedOrder };
+          if (parsedOrder.items && typeof parsedOrder.items === 'string') {
+            try {
+              parsedOrder.items = JSON.parse(parsedOrder.items);
+            } catch (e) {
+              parsedOrder.items = [];
+            }
+          }
+          if (parsedOrder.shippingAddress && typeof parsedOrder.shippingAddress === 'string') {
+            try {
+              parsedOrder.shippingAddress = JSON.parse(parsedOrder.shippingAddress);
+            } catch (e) {
+              parsedOrder.shippingAddress = {};
+            }
+          }
+          setOrder(parsedOrder);
+          setLoading(false);
           return;
         }
-      } catch (fetchError) {
-        console.warn('Order confirmation API fetch failed:', fetchError);
-      }
-
-      const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
-      const foundOrder = orders.find(o => o._id === id || o.orderNumber === id);
-      if (foundOrder) {
-        setOrder(foundOrder);
+        
+        // Try API call
+        const response = await apiWrapper.getOrderById(id);
+        
+        if (response?.success && response?.data) {
+          let orderData = response.data;
+          // Parse items if they're a string
+          if (orderData.items && typeof orderData.items === 'string') {
+            try {
+              orderData.items = JSON.parse(orderData.items);
+            } catch (e) {
+              orderData.items = [];
+            }
+          }
+          if (orderData.shippingAddress && typeof orderData.shippingAddress === 'string') {
+            try {
+              orderData.shippingAddress = JSON.parse(orderData.shippingAddress);
+            } catch (e) {
+              orderData.shippingAddress = {};
+            }
+          }
+          setOrder(orderData);
+        } else {
+          // Try localStorage as fallback
+          const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+          let foundOrder = orders.find(o => o._id === id || o.orderNumber === id);
+          
+          if (foundOrder) {
+            // Parse items if they're a string
+            if (foundOrder.items && typeof foundOrder.items === 'string') {
+              try {
+                foundOrder.items = JSON.parse(foundOrder.items);
+              } catch (e) {
+                foundOrder.items = [];
+              }
+            }
+            if (foundOrder.shippingAddress && typeof foundOrder.shippingAddress === 'string') {
+              try {
+                foundOrder.shippingAddress = JSON.parse(foundOrder.shippingAddress);
+              } catch (e) {
+                foundOrder.shippingAddress = {};
+              }
+            }
+            setOrder(foundOrder);
+          } else {
+            setOrder(null);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching order:', error);
+        // Try localStorage as fallback
+        const orders = JSON.parse(localStorage.getItem('furniqo_orders') || '[]');
+        let foundOrder = orders.find(o => o._id === id || o.orderNumber === id);
+        
+        if (foundOrder) {
+          if (foundOrder.items && typeof foundOrder.items === 'string') {
+            try {
+              foundOrder.items = JSON.parse(foundOrder.items);
+            } catch (e) {
+              foundOrder.items = [];
+            }
+          }
+          if (foundOrder.shippingAddress && typeof foundOrder.shippingAddress === 'string') {
+            try {
+              foundOrder.shippingAddress = JSON.parse(foundOrder.shippingAddress);
+            } catch (e) {
+              foundOrder.shippingAddress = {};
+            }
+          }
+          setOrder(foundOrder);
+        } else {
+          setOrder(null);
+        }
+      } finally {
+        setLoading(false);
       }
     };
 
-    if (!order && id) {
-      fetchOrder();
-    }
-  }, [id, order]);
+    fetchOrder();
+  }, [id, location.state]);
 
   const handlePrint = () => {
     window.print();
@@ -88,6 +185,18 @@ const OrderConfirmation = () => {
     setShowReviewModal(true);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center px-4 py-16">
+        <div className="animate-pulse text-center">
+          <div className="w-20 h-20 bg-neutral-200 dark:bg-neutral-800 rounded-full mx-auto mb-6"></div>
+          <div className="h-8 w-48 bg-neutral-200 dark:bg-neutral-800 rounded mx-auto mb-4"></div>
+          <div className="h-4 w-64 bg-neutral-200 dark:bg-neutral-800 rounded mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
   if (!order) {
     return (
       <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center px-4 py-16">
@@ -96,18 +205,23 @@ const OrderConfirmation = () => {
           animate={{ scale: 1, opacity: 1 }}
           className="text-center max-w-md"
         >
-          <div className="w-24 h-24 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
-            <FiCheckCircle className="h-12 w-12 text-green-500" />
+          <div className="w-24 h-24 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+            <FiPackage className="h-12 w-12 text-yellow-500" />
           </div>
           <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-4">
-            Order Placed Successfully!
+            Order Not Found
           </h1>
           <p className="text-neutral-600 dark:text-neutral-400 mb-8">
-            Thank you for your purchase. You can view your orders in your account.
+            We couldn't find the order you're looking for. It may have been placed in guest mode or you may need to sign in.
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
+            {!isAuthenticated && (
+              <Link to="/login" state={{ from: `/order-confirmation/${id}` }}>
+                <Button variant="primary" icon={FiPackage}>Sign In to View Orders</Button>
+              </Link>
+            )}
             <Link to="/orders">
-              <Button variant="primary" icon={FiPackage}>View Orders</Button>
+              <Button variant="outline" icon={FiPackage}>My Orders</Button>
             </Link>
             <Link to="/">
               <Button variant="outline" icon={FiHome}>Back to Home</Button>
@@ -118,9 +232,23 @@ const OrderConfirmation = () => {
     );
   }
 
-  const orderItems = Array.isArray(order.items) ? order.items : 
-                    (order.items ? JSON.parse(order.items) : []);
+  // Safely parse order items
+  let orderItems = [];
+  try {
+    orderItems = Array.isArray(order.items) ? order.items : 
+      (order.items ? (typeof order.items === 'string' ? JSON.parse(order.items) : order.items) : []);
+  } catch (e) {
+    console.error('Error parsing order items:', e);
+    orderItems = [];
+  }
+  
   const shippingAddress = order.shippingAddress || order.shipping || {};
+  const shippingCost = order.shippingCost ?? order.shipping ?? 0;
+  const subtotal = order.subtotal || 0;
+  const discount = order.discount || 0;
+  const tax = order.tax || 0;
+  const total = order.total || 0;
+  const giftWrapCost = order.giftWrapCost || (order.giftWrap ? 5.99 : 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900">
@@ -170,7 +298,7 @@ const OrderConfirmation = () => {
             >
               {[
                 { icon: FiShield, label: 'Secure Payment', value: 'Verified', color: 'from-blue-500 to-cyan-500' },
-                { icon: FiTruck, label: 'Free Shipping', value: order.shippingCost === 0 ? 'Available' : 'Paid', color: 'from-green-500 to-emerald-500' },
+                { icon: FiTruck, label: 'Shipping', value: shippingCost === 0 ? 'Free' : 'Standard', color: 'from-green-500 to-emerald-500' },
                 { icon: FiRotateCcw, label: 'Easy Returns', value: '30 Days', color: 'from-purple-500 to-pink-500' },
                 { icon: FiSmile, label: 'Support', value: '24/7', color: 'from-orange-500 to-red-500' },
               ].map((stat, idx) => (
@@ -214,7 +342,7 @@ const OrderConfirmation = () => {
                     </div>
                     <div>
                       <p className="text-primary-100 text-sm">Total Amount</p>
-                      <p className="font-bold text-xl sm:text-2xl">{formatPrice(order.total || 0)}</p>
+                      <p className="font-bold text-xl sm:text-2xl">{formatPrice(total)}</p>
                     </div>
                   </div>
                 </div>
@@ -275,50 +403,56 @@ const OrderConfirmation = () => {
                   Order Items ({orderItems.length})
                 </h3>
                 <div className="space-y-3">
-                  {orderItems.map((item, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="flex gap-3 sm:gap-4 items-center p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl hover:shadow-md transition-all"
-                    >
-                      <img
-                        src={getProductImage(item)}
-                        alt={item.name}
-                        className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl flex-shrink-0"
-                        onError={(e) => { e.target.src = 'https://placehold.co/400x400/eee/999?text=No+Image'; }}
-                      />
-                      <div className="flex-grow min-w-0">
-                        <p className="font-semibold text-sm sm:text-base text-neutral-900 dark:text-white truncate">
-                          {item.name || item.product?.name}
-                        </p>
-                        <p className="text-xs text-neutral-500">Qty: {item.quantity}</p>
-                        {item.variant && (
-                          <p className="text-xs text-neutral-400 mt-1">
-                            {item.variant.color && `Color: ${item.variant.color}`}
-                            {item.variant.material && ` • ${item.variant.material}`}
-                            {item.variant.size && ` • ${item.variant.size}`}
+                  {orderItems.map((item, index) => {
+                    const itemPrice = item.variant?.price || item.price || 0;
+                    const itemName = item.name || item.product?.name || 'Product';
+                    const itemQuantity = item.quantity || 1;
+                    
+                    return (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="flex gap-3 sm:gap-4 items-center p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-xl hover:shadow-md transition-all"
+                      >
+                        <img
+                          src={getProductImage(item)}
+                          alt={itemName}
+                          className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl flex-shrink-0"
+                          onError={(e) => { e.target.src = 'https://placehold.co/400x400/eee/999?text=No+Image'; }}
+                        />
+                        <div className="flex-grow min-w-0">
+                          <p className="font-semibold text-sm sm:text-base text-neutral-900 dark:text-white truncate">
+                            {itemName}
                           </p>
-                        )}
-                        <button
-                          onClick={() => handleWriteReview(item)}
-                          className="text-xs text-primary-600 hover:text-primary-700 mt-1 flex items-center gap-1"
-                        >
-                          <FiStar className="h-3 w-3" />
-                          Write Review
-                        </button>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-primary-600 text-sm sm:text-base">
-                          {formatPrice((item.variant?.price || item.price) * item.quantity)}
-                        </p>
-                        <p className="text-xs text-neutral-500 mt-1">
-                          {formatPrice(item.variant?.price || item.price)} each
-                        </p>
-                      </div>
-                    </motion.div>
-                  ))}
+                          <p className="text-xs text-neutral-500">Qty: {itemQuantity}</p>
+                          {item.variant && (
+                            <p className="text-xs text-neutral-400 mt-1">
+                              {item.variant.color && `Color: ${item.variant.color}`}
+                              {item.variant.material && ` • ${item.variant.material}`}
+                              {item.variant.size && ` • ${item.variant.size}`}
+                            </p>
+                          )}
+                          <button
+                            onClick={() => handleWriteReview(item)}
+                            className="text-xs text-primary-600 hover:text-primary-700 mt-1 flex items-center gap-1"
+                          >
+                            <FiStar className="h-3 w-3" />
+                            Write Review
+                          </button>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-primary-600 text-sm sm:text-base">
+                            {formatPrice(itemPrice * itemQuantity)}
+                          </p>
+                          <p className="text-xs text-neutral-500 mt-1">
+                            {formatPrice(itemPrice)} each
+                          </p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -328,27 +462,33 @@ const OrderConfirmation = () => {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-neutral-500">Subtotal</span>
-                    <span className="font-medium">{formatPrice(order.subtotal || 0)}</span>
+                    <span className="font-medium">{formatPrice(subtotal)}</span>
                   </div>
-                  {order.discount > 0 && (
+                  {discount > 0 && (
                     <div className="flex justify-between text-sm text-green-600">
                       <span>Discount</span>
-                      <span>-{formatPrice(order.discount)}</span>
+                      <span>-{formatPrice(discount)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-sm">
                     <span className="text-neutral-500">Shipping</span>
                     <span className="font-medium">
-                      {order.shippingCost === 0 ? 'FREE' : formatPrice(order.shippingCost || 0)}
+                      {shippingCost === 0 ? 'FREE' : formatPrice(shippingCost)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-neutral-500">Tax</span>
-                    <span className="font-medium">{formatPrice(order.tax || 0)}</span>
+                    <span className="font-medium">{formatPrice(tax)}</span>
                   </div>
+                  {giftWrapCost > 0 && (
+                    <div className="flex justify-between text-sm text-rose-500">
+                      <span>Gift Wrap</span>
+                      <span>{formatPrice(giftWrapCost)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center pt-3 border-t border-neutral-200 dark:border-neutral-700">
                     <span className="text-base sm:text-lg font-bold text-neutral-900 dark:text-white">Total</span>
-                    <span className="text-xl sm:text-2xl font-bold text-primary-600">{formatPrice(order.total || 0)}</span>
+                    <span className="text-xl sm:text-2xl font-bold text-primary-600">{formatPrice(total)}</span>
                   </div>
                 </div>
               </div>
@@ -362,11 +502,11 @@ const OrderConfirmation = () => {
                   </h3>
                   <div className="bg-neutral-50 dark:bg-neutral-800/50 rounded-xl p-4">
                     <p className="font-medium text-neutral-900 dark:text-white">
-                      {shippingAddress.firstName} {shippingAddress.lastName}
+                      {shippingAddress.firstName || ''} {shippingAddress.lastName || ''}
                     </p>
                     <p className="text-sm text-neutral-500 mt-1 leading-relaxed">
-                      {shippingAddress.address}<br />
-                      {shippingAddress.city}, {shippingAddress.state} {shippingAddress.zipCode}<br />
+                      {shippingAddress.address && `${shippingAddress.address}<br />`}
+                      {shippingAddress.city && `${shippingAddress.city}, `}{shippingAddress.state && `${shippingAddress.state} `}{shippingAddress.zipCode && shippingAddress.zipCode}<br />
                       {shippingAddress.country || 'United States'}
                     </p>
                     <div className="flex items-center gap-2 mt-3 text-sm text-neutral-500">
@@ -409,7 +549,7 @@ const OrderConfirmation = () => {
             >
               <Link to="/orders">
                 <Button variant="primary" icon={FiPackage} size="lg" className="shadow-lg">
-                  Track Your Order
+                  View All Orders
                 </Button>
               </Link>
               <Link to="/products">
@@ -445,7 +585,7 @@ const OrderConfirmation = () => {
                   onClick={() => setShowReviewModal(false)}
                   className="absolute top-4 right-4 p-1 hover:bg-white/20 rounded-lg transition-colors"
                 >
-                  <FiCheckCircle className="h-5 w-5" />
+                  <FiXCircle className="h-5 w-5" />
                 </button>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
@@ -468,7 +608,10 @@ const OrderConfirmation = () => {
                       <button
                         key={rating}
                         type="button"
-                        className="focus:outline-none"
+                        onClick={() => {
+                          toast.success(`You selected ${rating} stars!`);
+                        }}
+                        className="focus:outline-none transition-transform hover:scale-110"
                       >
                         <FiStar className="h-8 w-8 text-gray-300 hover:text-yellow-400 transition-colors" />
                       </button>
@@ -482,7 +625,7 @@ const OrderConfirmation = () => {
                   </label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800"
+                    className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="Summarize your experience"
                   />
                 </div>
@@ -493,7 +636,7 @@ const OrderConfirmation = () => {
                   </label>
                   <textarea
                     rows="4"
-                    className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 resize-none"
+                    className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 rounded-lg bg-white dark:bg-neutral-800 resize-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="Tell us about your experience with this product..."
                   />
                 </div>

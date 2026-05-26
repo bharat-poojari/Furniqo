@@ -472,7 +472,7 @@ const QuickViewModal = memo(({ product, isOpen, onClose, addToCart, isWishlisted
       await addToCart(product, qty);
       setAdded(true);
       confetti({ particleCount: 50, spread: 40, origin: { y: 0.6 } });
-      toast.success(`${qty} × ${product.name} added to cart!`);
+      // CartContext displays the managed toast; avoid duplicate here
       setTimeout(() => { 
         setAdded(false); 
         onClose(); 
@@ -771,7 +771,7 @@ const Offers = () => {
     try {
       await addToCart(product, 1);
       confetti({ particleCount: 40, spread: 40, origin: { y: 0.6 } });
-      toast.success(`${product.name} added to cart!`);
+      // CartContext displays the managed toast; avoid duplicate here
     } catch { 
       toast.error('Failed to add to cart'); 
     } finally { 

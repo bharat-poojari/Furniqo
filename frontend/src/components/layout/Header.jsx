@@ -66,6 +66,7 @@ const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isCategoryClicked, setIsCategoryClicked] = useState(false);
   const [avatar, setAvatar] = useState(null);
+  const [avatarKey, setAvatarKey] = useState(Date.now()); // Force re-render when avatar changes
   
   const { isAuthenticated, user, logout, loading: authLoading } = useAuth();
   const { cartItems, getCartCount, getSubtotal, loading: cartLoading, fetchCart } = useCart();
@@ -84,11 +85,61 @@ const Header = () => {
   const cartTimeoutRef = useRef(null);
   const navigationTimeoutRef = useRef(null);
 
-  // Load avatar from localStorage
-  useEffect(() => {
-    const savedAvatar = localStorage.getItem('userAvatar');
-    if (savedAvatar) setAvatar(savedAvatar);
+  // Load avatar from localStorage with proper key and force update
+  const loadAvatar = useCallback(() => {
+    // Try multiple possible storage keys for compatibility
+    const savedAvatar = localStorage.getItem('furniqo_user_avatar') || 
+                       localStorage.getItem('userAvatar') ||
+                       localStorage.getItem('avatar');
+    
+    // Also check if user object from auth has avatar
+    const userAvatar = user?.avatar;
+    
+    const finalAvatar = savedAvatar || userAvatar;
+    
+    if (finalAvatar && finalAvatar !== 'null' && finalAvatar !== 'undefined') {
+      setAvatar(finalAvatar);
+    } else {
+      setAvatar(null);
+    }
   }, [user]);
+
+  // Listen for avatar changes from other components
+  useEffect(() => {
+    loadAvatar();
+    
+    // Create a storage event listener to update avatar when changed in other tabs/windows
+    const handleStorageChange = (e) => {
+      if (e.key === 'furniqo_user_avatar' || e.key === 'userAvatar' || e.key === 'avatar') {
+        loadAvatar();
+        setAvatarKey(Date.now()); // Force re-render
+      }
+    };
+    
+    // Custom event for avatar updates within the same window
+    const handleAvatarUpdate = (event) => {
+      if (event.detail?.avatar) {
+        setAvatar(event.detail.avatar);
+        setAvatarKey(Date.now());
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('avatarUpdated', handleAvatarUpdate);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('avatarUpdated', handleAvatarUpdate);
+    };
+  }, [loadAvatar]);
+
+  // Also check for user avatar from auth context
+  useEffect(() => {
+    if (user?.avatar && user.avatar !== avatar) {
+      setAvatar(user.avatar);
+      localStorage.setItem('furniqo_user_avatar', user.avatar);
+    }
+  }, [user, avatar]);
 
   // Fetch cart and wishlist when authenticated
   useEffect(() => {
@@ -230,8 +281,11 @@ const Header = () => {
 
   const handleLogout = useCallback(async () => {
     try {
+      // Clear avatar on logout if desired
+      // localStorage.removeItem('furniqo_user_avatar');
       await logout();
       setShowUserMenu(false);
+      setAvatar(null);
       navigateWithOptimization('/');
     } catch (error) {
       console.error('Logout error:', error);
@@ -707,10 +761,20 @@ const Header = () => {
                       onClick={() => setShowUserMenu(!showUserMenu)}
                       className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors duration-150 active:scale-95"
                       type="button"
+                      key={`avatar-btn-${avatarKey}`} // Force re-render when avatar changes
                     >
                       <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-md overflow-hidden">
                         {avatar ? (
-                          <img src={avatar} alt="" className="w-full h-full object-cover" loading="lazy" />
+                          <img 
+                            src={avatar} 
+                            alt="" 
+                            className="w-full h-full object-cover" 
+                            loading="eager"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.parentElement.innerHTML = `<span class="text-xs font-semibold text-white">${user?.name?.charAt(0)?.toUpperCase() || 'U'}</span>`;
+                            }}
+                          />
                         ) : (
                           <span className="text-xs font-semibold text-white">
                             {user?.name?.charAt(0)?.toUpperCase() || 'U'}
@@ -725,8 +789,21 @@ const Header = () => {
                     {showUserMenu && (
                       <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-neutral-900 rounded-xl shadow-hard border border-neutral-200 dark:border-neutral-800 z-50 overflow-hidden transition-all duration-150">
                         <div className="p-3 border-b dark:border-neutral-800">
-                          <p className="font-semibold text-sm">{user?.name}</p>
-                          <p className="text-xs text-neutral-500 truncate">{user?.email}</p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center overflow-hidden">
+                              {avatar ? (
+                                <img src={avatar} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xs font-semibold text-white">
+                                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm">{user?.name}</p>
+                              <p className="text-xs text-neutral-500 truncate">{user?.email}</p>
+                            </div>
+                          </div>
                         </div>
                         <div className="p-2">
                           <button

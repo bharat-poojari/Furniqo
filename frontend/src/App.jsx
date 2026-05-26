@@ -25,6 +25,7 @@ import AdminPolicies from './admin/AdminPolicies';
 import AdminUploads from './admin/AdminUploads';
 import AdminLogin from './admin/AdminLogin';
 import { useAuth } from './store/AuthContext';
+import AdminSettings from './admin/AdminSettings';
 
 // Simple loading spinner
 const LoadingSpinner = () => (
@@ -183,6 +184,7 @@ function App() {
                 <Route path="hero-slides" element={<AdminHeroSlides />} />
                 <Route path="policies" element={<AdminPolicies />} />
                 <Route path="uploads" element={<AdminUploads />} />
+                <Route path="settings" element={<AdminSettings />} />
               </Route>
 
               {/* Redirect any unknown admin routes to login */}

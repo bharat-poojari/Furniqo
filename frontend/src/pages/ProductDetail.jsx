@@ -1,3 +1,4 @@
+// src/pages/ProductDetail.jsx
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
@@ -24,7 +25,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const TABS = [
   { id: 'description', label: 'Description', icon: FiInfo },
-  { id: 'specifications', label: 'Specs', icon: FiTag },
+  { id: 'specifications', label: 'Specifications', icon: FiTag },
   { id: 'reviews', label: 'Reviews', icon: FiStar },
 ];
 
@@ -68,19 +69,20 @@ const ShareModal = ({ isOpen, onClose, product }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50"
+      onClick={onClose}
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="relative w-full max-w-sm bg-white dark:bg-neutral-900 rounded-xl shadow-2xl p-4"
+        className="relative w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl p-5"
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-base font-bold text-neutral-900 dark:text-white">Share Product</h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 active:scale-95">
-            <FiX className="h-4 w-4" />
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Share Product</h3>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800">
+            <FiX className="h-5 w-5" />
           </button>
         </div>
 
@@ -88,7 +90,7 @@ const ShareModal = ({ isOpen, onClose, product }) => {
           {navigator.share && (
             <button
               onClick={handleNativeShare}
-              className="w-full py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2 active:scale-98 transition-all"
+              className="w-full py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all"
             >
               <FiShare2 className="h-4 w-4" />
               Share via...
@@ -96,18 +98,27 @@ const ShareModal = ({ isOpen, onClose, product }) => {
           )}
 
           <div>
-            <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-1.5">Or copy link</p>
+            <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-2">Or copy link</p>
             <div className="flex gap-2">
-              <input type="text" value={shareUrl} readOnly className="flex-1 px-2 py-1.5 text-xs bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg" />
-              <Button variant="outline" size="xs" onClick={handleCopyLink} className="text-xs py-1.5 px-3">Copy</Button>
+              <input 
+                type="text" 
+                value={shareUrl} 
+                readOnly 
+                className="flex-1 px-3 py-2 text-xs bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg" 
+              />
+              <Button variant="outline" size="sm" onClick={handleCopyLink}>Copy</Button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 pt-2 border-t dark:border-neutral-800">
-            <img src={product.images?.[0]} alt={product.name} className="w-10 h-10 rounded-lg object-cover" />
+          <div className="flex items-center gap-3 pt-3 border-t dark:border-neutral-800">
+            <img 
+              src={product.images?.[0] || 'https://placehold.co/60x60/eee/999?text=No+Image'} 
+              alt={product.name} 
+              className="w-12 h-12 rounded-lg object-cover" 
+            />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">{product.name}</p>
-              <p className="text-xs font-bold text-primary-600">{formatPrice(product.price)}</p>
+              <p className="text-sm font-medium truncate">{product.name}</p>
+              <p className="text-sm font-bold text-primary-600">{formatPrice(product.price)}</p>
             </div>
           </div>
         </div>
@@ -147,10 +158,9 @@ const QuickViewModal = ({ product, isOpen, onClose, onAddToCart, isWishlisted, o
     try {
       await onAddToCart(product, quantity);
       setAddedToCart(true);
-      toast.success(`${quantity} × ${product.name} added!`, { icon: '🛒', duration: 1500 });
       setTimeout(() => { setAddedToCart(false); onClose(); }, 1200);
     } catch (error) {
-      toast.error('Failed to add');
+      // Error handled by parent
     } finally {
       setIsAddingToCart(false);
     }
@@ -164,55 +174,55 @@ const QuickViewModal = ({ product, isOpen, onClose, onAddToCart, isWishlisted, o
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-3">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0"
             onClick={onClose}
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="relative w-full max-w-3xl bg-white dark:bg-neutral-900 rounded-xl shadow-2xl border border-neutral-200 dark:border-neutral-800 max-h-[85vh] flex flex-col"
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="relative w-full max-w-3xl bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-800 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={onClose}
-              className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-white/90 dark:bg-neutral-800/90 hover:bg-neutral-100 active:scale-95 transition-all"
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white dark:bg-neutral-800 shadow-lg hover:bg-neutral-100 transition-all"
             >
-              <FiX className="h-4 w-4" />
+              <FiX className="h-5 w-5" />
             </button>
             
-            <div className="overflow-y-auto p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Image Gallery */}
-                <div className="space-y-2">
-                  <div className="relative overflow-hidden rounded-lg bg-neutral-100 dark:bg-neutral-800">
+                <div className="space-y-3">
+                  <div className="relative overflow-hidden rounded-xl bg-neutral-100 dark:bg-neutral-800">
                     <img
-                      src={product.images?.[selectedImage] || '/placeholder.svg'}
+                      src={product.images?.[selectedImage] || 'https://placehold.co/600x600/eee/999?text=No+Image'}
                       alt={product.name}
                       className="w-full aspect-square object-cover"
-                      loading="lazy"
                     />
                     {discount > 0 && (
-                      <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">
+                      <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
                         -{discount}%
                       </div>
                     )}
                   </div>
                   {product.images?.length > 1 && (
-                    <div className="flex gap-1.5 overflow-x-auto pb-1">
+                    <div className="flex gap-2 overflow-x-auto">
                       {product.images.map((img, idx) => (
                         <button
                           key={idx}
                           onClick={() => setSelectedImage(idx)}
-                          className={`flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${
+                          className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
                             selectedImage === idx ? 'border-primary-500' : 'border-transparent hover:border-neutral-300'
                           }`}
                         >
-                          <img src={img} alt="" className="w-full h-full object-cover" loading="lazy" />
+                          <img src={img} alt="" className="w-full h-full object-cover" />
                         </button>
                       ))}
                     </div>
@@ -220,70 +230,81 @@ const QuickViewModal = ({ product, isOpen, onClose, onAddToCart, isWishlisted, o
                 </div>
 
                 {/* Product Details */}
-                <div className="flex flex-col space-y-3">
-                  <h3 className="text-base md:text-lg font-bold text-neutral-900 dark:text-white line-clamp-2">
+                <div className="flex flex-col space-y-4">
+                  <h3 className="text-xl font-bold text-neutral-900 dark:text-white line-clamp-2">
                     {product.name}
                   </h3>
 
-                  <Rating value={product.rating || 0} numReviews={product.numReviews || 0} size="sm" />
+                  <Rating value={product.rating || 0} numReviews={product.numReviews || 0} size="md" />
 
                   <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold text-primary-600">{formatPrice(product.price)}</span>
+                    <span className="text-2xl font-bold text-primary-600">{formatPrice(product.price)}</span>
                     {product.originalPrice > product.price && (
                       <>
-                        <span className="text-xs text-neutral-400 line-through">{formatPrice(product.originalPrice)}</span>
-                        <span className="text-[10px] font-semibold text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">
+                        <span className="text-sm text-neutral-400 line-through">{formatPrice(product.originalPrice)}</span>
+                        <span className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
                           Save {formatPrice(product.originalPrice - product.price)}
                         </span>
                       </>
                     )}
                   </div>
 
-                  <p className="text-xs text-neutral-600 dark:text-neutral-400 line-clamp-3">
-                    {product.shortDescription || product.description?.substring(0, 100)}
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400 line-clamp-3">
+                    {product.shortDescription || product.description?.substring(0, 150)}
                   </p>
 
                   {product.stock > 0 && (
                     <div>
-                      <label className="text-xs font-medium text-neutral-700 mb-1 block">Qty:</label>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1} className="p-1.5 rounded-lg border disabled:opacity-50 active:scale-95">
-                          <FiMinus className="h-3 w-3" />
+                      <label className="text-sm font-medium text-neutral-700 mb-2 block">Quantity:</label>
+                      <div className="flex items-center gap-3">
+                        <button 
+                          onClick={() => handleQuantityChange(-1)} 
+                          disabled={quantity <= 1} 
+                          className="p-2 rounded-lg border disabled:opacity-50 hover:bg-neutral-100 transition"
+                        >
+                          <FiMinus className="h-4 w-4" />
                         </button>
-                        <span className="w-10 text-center font-semibold text-sm">{quantity}</span>
-                        <button onClick={() => handleQuantityChange(1)} disabled={quantity >= product.stock} className="p-1.5 rounded-lg border disabled:opacity-50 active:scale-95">
-                          <FiPlus className="h-3 w-3" />
+                        <span className="w-12 text-center font-semibold text-lg">{quantity}</span>
+                        <button 
+                          onClick={() => handleQuantityChange(1)} 
+                          disabled={quantity >= product.stock} 
+                          className="p-2 rounded-lg border disabled:opacity-50 hover:bg-neutral-100 transition"
+                        >
+                          <FiPlus className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
                   )}
 
-                  <div className="flex gap-2 pt-2">
+                  <div className="flex gap-3 pt-2">
                     <button
                       onClick={handleAddToCart}
                       disabled={product.stock === 0 || isAddingToCart}
-                      className="flex-1 bg-primary-600 text-white py-2 rounded-lg font-semibold text-sm active:scale-98 transition-all disabled:opacity-50"
+                      className="flex-1 bg-primary-600 text-white py-3 rounded-xl font-semibold transition-all disabled:opacity-50"
                     >
                       {isAddingToCart ? (
-                        <div className="flex items-center justify-center gap-1">
-                          <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                           Adding...
                         </div>
                       ) : addedToCart ? (
-                        <div className="flex items-center justify-center gap-1">
-                          <FiCheck className="h-3.5 w-3.5" />
+                        <div className="flex items-center justify-center gap-2">
+                          <FiCheck className="h-4 w-4" />
                           Added!
                         </div>
                       ) : (
-                        <div className="flex items-center justify-center gap-1">
-                          <FiShoppingCart className="h-3.5 w-3.5" />
-                          Add - {formatPrice((product.price || 0) * quantity)}
+                        <div className="flex items-center justify-center gap-2">
+                          <FiShoppingCart className="h-4 w-4" />
+                          Add to Cart - {formatPrice((product.price || 0) * quantity)}
                         </div>
                       )}
                     </button>
 
-                    <button onClick={() => onWishlistToggle(product)} className="p-2 rounded-lg border-2 active:scale-95 transition-all">
-                      <FiHeart className={`h-4 w-4 ${inWishlist ? 'fill-red-500 text-red-500' : ''}`} />
+                    <button 
+                      onClick={() => onWishlistToggle(product)} 
+                      className="p-3 rounded-xl border-2 transition-all hover:scale-105"
+                    >
+                      <FiHeart className={`h-5 w-5 ${inWishlist ? 'fill-red-500 text-red-500' : ''}`} />
                     </button>
                   </div>
                 </div>
@@ -323,27 +344,30 @@ const RelatedProductsHorizontal = ({ productId, category, onAddToCart, onQuickVi
     
     try {
       const response = await apiWrapper.getRelatedProducts(productId, 10);
+      
       if (!isMountedRef.current) return;
       
       let productsData = [];
-      if (response?.data?.success && response.data.data) productsData = response.data.data;
-      else if (response?.data && Array.isArray(response.data)) productsData = response.data;
-      else if (Array.isArray(response)) productsData = response;
       
-      // Parse images if they're strings
-      productsData = productsData.map(p => {
-        if (typeof p.images === 'string') {
-          try {
-            p.images = JSON.parse(p.images);
-          } catch (e) {
-            p.images = [];
-          }
-        }
-        if (!p.images || !Array.isArray(p.images)) {
-          p.images = [];
-        }
-        return p;
-      });
+      // Handle different response structures
+      if (response?.success && response?.data) {
+        productsData = Array.isArray(response.data) ? response.data : [];
+      } else if (response?.data?.success && response?.data?.data) {
+        productsData = Array.isArray(response.data.data) ? response.data.data : [];
+      } else if (response?.data && Array.isArray(response.data)) {
+        productsData = response.data;
+      } else if (Array.isArray(response)) {
+        productsData = response;
+      }
+      
+      // Parse images and other fields
+      productsData = productsData.map(p => ({
+        ...p,
+        images: typeof p.images === 'string' ? JSON.parse(p.images || '[]') : (p.images || []),
+        features: typeof p.features === 'string' ? JSON.parse(p.features || '[]') : (p.features || []),
+        tags: typeof p.tags === 'string' ? JSON.parse(p.tags || '[]') : (p.tags || []),
+        inStock: p.inStock === 1 || p.inStock === true,
+      }));
       
       setProducts(productsData.slice(0, 10));
     } catch (error) {
@@ -362,14 +386,14 @@ const RelatedProductsHorizontal = ({ productId, category, onAddToCart, onQuickVi
 
   if (loading) {
     return (
-      <div className="mt-8 pt-4 border-t border-neutral-200 dark:border-neutral-800">
-        <h2 className="text-sm sm:text-base font-bold text-neutral-900 dark:text-white mb-3">You May Also Like</h2>
-        <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="mt-12 pt-6 border-t border-neutral-200 dark:border-neutral-800">
+        <h2 className="text-lg font-bold text-neutral-900 dark:text-white mb-4">You May Also Like</h2>
+        <div className="flex gap-4 overflow-x-auto pb-2">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="w-32 sm:w-36 flex-shrink-0">
-              <div className="bg-neutral-200 dark:bg-neutral-700 animate-pulse rounded-lg aspect-square" />
-              <div className="mt-1.5 h-2 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4" />
-              <div className="mt-1 h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2" />
+            <div key={i} className="w-40 flex-shrink-0">
+              <div className="bg-neutral-200 dark:bg-neutral-700 animate-pulse rounded-xl aspect-square" />
+              <div className="mt-2 h-3 bg-neutral-200 dark:bg-neutral-700 rounded w-3/4" />
+              <div className="mt-1 h-4 bg-neutral-200 dark:bg-neutral-700 rounded w-1/2" />
             </div>
           ))}
         </div>
@@ -380,85 +404,86 @@ const RelatedProductsHorizontal = ({ productId, category, onAddToCart, onQuickVi
   if (!products.length) return null;
 
   return (
-    <div className="mt-8 pt-4 border-t border-neutral-200 dark:border-neutral-800">
-      <div className="flex justify-between items-center mb-3">
-        <h2 className="text-sm sm:text-base font-bold text-neutral-900 dark:text-white">You May Also Like</h2>
-        <Link to="/products" className="text-primary-600 text-xs flex items-center gap-0.5 hover:underline">
-          View All <FiArrowRight className="h-3 w-3" />
+    <div className="mt-12 pt-6 border-t border-neutral-200 dark:border-neutral-800">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-bold text-neutral-900 dark:text-white">You May Also Like</h2>
+        <Link to="/products" className="text-primary-600 text-sm flex items-center gap-1 hover:underline">
+          View All <FiArrowRight className="h-4 w-4" />
         </Link>
       </div>
       
-      <div className="overflow-x-auto overflow-y-hidden pb-2 -mx-3 px-3 scrollbar-hide">
-        <div className="flex gap-2 w-max">
+      <div className="overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+        <div className="flex gap-4 w-max">
           {products.map((product) => {
             const discount = calculateDiscount(product.price, product.originalPrice);
             const inWishlist = isWishlisted(product._id);
             
             return (
-              <div key={product._id} className="w-32 sm:w-36 flex-shrink-0">
-                <div className="group relative bg-white dark:bg-neutral-800 rounded-lg overflow-hidden shadow hover:shadow-md transition-all border border-neutral-200 dark:border-neutral-700">
-                  <Link to={`/products/${product.slug}`} className="relative overflow-hidden bg-neutral-100 aspect-square block">
+              <div key={product._id} className="w-40 flex-shrink-0">
+                <div className="group relative bg-white dark:bg-neutral-800 rounded-xl overflow-hidden shadow hover:shadow-lg transition-all border border-neutral-200 dark:border-neutral-700">
+                  <Link to={`/products/${product.slug || product._id}`} className="relative overflow-hidden bg-neutral-100 aspect-square block">
                     <img
-                      src={product.images?.[0] || '/placeholder.svg'}
+                      src={product.images?.[0] || 'https://placehold.co/400x400/eee/999?text=No+Image'}
                       alt={product.name}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      loading="lazy"
                     />
                     {discount > 0 && (
-                      <div className="absolute top-1 left-1 bg-red-500 text-white text-[8px] font-bold px-1 py-0.5 rounded-sm shadow">
+                      <div className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                         -{discount}%
                       </div>
                     )}
                   </Link>
 
-                  <div className="p-2">
-                    <Link to={`/products/${product.slug}`}>
-                      <h3 className="font-medium text-[10px] sm:text-xs text-neutral-900 dark:text-white hover:text-primary-600 truncate">
+                  <div className="p-3">
+                    <Link to={`/products/${product.slug || product._id}`}>
+                      <h3 className="font-medium text-sm text-neutral-900 dark:text-white hover:text-primary-600 transition-colors line-clamp-2 min-h-[40px]">
                         {product.name}
                       </h3>
                     </Link>
                     
                     {product.rating > 0 && (
-                      <div className="flex items-center gap-0.5 mt-0.5">
+                      <div className="flex items-center gap-1 mt-1">
                         <div className="flex items-center gap-0.5">
                           {[...Array(5)].map((_, i) => (
-                            <FiStar key={i} className={`h-1.5 w-1.5 ${i < Math.floor(product.rating) ? 'fill-yellow-500 text-yellow-500' : 'text-neutral-300'}`} />
+                            <FiStar key={i} className={`h-2.5 w-2.5 ${i < Math.floor(product.rating) ? 'fill-yellow-500 text-yellow-500' : 'text-neutral-300'}`} />
                           ))}
                         </div>
-                        <span className="text-[6px] text-neutral-500">({product.numReviews || 0})</span>
+                        <span className="text-[10px] text-neutral-500">({product.numReviews || 0})</span>
                       </div>
                     )}
 
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-[11px] sm:text-xs font-bold text-primary-600">{formatPrice(product.price)}</span>
+                    <div className="flex items-center gap-1 mt-2">
+                      <span className="text-sm font-bold text-primary-600">{formatPrice(product.price)}</span>
                       {product.originalPrice > product.price && (
-                        <span className="text-[8px] text-neutral-400 line-through">{formatPrice(product.originalPrice)}</span>
+                        <span className="text-[10px] text-neutral-400 line-through">{formatPrice(product.originalPrice)}</span>
                       )}
                     </div>
 
-                    <div className="flex gap-1 mt-1.5">
+                    <div className="flex gap-2 mt-3">
                       <button
                         onClick={() => onAddToCart(product)}
                         disabled={isAddingToCart[product._id]}
-                        className="flex-1 bg-primary-600 text-white py-1 rounded-md text-[9px] font-medium transition-all active:scale-95 disabled:opacity-50"
+                        className="flex-1 bg-primary-600 text-white py-1.5 rounded-lg text-xs font-medium transition-all hover:bg-primary-700 disabled:opacity-50"
                       >
                         {isAddingToCart[product._id] ? (
                           <div className="h-3 w-3 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
                         ) : (
-                          'Add'
+                          'Add to Cart'
                         )}
                       </button>
                       <button
                         onClick={() => onQuickView(product)}
-                        className="p-1 rounded-md bg-neutral-100 dark:bg-neutral-700 hover:bg-primary-100 transition-colors active:scale-95"
+                        className="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-700 hover:bg-primary-100 transition-colors"
+                        title="Quick View"
                       >
-                        <FiEye className="h-2.5 w-2.5" />
+                        <FiEye className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={() => onWishlistToggle(product)}
-                        className="p-1 rounded-md bg-neutral-100 dark:bg-neutral-700 hover:bg-red-100 transition-colors active:scale-95"
+                        className="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-700 hover:bg-red-100 transition-colors"
+                        title="Add to Wishlist"
                       >
-                        <FiHeart className={`h-2.5 w-2.5 ${inWishlist ? 'fill-red-500 text-red-500' : ''}`} />
+                        <FiHeart className={`h-3.5 w-3.5 ${inWishlist ? 'fill-red-500 text-red-500' : ''}`} />
                       </button>
                     </div>
                   </div>
@@ -497,9 +522,8 @@ const ProductDetail = () => {
   const { isWishlisted, toggleWishlist } = useWishlist();
   const { addToRecentlyViewed } = useRecentlyViewed();
 
-  // Scroll to top on mount/slug change
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    window.scrollTo({ top: 0 });
   }, [slug]);
 
   useEffect(() => {
@@ -516,75 +540,30 @@ const ProductDetail = () => {
     setActiveTab('description');
     setAddedToCart(false);
     setError(null);
-    if (abortControllerRef.current) abortControllerRef.current.abort();
   }, [slug]);
 
   const parseProductData = useCallback((data) => {
-    // Parse images if they're a string
-    if (typeof data.images === 'string') {
-      try {
-        data.images = JSON.parse(data.images);
-      } catch (e) {
-        data.images = [];
-      }
-    }
-    if (!data.images || !Array.isArray(data.images)) {
-      data.images = [];
-    }
+    if (!data) return null;
     
-    // Parse features if they're a string
-    if (typeof data.features === 'string') {
-      try {
-        data.features = JSON.parse(data.features);
-      } catch (e) {
-        data.features = [];
-      }
-    }
-    if (!data.features || !Array.isArray(data.features)) {
-      data.features = [];
-    }
-    
-    // Parse tags if they're a string
-    if (typeof data.tags === 'string') {
-      try {
-        data.tags = JSON.parse(data.tags);
-      } catch (e) {
-        data.tags = [];
-      }
-    }
-    
-    // Convert boolean fields from 1/0 to true/false
-    data.inStock = data.inStock === 1 || data.inStock === true;
-    data.featured = data.featured === 1 || data.featured === true;
-    data.trending = data.trending === 1 || data.trending === true;
-    data.bestSeller = data.bestSeller === 1 || data.bestSeller === true;
-    data.newArrival = data.newArrival === 1 || data.newArrival === true;
-    data.onSale = data.onSale === 1 || data.onSale === true;
-    
-    // Ensure stock is a number
-    data.stock = data.stock || 0;
-    
-    // Parse variants
-    if (data.variants && typeof data.variants === 'string') {
-      try {
-        data.variants = JSON.parse(data.variants);
-      } catch (e) {
-        data.variants = [];
-      }
-    }
-    if (!data.variants) data.variants = [];
-    
-    // Parse reviews
-    if (data.reviews && typeof data.reviews === 'string') {
-      try {
-        data.reviews = JSON.parse(data.reviews);
-      } catch (e) {
-        data.reviews = [];
-      }
-    }
-    if (!data.reviews) data.reviews = [];
-    
-    return data;
+    return {
+      ...data,
+      images: typeof data.images === 'string' ? JSON.parse(data.images || '[]') : (data.images || []),
+      features: typeof data.features === 'string' ? JSON.parse(data.features || '[]') : (data.features || []),
+      tags: typeof data.tags === 'string' ? JSON.parse(data.tags || '[]') : (data.tags || []),
+      variants: typeof data.variants === 'string' ? JSON.parse(data.variants || '[]') : (data.variants || []),
+      reviews: typeof data.reviews === 'string' ? JSON.parse(data.reviews || '[]') : (data.reviews || []),
+      inStock: data.inStock === 1 || data.inStock === true || data.stock > 0,
+      featured: data.featured === 1 || data.featured === true,
+      trending: data.trending === 1 || data.trending === true,
+      bestSeller: data.bestSeller === 1 || data.bestSeller === true,
+      newArrival: data.newArrival === 1 || data.newArrival === true,
+      onSale: data.onSale === 1 || data.onSale === true,
+      stock: data.stock || 0,
+      price: data.price || 0,
+      originalPrice: data.originalPrice || 0,
+      rating: data.rating || 0,
+      numReviews: data.numReviews || 0,
+    };
   }, []);
 
   const fetchProduct = useCallback(async () => {
@@ -598,15 +577,20 @@ const ProductDetail = () => {
     
     try {
       const response = await apiWrapper.getProduct(slug);
+      
       if (!isMountedRef.current) return;
       
       let productData = null;
-      if (response?.data?.success && response?.data?.data) {
-        productData = response.data.data;
-      } else if (response?.data?._id) {
-        productData = response.data;
-      } else if (response?.data?.product) {
+      
+      // Handle different response structures from backend
+      if (response?.success && response?.product) {
+        productData = response.product;
+      } else if (response?.data?.success && response?.data?.product) {
         productData = response.data.product;
+      } else if (response?.data && response?.data._id) {
+        productData = response.data;
+      } else if (response?.product && response.product._id) {
+        productData = response.product;
       }
       
       if (productData) {
@@ -634,7 +618,7 @@ const ProductDetail = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (isMountedRef.current) setIsStickyVisible(window.scrollY > 500);
+      setIsStickyVisible(window.scrollY > 500);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
@@ -654,7 +638,6 @@ const ProductDetail = () => {
     return product ? isWishlisted(product._id) : false;
   }, [product, isWishlisted]);
 
-  // Generate breadcrumb items from the product data
   const breadcrumbItems = useMemo(() => {
     const items = [
       { label: 'Home', href: '/' },
@@ -663,12 +646,9 @@ const ProductDetail = () => {
     
     if (product?.category) {
       const categoryName = typeof product.category === 'object' ? product.category.name : product.category;
-      const categorySlug = typeof product.category === 'object' && product.category.slug 
-        ? product.category.slug 
-        : categoryName?.toLowerCase().replace(/\s+/g, '-');
       items.push({ 
         label: categoryName, 
-        href: `/products?category=${categorySlug}` 
+        href: `/products?category=${encodeURIComponent(categoryName)}` 
       });
     }
     
@@ -681,7 +661,7 @@ const ProductDetail = () => {
   
   const inStock = useMemo(() => {
     if (selectedVariant) return selectedVariant.stock > 0;
-    return product?.inStock || (product?.stock > 0);
+    return product?.inStock || product?.stock > 0;
   }, [selectedVariant, product]);
 
   const handleAddToCart = useCallback(async () => {
@@ -692,7 +672,6 @@ const ProductDetail = () => {
     
     setAddingToCart(true);
     try {
-      // Create a clean product object for cart
       const cartProduct = {
         _id: product._id,
         name: product.name,
@@ -706,11 +685,11 @@ const ProductDetail = () => {
       
       await addToCart(cartProduct, quantity);
       setAddedToCart(true);
-      toast.success(`${quantity} × ${product.name} added!`);
+      toast.success(`${quantity} × ${product.name} added to cart!`);
       setTimeout(() => setAddedToCart(false), 2000);
     } catch (error) {
       console.error('Add to cart error:', error);
-      toast.error('Failed to add to cart');
+      // Error toast already shown by CartContext
     } finally {
       setAddingToCart(false);
     }
@@ -721,9 +700,9 @@ const ProductDetail = () => {
     setAddingToCartRelated(prev => ({ ...prev, [product._id]: true }));
     try {
       await addToCart(product, qty);
-      toast.success(`${product.name} added!`);
+      toast.success(`${product.name} added to cart!`);
     } catch (error) {
-      toast.error('Failed to add');
+      toast.error('Failed to add to cart');
     } finally {
       setAddingToCartRelated(prev => ({ ...prev, [product._id]: false }));
     }
@@ -767,17 +746,17 @@ const ProductDetail = () => {
   if (loading) {
     return (
       <div className="bg-white dark:bg-neutral-950 min-h-screen">
-        <div className="w-full px-3 sm:px-4 py-3">
+        <div className="w-full px-4 py-6 max-w-7xl mx-auto">
           <div className="animate-pulse">
-            <div className="h-3 bg-neutral-200 dark:bg-neutral-800 rounded w-1/3 mb-3" />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="aspect-square bg-neutral-200 dark:bg-neutral-800 rounded-xl" />
-              <div className="space-y-3">
-                <div className="h-6 bg-neutral-200 dark:bg-neutral-800 rounded w-3/4" />
-                <div className="h-3 bg-neutral-200 dark:bg-neutral-800 rounded w-1/2" />
-                <div className="h-8 bg-neutral-200 dark:bg-neutral-800 rounded w-1/3" />
-                <div className="h-16 bg-neutral-200 dark:bg-neutral-800 rounded" />
-                <div className="h-10 bg-neutral-200 dark:bg-neutral-800 rounded" />
+            <div className="h-4 bg-neutral-200 dark:bg-neutral-800 rounded w-1/3 mb-6" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="aspect-square bg-neutral-200 dark:bg-neutral-800 rounded-2xl" />
+              <div className="space-y-4">
+                <div className="h-8 bg-neutral-200 dark:bg-neutral-800 rounded w-3/4" />
+                <div className="h-4 bg-neutral-200 dark:bg-neutral-800 rounded w-1/2" />
+                <div className="h-10 bg-neutral-200 dark:bg-neutral-800 rounded w-1/3" />
+                <div className="h-24 bg-neutral-200 dark:bg-neutral-800 rounded" />
+                <div className="h-12 bg-neutral-200 dark:bg-neutral-800 rounded" />
               </div>
             </div>
           </div>
@@ -789,15 +768,23 @@ const ProductDetail = () => {
   if (error || !product) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
-            <FiAlertCircle className="h-8 w-8 text-red-500" />
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+            <FiAlertCircle className="h-10 w-10 text-red-500" />
           </div>
-          <h2 className="text-lg font-bold text-neutral-900 dark:text-white mb-1">{error || 'Product Not Found'}</h2>
-          <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-4">The product doesn't exist or was removed.</p>
-          <div className="flex gap-2 justify-center">
-            <Button onClick={() => navigate(-1)} variant="outline" size="sm" icon={FiChevronLeft}>Back</Button>
-            <Link to="/products"><Button size="sm" icon={FiPackage}>Browse</Button></Link>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">
+            {error || 'Product Not Found'}
+          </h2>
+          <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-6">
+            The product you're looking for doesn't exist or has been removed.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => navigate(-1)} variant="outline" icon={FiChevronLeft}>
+              Go Back
+            </Button>
+            <Link to="/products">
+              <Button icon={FiPackage}>Browse Products</Button>
+            </Link>
           </div>
         </div>
       </div>
@@ -805,74 +792,78 @@ const ProductDetail = () => {
   }
 
   return (
-    <div className="bg-white dark:bg-neutral-950">
-      <div className="w-full px-3 sm:px-4 py-3">
+    <div className="bg-white dark:bg-neutral-950 min-h-screen">
+      <div className="w-full px-4 py-6 max-w-7xl mx-auto">
         {/* Breadcrumb */}
-        <div className="mb-3">
+        <div className="mb-6">
           <Breadcrumb items={breadcrumbItems} />
         </div>
 
         {/* Main Product Info */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Product Images */}
           <ProductImages images={product.images || []} name={product.name} />
 
           {/* Product Details */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             {/* Badges */}
-            <div className="flex flex-wrap gap-1.5">
-              {product.newArrival && <Badge variant="new" size="xs">New</Badge>}
-              {product.bestSeller && <Badge variant="featured" size="xs">Bestseller</Badge>}
-              {discount > 0 && <Badge variant="sale" size="xs">-{discount}%</Badge>}
-              {!inStock && <Badge variant="danger" size="xs">Out of Stock</Badge>}
+            <div className="flex flex-wrap gap-2">
+              {product.newArrival && <Badge variant="new" size="sm">New Arrival</Badge>}
+              {product.bestSeller && <Badge variant="featured" size="sm">Best Seller</Badge>}
+              {discount > 0 && <Badge variant="sale" size="sm">-{discount}% OFF</Badge>}
+              {!inStock && <Badge variant="danger" size="sm">Out of Stock</Badge>}
               {inStock && product.stock <= 10 && product.stock > 0 && (
-                <Badge variant="warning" size="xs">Only {product.stock} left</Badge>
+                <Badge variant="warning" size="sm">Only {product.stock} left</Badge>
               )}
             </div>
 
             {/* SKU & Category */}
-            <div className="flex flex-wrap items-center gap-2 text-[10px] text-neutral-500">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
               <span>SKU: {product.sku || (product._id || '').slice(-8).toUpperCase()}</span>
               {product.category && (
-                <span className="flex items-center gap-0.5">
-                  <FiTag className="h-2.5 w-2.5" />
+                <span className="flex items-center gap-1">
+                  <FiTag className="h-3 w-3" />
                   {typeof product.category === 'object' ? product.category.name : product.category}
                 </span>
               )}
             </div>
 
             {/* Title */}
-            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-neutral-900 dark:text-white">
+            <h1 className="text-2xl lg:text-3xl font-bold text-neutral-900 dark:text-white">
               {product.name}
             </h1>
 
             {/* Rating */}
-            <div className="flex items-center gap-2">
-              <Rating value={product.rating || 0} numReviews={product.numReviews || 0} size="sm" />
+            <div className="flex items-center gap-3">
+              <Rating value={product.rating || 0} numReviews={product.numReviews || 0} size="md" />
               <button 
-                onClick={() => setActiveTab('reviews')} 
-                className="text-[10px] text-primary-600 hover:text-primary-700"
+                onClick={() => {
+                  setActiveTab('reviews');
+                  reviewSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+                }} 
+                className="text-xs text-primary-600 hover:text-primary-700"
               >
-                ({product.numReviews || 0})
+                Read all {product.numReviews || 0} reviews
               </button>
             </div>
 
             {/* Price */}
-            <div className="flex items-baseline gap-2 bg-neutral-50 dark:bg-neutral-900 rounded-lg p-3">
-              <span className="text-xl sm:text-2xl font-bold text-primary-600">{formatPrice(currentPrice)}</span>
+            <div className="flex items-baseline gap-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl p-4">
+              <span className="text-3xl font-bold text-primary-600">{formatPrice(currentPrice)}</span>
               {product.originalPrice > currentPrice && (
                 <>
                   <span className="text-sm text-neutral-400 line-through">{formatPrice(product.originalPrice)}</span>
-                  <span className="text-[10px] font-semibold text-green-600 bg-green-100 dark:bg-green-900/20 px-1.5 py-0.5 rounded-full">
+                  <span className="text-xs font-semibold text-green-600 bg-green-100 dark:bg-green-900/20 px-2 py-1 rounded-full">
                     Save {formatPrice(product.originalPrice - currentPrice)}
                   </span>
                 </>
               )}
             </div>
 
-            {/* Description */}
-            <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed">
-              {product.shortDescription || product.description?.substring(0, 200)}
+            {/* Short Description */}
+            <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+              {product.shortDescription || product.description?.substring(0, 250)}
+              {product.description?.length > 250 && '...'}
             </p>
 
             {/* Variants */}
@@ -886,96 +877,108 @@ const ProductDetail = () => {
 
             {/* Shipping Info */}
             {inStock && (
-              <div className="flex items-center gap-1.5 text-[10px] text-green-600 bg-green-50 dark:bg-green-900/10 px-2 py-1.5 rounded-lg">
-                <FiTruck className="h-3 w-3" />
-                <span>Free delivery available</span>
+              <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 dark:bg-green-900/10 px-3 py-2 rounded-lg">
+                <FiTruck className="h-3.5 w-3.5" />
+                <span>Free shipping on orders over $200 • Fast delivery</span>
               </div>
             )}
 
             {/* Actions */}
             {inStock ? (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-medium">Qty:</label>
-                  <div className="flex items-center border rounded-lg">
-                    <button onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1} className="p-1.5 disabled:opacity-50 active:scale-95">
-                      <FiMinus className="h-3 w-3" />
+              <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium">Quantity:</label>
+                  <div className="flex items-center border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                    <button 
+                      onClick={() => handleQuantityChange(-1)} 
+                      disabled={quantity <= 1} 
+                      className="p-2 disabled:opacity-50 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-l-lg transition"
+                    >
+                      <FiMinus className="h-4 w-4" />
                     </button>
-                    <span className="px-3 text-sm font-semibold">{quantity}</span>
-                    <button onClick={() => handleQuantityChange(1)} disabled={quantity >= (selectedVariant?.stock || product?.stock || 10)} className="p-1.5 disabled:opacity-50 active:scale-95">
-                      <FiPlus className="h-3 w-3" />
+                    <span className="w-12 text-center font-semibold">{quantity}</span>
+                    <button 
+                      onClick={() => handleQuantityChange(1)} 
+                      disabled={quantity >= (selectedVariant?.stock || product?.stock || 10)} 
+                      className="p-2 disabled:opacity-50 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-r-lg transition"
+                    >
+                      <FiPlus className="h-4 w-4" />
                     </button>
                   </div>
                   {quantity > 1 && (
-                    <span className="text-[10px] text-neutral-500">Total: {formatPrice(currentPrice * quantity)}</span>
+                    <span className="text-sm text-neutral-500">
+                      Total: {formatPrice(currentPrice * quantity)}
+                    </span>
                   )}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <Button 
                     onClick={handleAddToCart} 
                     loading={addingToCart} 
                     icon={addedToCart ? FiCheck : FiShoppingCart} 
-                    size="md" 
-                    className={cn("flex-1", addedToCart && "bg-green-500")}
+                    size="lg" 
+                    className={cn("flex-1", addedToCart && "bg-green-600")}
                     disabled={addingToCart}
                   >
-                    {addedToCart ? 'Added!' : 'Add to Cart'}
+                    {addedToCart ? 'Added to Cart!' : 'Add to Cart'}
                   </Button>
                   <button 
                     onClick={handleWishlistToggle} 
                     className={cn(
-                      "p-2 rounded-lg border-2 transition-all active:scale-95",
-                      inWishlist ? "border-red-500 text-red-500 bg-red-50" : "border-neutral-200 hover:border-red-300"
+                      "p-3 rounded-xl border-2 transition-all hover:scale-105",
+                      inWishlist ? "border-red-500 text-red-500 bg-red-50 dark:bg-red-900/20" : "border-neutral-200 dark:border-neutral-700 hover:border-red-300"
                     )}
                   >
-                    <FiHeart className={cn("h-4 w-4", inWishlist && "fill-current")} />
+                    <FiHeart className={cn("h-5 w-5", inWishlist && "fill-current")} />
                   </button>
                   <button 
                     onClick={() => setShowShareModal(true)}
-                    className="p-2 rounded-lg border-2 border-neutral-200 hover:border-primary-300 transition-all active:scale-95"
+                    className="p-3 rounded-xl border-2 border-neutral-200 dark:border-neutral-700 hover:border-primary-300 transition-all hover:scale-105"
                   >
-                    <FiShare2 className="h-4 w-4" />
+                    <FiShare2 className="h-5 w-5" />
                   </button>
                 </div>
 
-                <Button onClick={handleBuyNow} variant="outline" size="md" className="w-full" icon={FiDollarSign}>
+                <Button onClick={handleBuyNow} variant="outline" size="lg" className="w-full" icon={FiDollarSign}>
                   Buy Now
                 </Button>
               </div>
             ) : (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 rounded-lg p-3">
-                <div className="flex gap-2 text-red-600">
-                  <FiAlertCircle className="h-4 w-4 flex-shrink-0" />
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+                <div className="flex gap-3 text-red-600">
+                  <FiAlertCircle className="h-5 w-5 flex-shrink-0" />
                   <div>
-                    <p className="font-semibold text-xs">Out of Stock</p>
-                    <Link to="/products" className="text-[10px] underline mt-0.5 inline-block">Browse Similar →</Link>
+                    <p className="font-semibold text-sm">Out of Stock</p>
+                    <Link to="/products" className="text-xs underline mt-1 inline-block">
+                      Browse similar products →
+                    </Link>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Features Grid */}
-            <div className="grid grid-cols-3 gap-1.5 pt-2 border-t">
+            <div className="grid grid-cols-3 gap-3 pt-4 border-t border-neutral-200 dark:border-neutral-800">
               {[
-                { icon: FiTruck, label: 'Free Ship', desc: '$200+' },
-                { icon: FiRotateCcw, label: 'Returns', desc: '30 days' },
-                { icon: FiShield, label: 'Warranty', desc: '2 years' },
+                { icon: FiTruck, label: 'Free Shipping', desc: 'On orders $200+' },
+                { icon: FiRotateCcw, label: 'Easy Returns', desc: '30 days return' },
+                { icon: FiShield, label: 'Warranty', desc: '2 year warranty' },
               ].map((item, index) => (
-                <div key={index} className="text-center p-2 bg-neutral-50 dark:bg-neutral-900 rounded-lg">
-                  <item.icon className="h-3.5 w-3.5 mx-auto mb-0.5 text-primary-600" />
-                  <p className="text-[9px] font-semibold">{item.label}</p>
-                  <p className="text-[8px] text-neutral-500">{item.desc}</p>
+                <div key={index} className="text-center p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl">
+                  <item.icon className="h-5 w-5 mx-auto mb-1 text-primary-600" />
+                  <p className="text-xs font-semibold">{item.label}</p>
+                  <p className="text-[10px] text-neutral-500">{item.desc}</p>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="mt-6">
+        {/* Tabs Section */}
+        <div className="mt-10" ref={reviewSectionRef}>
           <div className="border-b border-neutral-200 dark:border-neutral-800">
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide">
+            <div className="flex gap-6 overflow-x-auto scrollbar-hide">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -983,14 +986,16 @@ const ProductDetail = () => {
                     key={tab.id} 
                     onClick={() => setActiveTab(tab.id)} 
                     className={cn(
-                      "flex items-center gap-1 pb-2 text-xs font-medium transition-all border-b-2 whitespace-nowrap",
-                      activeTab === tab.id ? "text-primary-600 border-primary-600" : "text-neutral-500 border-transparent"
+                      "flex items-center gap-2 pb-3 text-sm font-medium transition-all border-b-2 whitespace-nowrap",
+                      activeTab === tab.id ? "text-primary-600 border-primary-600" : "text-neutral-500 border-transparent hover:text-neutral-700"
                     )}
                   >
-                    <Icon className="h-3 w-3" />
+                    <Icon className="h-4 w-4" />
                     {tab.label}
                     {tab.id === 'reviews' && product.numReviews > 0 && (
-                      <span className="text-[9px] px-1 bg-neutral-100 rounded-full">{product.numReviews}</span>
+                      <span className="text-xs px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded-full">
+                        {product.numReviews}
+                      </span>
                     )}
                   </button>
                 );
@@ -998,40 +1003,43 @@ const ProductDetail = () => {
             </div>
           </div>
 
-          <div className="py-3">
+          <div className="py-6">
             {activeTab === 'description' && (
-              <div>
-                <p className="text-xs text-neutral-600 dark:text-neutral-400 leading-relaxed whitespace-pre-line">
-                  {product.description || 'No description available.'}
-                </p>
+              <div className="space-y-4">
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed whitespace-pre-line">
+                    {product.description || 'No description available.'}
+                  </p>
+                </div>
                 {product.features?.length > 0 && (
-                  <>
-                    <h3 className="text-xs font-semibold mt-3 mb-1.5">Key Features</h3>
-                    <ul className="grid grid-cols-1 gap-1">
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3">Key Features</h3>
+                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
                       {product.features.map((feature, index) => (
-                        <li key={index} className="flex items-start gap-1.5">
-                          <FiCheck className="h-3 w-3 text-green-500 mt-0.5 flex-shrink-0" />
-                          <span className="text-[11px] text-neutral-600">{feature}</span>
+                        <li key={index} className="flex items-start gap-2">
+                          <FiCheck className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm text-neutral-600 dark:text-neutral-400">{feature}</span>
                         </li>
                       ))}
                     </ul>
-                  </>
+                  </div>
                 )}
               </div>
             )}
 
             {activeTab === 'specifications' && (
-              <div className="grid grid-cols-1 gap-1.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {[
                   { label: 'Material', value: product.material },
                   { label: 'Color', value: product.color },
                   { label: 'Dimensions', value: product.dimensions },
                   { label: 'Weight', value: product.weight },
+                  { label: 'Style', value: product.style },
                   { label: 'Brand', value: product.brand || 'FurniQo' },
                 ].filter(item => item.value).map((item, index) => (
-                  <div key={index} className="flex justify-between items-center p-2 bg-neutral-50 dark:bg-neutral-900 rounded-lg">
-                    <span className="text-[10px] text-neutral-500">{item.label}</span>
-                    <span className="text-[10px] font-semibold">{item.value}</span>
+                  <div key={index} className="flex justify-between items-center p-3 bg-neutral-50 dark:bg-neutral-900 rounded-xl">
+                    <span className="text-sm text-neutral-500">{item.label}</span>
+                    <span className="text-sm font-medium text-neutral-900 dark:text-white">{item.value}</span>
                   </div>
                 ))}
               </div>
@@ -1069,19 +1077,19 @@ const ProductDetail = () => {
             exit={{ y: '100%' }}
             className="fixed bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 border-t shadow-xl z-50 lg:hidden"
           >
-            <div className="flex items-center gap-2 px-3 py-2">
+            <div className="flex items-center gap-3 px-4 py-3">
               <div className="flex-1">
                 <p className="text-xs font-semibold truncate">{product.name}</p>
-                <p className="text-sm font-bold text-primary-600">{formatPrice(currentPrice * quantity)}</p>
+                <p className="text-lg font-bold text-primary-600">{formatPrice(currentPrice * quantity)}</p>
               </div>
               <Button 
                 onClick={handleAddToCart} 
                 loading={addingToCart} 
                 icon={addedToCart ? FiCheck : FiShoppingCart} 
-                size="sm" 
-                className={addedToCart ? 'bg-green-500' : ''}
+                size="md" 
+                className={addedToCart ? 'bg-green-600' : ''}
               >
-                {addedToCart ? 'Added' : 'Add'}
+                {addedToCart ? 'Added' : 'Add to Cart'}
               </Button>
             </div>
           </motion.div>
@@ -1109,12 +1117,6 @@ const ProductDetail = () => {
         }
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
-        }
-        .active\\:scale-95:active {
-          transform: scale(0.95);
-        }
-        .active\\:scale-98:active {
-          transform: scale(0.98);
         }
       `}</style>
     </div>
