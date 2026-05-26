@@ -24,7 +24,7 @@
     "morgan": "^1.10.1",
     "multer": "^1.4.5-lts.1",
     "sqlite": "^5.1.1",
-    "sqlite3": "^6.0.1",
+    "sqlite3": "^5.1.7",
     "uuid": "^14.0.0"
   },
   "devDependencies": {
