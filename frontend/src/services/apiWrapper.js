@@ -1,8 +1,8 @@
-// apiWrapper.js - Complete with all methods (FIXED - No circular dependency)
+// apiWrapper.js - Complete with all methods
 
-//import * as api from './api';
+import * as api from './api';
 
-// Create local data object directly - don't import from api.js to avoid circular dependency
+// Create local data object directly
 let localData = {
   products: [],
   categories: [],

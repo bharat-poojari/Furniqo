@@ -40,57 +40,11 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          // Vendor chunks - group by package
-          if (id.includes('node_modules')) {
-            // React core
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
-              return 'vendor-react'
-            }
-            // Framer motion
-            if (id.includes('framer-motion')) {
-              return 'vendor-motion'
-            }
-            // React icons
-            if (id.includes('react-icons')) {
-              return 'vendor-icons'
-            }
-            // UI libraries (if any)
-            if (id.includes('@mui') || id.includes('@emotion')) {
-              return 'vendor-ui'
-            }
-            // Date libraries
-            if (id.includes('date-fns')) {
-              return 'vendor-date'
-            }
-            // Other utilities
-            if (id.includes('axios') || id.includes('clsx') || id.includes('lodash') || id.includes('zustand') || id.includes('redux')) {
-              return 'vendor-utils'
-            }
-            // Default for other node_modules
-            return 'vendor'
-          }
-          
-          // Page-based chunks for code splitting
           if (id.includes('/src/pages/')) {
             const pageName = id.split('/src/pages/')[1].split('/')[0]
-            if (pageName && !['index', 'shared'].includes(pageName.toLowerCase())) {
+            if (pageName) {
               return `page-${pageName.toLowerCase()}`
             }
-          }
-          
-          // Service chunks
-          if (id.includes('/src/services/')) {
-            return 'services'
-          }
-          
-          // Components chunk for shared components
-          if (id.includes('/src/components/')) {
-            return 'components'
-          }
-          
-          // Data chunk
-          if (id.includes('/src/data/')) {
-            return 'data'
           }
         },
         chunkFileNames: (chunkInfo) => {
