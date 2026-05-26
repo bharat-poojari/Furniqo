@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiArrowRight, FiChevronLeft, FiChevronRight, FiPause, FiPlay } from 'react-icons/fi';
 import { heroSlides as mockHeroSlides } from '../../data/data';
+import { API_BASE_URL } from '../../utils/constants';
 import { cn } from '../../utils/cn';
 import apiWrapper from '../../services/apiWrapper';
 
@@ -105,8 +106,7 @@ const getImageUrl = (imagePath) => {
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-  const baseWithoutApi = apiUrl.replace('/api/v1', '');
+  const baseWithoutApi = API_BASE_URL.replace('/api/v1', '');
   return `${baseWithoutApi}${imagePath}`;
 };
 

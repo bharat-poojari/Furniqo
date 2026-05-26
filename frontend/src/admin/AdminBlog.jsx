@@ -10,6 +10,7 @@ import {
 import apiWrapper from '../services/apiWrapper';
 import MediaLibraryPicker from '../components/common/MediaLibraryPicker';
 import { getUploadUrl } from '../utils/uploadResponseUtils';
+import { API_BASE_URL } from '../utils/constants';
 import toast from 'react-hot-toast';
 
 // Rich text editor component
@@ -256,7 +257,7 @@ const AdminBlog = () => {
     'Furniture Care', 'Space Planning', 'Seasonal Decor'
   ];
 
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+  const apiUrl = API_BASE_URL;
 
   // Detect mobile screen
   useEffect(() => {

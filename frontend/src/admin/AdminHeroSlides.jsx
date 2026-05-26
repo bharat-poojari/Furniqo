@@ -324,8 +324,7 @@ const SlideCard = ({ slide, index, onToggle, onEdit, onDelete }) => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-    const baseWithoutApi = apiUrl.replace('/api/v1', '');
+    const baseWithoutApi = API_BASE_URL.replace('/api/v1', '');
     return `${baseWithoutApi}${imagePath}`;
   };
 
