@@ -1,6 +1,7 @@
 // src/store/AuthContext.jsx
 import { createContext, useState, useEffect, useCallback, useContext } from 'react';
 import apiWrapper from '../services/apiWrapper';
+import { API_BASE_URL } from '../utils/constants';
 import toast from 'react-hot-toast';
 
 export const AuthContext = createContext(null);
@@ -196,7 +197,8 @@ export const AuthProvider = ({ children }) => {
     // In production, integrate with actual OAuth (Google, Facebook, etc.)
     // For now, redirect to backend OAuth endpoint
     try {
-      window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1/auth'}/${provider}`;
+      const authBase = API_BASE_URL.replace('/api/v1', '') + '/auth';
+      window.location.href = `${authBase}/${provider}`;
     } catch (error) {
       toast.error(`${provider} login failed`);
       return { success: false, error: 'Social login failed' };

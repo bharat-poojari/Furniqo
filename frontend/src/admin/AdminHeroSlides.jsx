@@ -6,6 +6,7 @@ import {
   FiPlus, FiEdit2, FiTrash2, FiImage, FiEye, FiEyeOff, FiMenu, FiX, FiSave, FiLoader
 } from 'react-icons/fi';
 import apiWrapper from '../services/apiWrapper';
+import { API_BASE_URL } from '../utils/constants';
 import { getUploadUrl } from '../utils/uploadResponseUtils';
 import toast from 'react-hot-toast';
 
@@ -134,8 +135,7 @@ const SlideModal = ({ isOpen, onClose, slide, onSave, mode }) => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-    const baseWithoutApi = apiUrl.replace('/api/v1', '');
+    const baseWithoutApi = API_BASE_URL.replace('/api/v1', '');
     return `${baseWithoutApi}${imagePath}`;
   };
 
@@ -324,8 +324,7 @@ const SlideCard = ({ slide, index, onToggle, onEdit, onDelete }) => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
-    const baseWithoutApi = apiUrl.replace('/api/v1', '');
+    const baseWithoutApi = API_BASE_URL.replace('/api/v1', '');
     return `${baseWithoutApi}${imagePath}`;
   };
 

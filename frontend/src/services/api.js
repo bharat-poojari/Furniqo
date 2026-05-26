@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../utils/constants';
+import * as mock from '../data/data';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -18,7 +19,6 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Add timestamp to prevent caching for GET requests
     if (config.method === 'get') {
       config.params = {
         ...config.params,
@@ -39,9 +39,135 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    const originalRequest = error.config;
-    
-    // Handle token expiration
+    const originalRequest = error.config || {};
+    // If transient network/server error, retry GETs a couple times before fallback
+    const isNetworkError = !error.response;
+    const status = error.response?.status;
+    const isServerError = status >= 500;
+
+    const method = (originalRequest.method || 'get').toLowerCase();
+
+    // Retry idempotent GET requests up to 2 times with backoff
+    if (method === 'get' && (isNetworkError || isServerError)) {
+      originalRequest._retryCount = originalRequest._retryCount || 0;
+      if (originalRequest._retryCount < 2) {
+        originalRequest._retryCount += 1;
+        const backoff = 150 * Math.pow(2, originalRequest._retryCount - 1);
+        await new Promise((res) => setTimeout(res, backoff));
+        return api(originalRequest);
+      }
+    }
+
+    // If network error or server error (5xx), try to return mock data quickly
+    if ((isNetworkError || isServerError) && !originalRequest?._mockFallback) {
+      originalRequest._mockFallback = true;
+
+      try {
+        const url = originalRequest.url || '';
+        const method = (originalRequest.method || 'get').toLowerCase();
+
+        const getPath = (u) => {
+          try {
+            const parsed = new URL(u, API_BASE_URL || 'http://localhost');
+            return parsed.pathname;
+          } catch (e) {
+            // fallback: treat as relative
+            return u.split('?')[0];
+          }
+        };
+
+        const path = getPath(url);
+
+        const buildResponse = (data) => Promise.resolve({ data: { success: true, data }, status: 200 });
+
+        // Basic routing for common GET endpoints
+        if (method === 'get') {
+          if (/^\/products(\/.*)?$/.test(path)) {
+            if (path === '/products' || path === '/products/') return buildResponse({ products: mock.products });
+            // /products/:identifier
+            const id = path.replace('/products/', '');
+            const found = mock.products.find(p => p._id === id || p.slug === id);
+            return buildResponse({ product: found || null });
+          }
+
+          if (/^\/categories(\/.*)?$/.test(path)) {
+            return buildResponse({ categories: mock.categories });
+          }
+
+          if (/^\/blog(\/.*)?$/.test(path)) {
+            if (path === '/blog' || path === '/blog/') return buildResponse({ posts: mock.blogPosts || [] });
+            const slug = path.replace('/blog/', '');
+            const post = (mock.blogPosts || []).find(b => b._id === slug || b.slug === slug);
+            return buildResponse({ post: post || null });
+          }
+
+          if (/^\/rooms(\/.*)?$/.test(path)) {
+            return buildResponse({ rooms: mock.rooms || [] });
+          }
+
+          if (/^\/testimonials(\/.*)?$/.test(path)) {
+            return buildResponse({ testimonials: mock.testimonials || [] });
+          }
+
+          if (/^\/coupons(\/.*)?$/.test(path)) {
+            return buildResponse({ coupons: mock.coupons || [] });
+          }
+
+          if (/^\/faqs(\/.*)?$/.test(path)) {
+            return buildResponse({ faqs: mock.faqs || [] });
+          }
+
+          if (/^\/policies(\/.*)?$/.test(path)) {
+            return buildResponse({ policies: mock.policies || {} });
+          }
+
+          if (/^\/hero-slides(\/.*)?$/.test(path) || path === '/heroSlides') {
+            return buildResponse({ heroSlides: mock.heroSlides || [] });
+          }
+
+          if (path === '/health') {
+            return buildResponse({ ok: true });
+          }
+        }
+
+        // Handle some common POST fallbacks
+        if (method === 'post') {
+          // coupons validate
+          if (/^\/coupons\/validate/.test(path) || path === '/coupons/validate') {
+            try {
+              const body = typeof originalRequest.data === 'string' ? JSON.parse(originalRequest.data) : originalRequest.data || {};
+              const code = body.code || body.coupon || '';
+              const found = (mock.coupons || []).find(c => c.code === code);
+              if (found) return buildResponse({ valid: true, coupon: found });
+              return buildResponse({ valid: false });
+            } catch (e) {
+              return buildResponse({ valid: false });
+            }
+          }
+
+          // contact/submit -> echo success
+          if (/^\/contact\/submit/.test(path) || path === '/contact/submit') {
+            return buildResponse({ message: 'Message received', data: typeof originalRequest.data === 'string' ? JSON.parse(originalRequest.data || '{}') : originalRequest.data || {} });
+          }
+
+          // cart actions -> return mock cart (empty)
+          if (/^\/cart(\/.*)?$/.test(path)) {
+            return buildResponse({ cart: { items: [] } });
+          }
+
+          // wishlist actions -> empty
+          if (/^\/wishlist(\/.*)?$/.test(path)) {
+            return buildResponse({ wishlist: [] });
+          }
+        }
+
+        // default: return an empty success envelope
+        return buildResponse({});
+      } catch (e) {
+        // fall through to original error handling below
+      }
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
@@ -70,21 +196,6 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-// Local data object for apiWrapper.js
-export let localData = {
-  cart: [],
-  wishlist: [],
-  favorites: [],
-  recentlyViewed: [],
-  compareList: [],
-};
-
-// Helper function to update localData
-export const updateLocalData = (newData) => {
-  localData = { ...localData, ...newData };
-  return localData;
-};
 
 // ============ USER MANAGEMENT API ============
 export const userAPI = {
