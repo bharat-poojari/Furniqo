@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "build": "npm run build",
     "dev": "node server.js",
     "seed": "node utils/seedData.js",
     "db:reset": "rm -f furniqo.db && npm run seed",
