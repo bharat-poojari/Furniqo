@@ -1,4 +1,11 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+const rawApiUrl = import.meta.env.VITE_API_URL;
+const isPlaceholder = typeof rawApiUrl === 'string' && /your-backend-api/i.test(rawApiUrl);
+
+export const API_BASE_URL = (rawApiUrl && !isPlaceholder)
+  ? rawApiUrl
+  : (typeof window !== 'undefined' && window.location.hostname === 'localhost')
+    ? 'http://localhost:5000/api/v1'
+    : '/api/v1';
 
 export const SITE_NAME = 'Furniqo';
 export const SITE_DESCRIPTION = 'Premium furniture for modern living';
