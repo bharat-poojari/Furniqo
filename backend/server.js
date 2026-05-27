@@ -98,7 +98,7 @@ const helmetOptions = {
 app.use(helmet(helmetOptions));
 
 // Configure CORS properly for Vercel frontend
-const defaultOrigins = ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'];
+const defaultOrigins = ['https://the-furniqo.vercel.app', 'http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'];
 const allowedOrigins = process.env.ALLOWED_ORIGINS === '*'
   ? '*'
   : (process.env.ALLOWED_ORIGINS
