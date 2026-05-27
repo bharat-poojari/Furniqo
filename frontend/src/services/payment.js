@@ -20,7 +20,7 @@ export const initializeRazorpay = async (orderData) => {
   const options = {
     key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder',
     amount: Math.round(orderData.total * 100),
-    currency: 'USD',
+    currency: 'INR',
     name: 'Furniqo',
     description: `Order #${orderData.orderNumber || 'FNQ-XXXX'}`,
     image: '/logo.png',

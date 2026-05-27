@@ -457,7 +457,7 @@ const QuickViewModal = ({ product, isOpen, onClose, addToCart, isWishlisted, tog
 
                   <div className="mb-4">
                     <span className="text-3xl font-bold text-primary-600 dark:text-primary-400">
-                      ${product.price?.toLocaleString() || 0}
+                      {formatPrice(product.price)}
                     </span>
                   </div>
 
@@ -522,7 +522,7 @@ const QuickViewModal = ({ product, isOpen, onClose, addToCart, isWishlisted, tog
                       ) : (
                         <div className="flex items-center justify-center gap-2">
                           <FiShoppingCart className="h-5 w-5" />
-                          Add to Cart - ${((product.price || 0) * quantity).toLocaleString()}
+                          Add to Cart - {formatPrice((product.price || 0) * quantity)}
                         </div>
                       )}
                     </button>

@@ -51,6 +51,7 @@ import { useNotifications } from '../../store/NotificationContext';
 import { useScrollPosition } from '../../hooks/useScrollPosition';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { cn } from '../../utils/cn';
+import { formatPrice } from '../../utils/helpers';
 
 // Lazy load heavy components
 const SearchBar = lazy(() => import('../common/SearchBar'));
@@ -265,9 +266,10 @@ const Header = () => {
 
   const getProductPrice = useCallback((item) => {
     try {
-      return (item.variant?.price || item.product?.price || item.price || 0).toFixed(2);
+      const price = parseFloat(item.variant?.price || item.product?.price || item.price || 0) || 0;
+      return formatPrice(price);
     } catch (error) {
-      return '0.00';
+      return formatPrice(0);
     }
   }, []);
 
@@ -704,7 +706,7 @@ const Header = () => {
                                     Qty: {item.quantity || 1}
                                   </p>
                                   <p className="text-sm font-semibold text-primary-600">
-                                    ${getProductPrice(item)}
+                                    {getProductPrice(item)}
                                   </p>
                                 </div>
                               </div>
@@ -718,7 +720,7 @@ const Header = () => {
                           <div className="border-t dark:border-neutral-800 pt-3">
                             <div className="flex justify-between mb-4">
                               <span className="font-medium">Subtotal</span>
-                              <span className="font-bold">${subtotal.toFixed(2)}</span>
+                              <span className="font-bold">{formatPrice(subtotal)}</span>
                             </div>
                             <button
                               onClick={() => {

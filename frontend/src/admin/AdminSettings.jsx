@@ -50,7 +50,7 @@ const AdminSettings = () => {
     
     // Store Settings
     storeSettings: {
-      currency: 'USD',
+      currency: 'INR',
       taxRate: 10,
       shippingCost: 19.99,
       freeShippingThreshold: 200,

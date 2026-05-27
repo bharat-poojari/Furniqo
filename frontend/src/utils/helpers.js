@@ -1,7 +1,7 @@
 import { format, formatDistanceToNow, parseISO, isValid } from 'date-fns';
 
-export const formatPrice = (amount, currency = 'USD') => {
-  return new Intl.NumberFormat('en-US', {
+export const formatPrice = (amount, currency = 'INR') => {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency,
     minimumFractionDigits: 2,
@@ -10,9 +10,9 @@ export const formatPrice = (amount, currency = 'USD') => {
 };
 
 export const formatCompactCurrency = (amount) => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'INR',
     notation: 'compact',
     maximumFractionDigits: 1,
   }).format(amount);

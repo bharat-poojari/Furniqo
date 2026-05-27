@@ -404,7 +404,7 @@ const QuickViewModal = memo(({ product, isOpen, onClose }) => {
 
           <div className="mb-4">
             <span className="text-3xl font-bold text-primary-600 dark:text-primary-400">
-              ${product.price?.toLocaleString() || 0}
+              {formatPrice(product.price)}
             </span>
           </div>
 
@@ -469,7 +469,7 @@ const QuickViewModal = memo(({ product, isOpen, onClose }) => {
               ) : (
                 <div className="flex items-center justify-center gap-2">
                   <FiShoppingCart className="h-5 w-5" />
-                  Add to Cart - ${((product.price || 0) * quantity).toLocaleString()}
+                  Add to Cart - {formatPrice((product.price || 0) * quantity)}
                 </div>
               )}
             </button>
@@ -689,11 +689,11 @@ const ProductCard = memo(({ product, index, onQuickView, onWishlistToggle, onAdd
           <div className="flex items-center justify-between mt-auto pt-2 sm:pt-3 border-t border-neutral-100 dark:border-neutral-700">
             <div className="flex flex-col">
               <span className="text-base sm:text-lg lg:text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 dark:from-primary-400 dark:to-primary-300 bg-clip-text text-transparent">
-                ${(product.price || 0).toLocaleString()}
+                {formatPrice(product.price || 0)}
               </span>
               {product.originalPrice && product.originalPrice > product.price && (
                 <span className="text-[8px] sm:text-xs text-neutral-400 line-through">
-                  ${product.originalPrice.toLocaleString()}
+                  {formatPrice(product.originalPrice)}
                 </span>
               )}
             </div>
