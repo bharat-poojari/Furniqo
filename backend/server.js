@@ -98,21 +98,28 @@ app.use(helmet(helmetOptions));
 
 // CORS: allow a configurable list of origins via ALLOWED_ORIGINS env var (comma-separated).
 // In production set ALLOWED_ORIGINS=https://the-furniqo.vercel.app,https://your-other-origin
+// For testing, use ALLOWED_ORIGINS=* to allow all origins
 const defaultOrigins = ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'];
-const allowedOrigins = (process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
-  : defaultOrigins
-);
+const corsOriginConfig = process.env.ALLOWED_ORIGINS === '*'
+  ? '*'
+  : (process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+    : defaultOrigins
+  );
+
+if (process.env.ALLOWED_ORIGINS === '*') {
+  console.warn('⚠️  CORS: Allowing all origins (ALLOWED_ORIGINS=*). This should only be used for testing.');
+}
 
 app.use(cors({
-  origin: (origin, cb) => {
+  origin: corsOriginConfig === '*' ? true : (origin, cb) => {
     // Allow server-to-server or tools without an origin (curl, Postman)
     if (!origin) return cb(null, true);
 
     // Allow wildcard if explicitly configured
-    if (allowedOrigins.includes('*')) return cb(null, true);
+    if (corsOriginConfig === '*') return cb(null, true);
 
-    const match = allowedOrigins.some(o => o.toLowerCase() === origin.toLowerCase());
+    const match = corsOriginConfig.some(o => o.toLowerCase() === origin.toLowerCase());
     if (match) return cb(null, true);
 
     console.warn(`CORS blocked origin: ${origin}`);
@@ -143,6 +150,21 @@ app.use((req, res, next) => {
 // Apply rate limiting to API routes
 app.use('/api/', limiter);
 
+// Explicit preflight handling for all /api/v1 routes to ensure OPTIONS succeeds
+app.options('/api/v1/*', cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (process.env.ALLOWED_ORIGINS === '*') return cb(null, true);
+    const allowedOrigins = process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+      : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'];
+    const match = allowedOrigins.some(o => o.toLowerCase() === origin.toLowerCase());
+    return cb(null, match);
+  },
+  credentials: true,
+  optionsSuccessStatus: 204,
+}));
+
 // API Routes
 app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/categories', categoryRoutes);
@@ -164,7 +186,9 @@ app.use('/api/v1/gift-cards', giftCardRoutes);
 
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {
+  console.log('Health check requested from origin:', req.get('origin') || 'unknown');
   res.json({ 
+    success: true,
     status: 'OK', 
     message: 'Furniqo API is running', 
     timestamp: new Date().toISOString(),

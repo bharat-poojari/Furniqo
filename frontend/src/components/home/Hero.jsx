@@ -142,21 +142,28 @@ const Hero = () => {
       // Try to fetch from API
       const response = await apiWrapper.getHeroSlides();
       
-      console.log('Hero slides API response:', response);
+      console.debug('🎬 Hero slides API response:', response);
       
       let slidesData = [];
       
-      // Handle different response formats
-      if (response?.data?.slides && Array.isArray(response.data.slides)) {
-        slidesData = response.data.slides;
-      } else if (response?.slides && Array.isArray(response.slides)) {
+      // apiWrapper returns { success, slides } format
+      if (response?.slides && Array.isArray(response.slides)) {
+        console.debug('✅ Found slides in response.slides');
         slidesData = response.slides;
+      } else if (response?.data?.slides && Array.isArray(response.data.slides)) {
+        console.debug('✅ Found slides in response.data.slides');
+        slidesData = response.data.slides;
       } else if (response?.data && Array.isArray(response.data)) {
+        console.debug('✅ Found array in response.data');
         slidesData = response.data;
       } else if (Array.isArray(response)) {
+        console.debug('✅ Response is directly an array');
         slidesData = response;
       } else if (response?.data?.data && Array.isArray(response.data.data)) {
+        console.debug('✅ Found slides in response.data.data');
         slidesData = response.data.data;
+      } else {
+        console.warn('⚠️ Could not find slides array in response:', response);
       }
       
       // Filter only active slides and normalize data
@@ -166,10 +173,11 @@ const Hero = () => {
         .map(normalizeSlideData);
       
       if (activeSlides && activeSlides.length > 0) {
+        console.debug(`✅ Loaded ${activeSlides.length} active slides from API`);
         setHeroSlides(activeSlides);
       } else {
         // Fallback to mock data if no active slides
-        console.log('No active slides from API, using mock data');
+        console.log('📦 No active slides from API, using mock data');
         const mockData = mockHeroSlides.map(slide => ({
           ...slide,
           image: slide.image
@@ -177,10 +185,10 @@ const Hero = () => {
         setHeroSlides(mockData);
       }
     } catch (error) {
-      console.warn('Failed to fetch hero slides from API:', error);
+      console.warn('❌ Failed to fetch hero slides from API:', error);
       setError(error.message);
       // Fallback to mock data
-      console.log('Using mock hero slides data');
+      console.log('📦 Using mock hero slides data');
       const mockData = mockHeroSlides.map(slide => ({
         ...slide,
         image: slide.image

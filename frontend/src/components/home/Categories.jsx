@@ -15,26 +15,39 @@ const Categories = () => {
     setLoading(true);
     try {
       const response = await apiWrapper.getCategories();
+      console.debug('📦 Categories API response:', response);
+      
       let categoriesData = [];
       
-      if (response?.data?.success && response.data.data) {
+      // New format: { success: true, categories: [...] }
+      if (response?.success && response?.categories && Array.isArray(response.categories)) {
+        console.debug('✅ Found categories in response.categories');
+        categoriesData = response.categories;
+      }
+      // Legacy formats fallback
+      else if (response?.data?.success && response.data.data) {
+        console.debug('✅ Found categories in response.data.data');
         categoriesData = response.data.data;
-      } else if (response?.success && response?.data) {
+      } else if (response?.success && response?.data && Array.isArray(response.data)) {
+        console.debug('✅ Found categories in response.data');
         categoriesData = response.data;
       } else if (Array.isArray(response)) {
+        console.debug('✅ Response is direct array');
         categoriesData = response;
       } else if (response?.data && Array.isArray(response.data)) {
+        console.debug('✅ Found array in response.data');
         categoriesData = response.data;
       }
       
       if (categoriesData && categoriesData.length > 0) {
+        console.debug(`✅ Loaded ${categoriesData.length} categories from API`);
         setCategories(categoriesData);
       } else {
-        console.warn('No categories from API, using mock data');
+        console.warn('⚠️ No categories from API, using mock data');
         setCategories(mockCategories);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error('❌ Error fetching categories:', error);
       // Fallback to mock data on error
       setCategories(mockCategories);
     } finally {

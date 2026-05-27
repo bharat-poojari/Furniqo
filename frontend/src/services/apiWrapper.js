@@ -73,7 +73,7 @@ class APIWrapper {
       });
 
       const apiUrl = API_BASE_URL;
-      console.debug('Checking backend health at', `${apiUrl}/health`);
+      console.debug('🔍 Health check URL:', `${apiUrl}/health`);
 
       const response = await Promise.race([
         fetch(`${apiUrl}/health`, {
@@ -89,13 +89,20 @@ class APIWrapper {
       ]);
 
       clearTimeout(timeoutId);
-      this.useLocalFallback = !response.ok;
-
-      if (this.useLocalFallback) {
-        console.debug('Backend health check failed, using local data fallback');
+      
+      console.debug('✅ Health check response:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        console.warn(`⚠️ Health check returned ${response.status}, using local fallback`);
+        this.useLocalFallback = true;
+        return !this.useLocalFallback;
       }
+      
+      const data = await response.json();
+      console.debug('✅ Health check successful:', data);
+      this.useLocalFallback = false;
     } catch (error) {
-      console.debug('Backend unavailable, using local data fallback');
+      console.warn('❌ Backend health check failed:', error.message, '- using local data fallback');
       this.useLocalFallback = true;
     } finally {
       this.backendChecked = true;
@@ -1161,15 +1168,29 @@ class APIWrapper {
         const query = params.search.toLowerCase();
         products = products.filter(p => p.name.toLowerCase().includes(query));
       }
-      return { success: true, data: products };
+      console.debug('📦 Using local fallback for products');
+      return { success: true, products };
     }
 
     try {
       const response = await api.productAPI.getAllProducts(params);
-      return response.data;
+      console.debug('✅ Products API response:', response.data);
+      
+      // Normalize response to { success, products }
+      if (response.data) {
+        return {
+          success: response.data.success !== false,
+          products: response.data.products || response.data.data || response.data.items || [],
+          total: response.data.total,
+          page: response.data.page,
+          totalPages: response.data.totalPages
+        };
+      }
+      return { success: true, products: [] };
     } catch (error) {
-      console.warn('Get products API failed:', error);
-      return { success: true, data: localData.products || [] };
+      console.warn('❌ Get products API failed:', error.message);
+      console.debug('📦 Falling back to local data');
+      return { success: false, products: localData.products || [] };
     }
   }
 
@@ -1278,15 +1299,26 @@ class APIWrapper {
     await this.ensureInitialized();
 
     if (this.useLocalFallback) {
-      return { success: true, data: localData.categories || [] };
+      console.debug('📦 Using local fallback for categories');
+      return { success: true, categories: localData.categories || [] };
     }
 
     try {
       const response = await api.categoryAPI.getCategories();
-      return response.data;
+      console.debug('✅ Categories API response:', response.data);
+      
+      // Normalize response to { success, categories }
+      if (response.data) {
+        return {
+          success: response.data.success !== false,
+          categories: response.data.categories || response.data.data || []
+        };
+      }
+      return { success: true, categories: [] };
     } catch (error) {
-      console.warn('Get categories API failed:', error);
-      return { success: true, data: localData.categories || [] };
+      console.warn('❌ Get categories API failed:', error.message);
+      console.debug('📦 Falling back to local data');
+      return { success: false, categories: localData.categories || [] };
     }
   }
 
@@ -1295,7 +1327,8 @@ class APIWrapper {
 
     if (this.useLocalFallback) {
       const featured = (localData.categories || []).filter(c => c.featured);
-      return { success: true, data: featured };
+      console.debug('📦 Using local fallback for featured categories');
+      return { success: true, categories: featured };
     }
 
     try {
@@ -1392,7 +1425,8 @@ class APIWrapper {
     await this.ensureInitialized();
 
     if (this.useLocalFallback) {
-      return { success: true, data: localData.testimonials || [] };
+      console.debug('📦 Using local fallback for testimonials');
+      return { success: true, testimonials: localData.testimonials || [] };
     }
 
     try {
@@ -1404,11 +1438,20 @@ class APIWrapper {
         response = await api.testimonialAPI.getTestimonials();
       }
       
-      console.log('Get testimonials response:', response.data);
-      return response.data;
+      console.debug('✅ Testimonials API response:', response.data);
+      
+      // Normalize response to { success, testimonials }
+      if (response.data) {
+        return {
+          success: response.data.success !== false,
+          testimonials: response.data.testimonials || response.data.data || []
+        };
+      }
+      return { success: true, testimonials: [] };
     } catch (error) {
-      console.warn('Get testimonials API failed:', error);
-      return { success: true, data: localData.testimonials || [] };
+      console.warn('❌ Get testimonials API failed:', error.message);
+      console.debug('📦 Falling back to local data');
+      return { success: false, testimonials: localData.testimonials || [] };
     }
   }
 
@@ -1849,15 +1892,26 @@ class APIWrapper {
     await this.ensureInitialized();
 
     if (this.useLocalFallback) {
-      return { success: true, data: localData.faqs || [] };
+      console.debug('📦 Using local fallback for FAQs');
+      return { success: true, faqs: localData.faqs || [] };
     }
 
     try {
       const response = await api.faqAPI.getFaqs();
-      return response.data;
+      console.debug('✅ FAQs API response:', response.data);
+      
+      // Normalize response to { success, faqs }
+      if (response.data) {
+        return {
+          success: response.data.success !== false,
+          faqs: response.data.faqs || response.data.data || []
+        };
+      }
+      return { success: true, faqs: [] };
     } catch (error) {
-      console.warn('Get FAQs API failed:', error);
-      return { success: true, data: localData.faqs || [] };
+      console.warn('❌ Get FAQs API failed:', error.message);
+      console.debug('📦 Falling back to local data');
+      return { success: false, faqs: localData.faqs || [] };
     }
   }
 
@@ -2157,15 +2211,27 @@ class APIWrapper {
     await this.ensureInitialized();
 
     if (this.useLocalFallback) {
-      return { success: true, data: localData.heroSlides || [] };
+      console.debug('📦 Using local fallback for hero slides');
+      return { success: true, slides: localData.heroSlides || [] };
     }
 
     try {
+      console.debug('🔄 Fetching hero slides from API...');
       const response = await api.heroSlidesAPI.getActiveSlides();
-      return response.data;
+      console.debug('✅ Hero slides API response:', response.data);
+      
+      // Normalize response to { success, slides }
+      if (response.data) {
+        return {
+          success: response.data.success !== false,
+          slides: response.data.slides || response.data.data || []
+        };
+      }
+      return { success: true, slides: [] };
     } catch (error) {
-      console.warn('Get hero slides API failed:', error);
-      return { success: true, data: localData.heroSlides || [] };
+      console.warn('❌ Get hero slides API failed:', error.message);
+      console.debug('📦 Falling back to local data');
+      return { success: false, slides: localData.heroSlides || [] };
     }
   }
 

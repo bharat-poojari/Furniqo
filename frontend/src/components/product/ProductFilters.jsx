@@ -192,7 +192,13 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
       try {
         const categoriesResponse = await apiWrapper.getCategories();
         let categoriesData = [];
-        if (categoriesResponse?.data?.success && categoriesResponse.data.data) {
+        
+        // New format: { success: true, categories: [...] }
+        if (categoriesResponse?.success && categoriesResponse?.categories && Array.isArray(categoriesResponse.categories)) {
+          categoriesData = categoriesResponse.categories.map(cat => cat.name);
+        }
+        // Legacy formats
+        else if (categoriesResponse?.data?.success && categoriesResponse.data.data) {
           categoriesData = categoriesResponse.data.data.map(cat => cat.name);
         } else if (Array.isArray(categoriesResponse)) {
           categoriesData = categoriesResponse.map(cat => cat.name);
@@ -202,7 +208,13 @@ const ProductFilters = memo(({ filters, onFilterChange, onSortChange, currentSor
         
         const productsResponse = await apiWrapper.getProducts({ limit: 100 });
         let productsData = [];
-        if (productsResponse?.data?.success && productsResponse.data.data) {
+        
+        // New format: { success: true, products: [...] }
+        if (productsResponse?.success && productsResponse?.products && Array.isArray(productsResponse.products)) {
+          productsData = productsResponse.products;
+        }
+        // Legacy formats
+        else if (productsResponse?.data?.success && productsResponse.data.data) {
           productsData = productsResponse.data.data;
         } else if (Array.isArray(productsResponse)) {
           productsData = productsResponse;
