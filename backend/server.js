@@ -1,5 +1,3 @@
-// server.js - Complete corrected version (relevant section only)
-
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -14,22 +12,26 @@ const fs = require('fs');
 // Load environment variables
 dotenv.config();
 
-// Basic env validation/warnings
+// Enhanced environment validation
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change_me_to_a_strong_secret') {
   if (process.env.NODE_ENV === 'production') {
-    console.error('❌ JWT_SECRET is not set. Aborting in production.');
+    console.error('❌ JWT_SECRET is not set or using default. Aborting in production.');
     process.exit(1);
   } else {
     console.warn('⚠️ JWT_SECRET is not set or using default. This is OK for development but change it for production.');
   }
 }
 
+if (process.env.NODE_ENV === 'production' && !process.env.ALLOWED_ORIGINS) {
+  console.error('❌ ALLOWED_ORIGINS must be set in production');
+  process.exit(1);
+}
+
 // Import database
 const { initDatabase, runMigrations, getDb } = require('./config/database');
-// FIXED: Import seedDatabase instead of seedAllData
 const { seedDatabase } = require('./utils/seedData');
 
-// Import routes (your existing imports remain the same)
+// Import routes
 const productRoutes = require('./routes/products');
 const categoryRoutes = require('./routes/categories');
 const testimonialRoutes = require('./routes/testimonials');
@@ -67,15 +69,14 @@ if (!fs.existsSync(testimonialsUploadDir)) {
   console.log('📁 Created testimonials upload directory');
 }
 
-// Rate limiting
+// Rate limiting - stricter in production
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000,
   message: 'Too many requests from this IP, please try again later.',
   skipSuccessfulRequests: true
 });
 
-// Middleware
 // Helmet security headers with permissive image policy for cross-origin frontends
 const helmetOptions = {
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -83,8 +84,8 @@ const helmetOptions = {
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
-      connectSrc: ["'self'", 'https:'],
-      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'", 'https:', 'wss:'],
+      imgSrc: ["'self'", 'data:', 'https:', 'http:'],
       styleSrc: ["'self'", 'https:', "'unsafe-inline'"],
       fontSrc: ["'self'", 'https:', 'data:'],
       objectSrc: ["'none'"],
@@ -96,11 +97,9 @@ const helmetOptions = {
 
 app.use(helmet(helmetOptions));
 
-// CORS: allow a configurable list of origins via ALLOWED_ORIGINS env var (comma-separated).
-// In production set ALLOWED_ORIGINS=https://the-furniqo.vercel.app,https://your-other-origin
-// For testing, use ALLOWED_ORIGINS=* to allow all origins
+// Configure CORS properly for Vercel frontend
 const defaultOrigins = ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'];
-const corsOriginConfig = process.env.ALLOWED_ORIGINS === '*'
+const allowedOrigins = process.env.ALLOWED_ORIGINS === '*'
   ? '*'
   : (process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
@@ -111,28 +110,54 @@ if (process.env.ALLOWED_ORIGINS === '*') {
   console.warn('⚠️  CORS: Allowing all origins (ALLOWED_ORIGINS=*). This should only be used for testing.');
 }
 
+// Main CORS middleware
 app.use(cors({
-  origin: corsOriginConfig === '*' ? true : (origin, cb) => {
-    // Allow server-to-server or tools without an origin (curl, Postman)
-    if (!origin) return cb(null, true);
-
-    // Allow wildcard if explicitly configured
-    if (corsOriginConfig === '*') return cb(null, true);
-
-    const match = corsOriginConfig.some(o => o.toLowerCase() === origin.toLowerCase());
-    if (match) return cb(null, true);
-
-    console.warn(`CORS blocked origin: ${origin}`);
-    return cb(null, false);
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Allow all origins if wildcard is set
+    if (allowedOrigins === '*') {
+      return callback(null, true);
+    }
+    
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      // Handle exact matches and subdomains
+      if (allowedOrigin.includes('*')) {
+        const pattern = allowedOrigin.replace(/\*/g, '.*');
+        const regex = new RegExp(`^${pattern}$`);
+        return regex.test(origin);
+      }
+      return allowedOrigin.toLowerCase() === origin.toLowerCase();
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      console.warn(`Allowed origins: ${allowedOrigins.join(', ')}`);
+      callback(new Error('Not allowed by CORS'));
+    }
   },
   credentials: true,
-  exposedHeaders: ['Authorization'],
-  // Ensure preflight OPTIONS requests get a proper success status
+  exposedHeaders: ['Authorization', 'X-Request-Id'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   optionsSuccessStatus: 204,
   preflightContinue: false,
 }));
 
-app.use(morgan('dev'));
+// Logging middleware (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('dev'));
+} else {
+  // Simple logging for production
+  app.use(morgan('combined'));
+}
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -149,21 +174,6 @@ app.use((req, res, next) => {
 
 // Apply rate limiting to API routes
 app.use('/api/', limiter);
-
-// Explicit preflight handling for all /api/v1 routes to ensure OPTIONS succeeds
-app.options('/api/v1/*', cors({
-  origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
-    if (process.env.ALLOWED_ORIGINS === '*') return cb(null, true);
-    const allowedOrigins = process.env.ALLOWED_ORIGINS
-      ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
-      : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'];
-    const match = allowedOrigins.some(o => o.toLowerCase() === origin.toLowerCase());
-    return cb(null, match);
-  },
-  credentials: true,
-  optionsSuccessStatus: 204,
-}));
 
 // API Routes
 app.use('/api/v1/products', productRoutes);
@@ -184,7 +194,7 @@ app.use('/api/v1/hero-slides', heroSlideRoutes);
 app.use('/api/v1/policies', policyRoutes);
 app.use('/api/v1/gift-cards', giftCardRoutes);
 
-// Health check endpoint
+// Health check endpoint with CORS info
 app.get('/api/v1/health', (req, res) => {
   console.log('Health check requested from origin:', req.get('origin') || 'unknown');
   res.json({ 
@@ -192,12 +202,23 @@ app.get('/api/v1/health', (req, res) => {
     status: 'OK', 
     message: 'Furniqo API is running', 
     timestamp: new Date().toISOString(),
-    version: '2.0.0'
+    version: '2.0.0',
+    environment: process.env.NODE_ENV,
+    cors_enabled: true
   });
 });
 
 // Seed endpoint (admin only - protected in production)
 app.post('/api/v1/admin/seed', async (req, res) => {
+  // Check for admin authorization in production
+  if (process.env.NODE_ENV === 'production') {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    // Add your admin token validation here
+  }
+  
   try {
     const db = getDb();
     await seedDatabase(db);
@@ -210,10 +231,14 @@ app.post('/api/v1/admin/seed', async (req, res) => {
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Route not found' });
+  res.status(404).json({ 
+    success: false, 
+    message: 'Route not found',
+    path: req.originalUrl 
+  });
 });
 
-// Error handler middleware
+// Global error handler middleware
 app.use(errorHandler);
 
 // Initialize database and start server
@@ -221,27 +246,39 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
+    console.log('🚀 Starting Furniqo API Server...');
+    console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
+    
     // Initialize database (creates tables)
+    console.log('📊 Initializing database...');
     await initDatabase();
     
     // Run migrations
+    console.log('🔄 Running migrations...');
     await runMigrations();
     
-    // Seed all data (testimonials, categories, products, etc.)
-    const db = getDb();
-    // FIXED: Call seedDatabase instead of seedAllData
-    await seedDatabase(db);
+    // Seed all data (only in development or if force seeded)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🌱 Seeding database...');
+      const db = getDb();
+      await seedDatabase(db);
+      console.log('✅ Database seeded successfully');
+    } else {
+      console.log('⚠️ Skipping database seeding in production');
+    }
     
     // Start server
     app.listen(PORT, () => {
-      console.log(`\n🚀 Server running on port ${PORT}`);
-      console.log(`📁 API URL: http://localhost:${PORT}/api/v1`);
-      console.log(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`\n✅ Server running successfully!`);
+      console.log(`📍 Port: ${PORT}`);
+      console.log(`🔗 API URL: http://localhost:${PORT}/api/v1`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔐 JWT Auth: Enabled`);
-      console.log(`\n📝 Testimonials seeded: Check your database!`);
+      console.log(`🌐 CORS Allowed Origins: ${allowedOrigins === '*' ? 'ALL' : allowedOrigins.join(', ')}`);
+      console.log(`\n✨ Frontend should be configured to call: ${process.env.NODE_ENV === 'production' ? 'YOUR_BACKEND_URL' : `http://localhost:${PORT}`}`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };
