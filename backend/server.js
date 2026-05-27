@@ -76,9 +76,25 @@ const limiter = rateLimit({
 });
 
 // Middleware
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
+// Helmet security headers with permissive image policy for cross-origin frontends
+const helmetOptions = {
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      connectSrc: ["'self'", 'https:'],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      styleSrc: ["'self'", 'https:', "'unsafe-inline'"],
+      fontSrc: ["'self'", 'https:', 'data:'],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'self'"],
+      baseUri: ["'self'"],
+    }
+  }
+};
+
+app.use(helmet(helmetOptions));
 
 // CORS: allow a configurable list of origins via ALLOWED_ORIGINS env var (comma-separated).
 // In production set ALLOWED_ORIGINS=https://the-furniqo.vercel.app,https://your-other-origin
