@@ -1,4 +1,4 @@
-const CACHE_NAME = 'furniqo-v3';
+const CACHE_NAME = 'furniqo-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -6,7 +6,7 @@ const STATIC_ASSETS = [
   '/manifest.json',
 ];
 
-const DYNAMIC_CACHE = 'furniqo-dynamic-v3';
+const DYNAMIC_CACHE = 'furniqo-dynamic-v4';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -34,10 +34,28 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Listen for messages from the client (e.g. SKIP_WAITING)
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+  if (event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
+  // Skip non-GET requests
   if (request.method !== 'GET') return;
+
+  // If the request is to a different origin (e.g. external API), don't intercept it.
+  // This avoids returning cached/opaque responses for cross-origin requests on some mobile browsers.
+  try {
+    const requestUrl = new URL(request.url);
+    if (requestUrl.origin !== self.location.origin) return;
+  } catch (e) {
+    // If URL parsing fails, fall back to default behavior
+  }
 
   if (request.url.includes('/api/')) {
     event.respondWith(networkFirst(request));
