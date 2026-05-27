@@ -1,22 +1,32 @@
 const rawApiUrl = import.meta.env.VITE_API_URL;
-const isPlaceholder = typeof rawApiUrl === 'string' && /your-backend-api/i.test(rawApiUrl);
+const normalizedApiUrl = typeof rawApiUrl === 'string' ? rawApiUrl.trim().replace(/\/+$|\s+$/g, '') : rawApiUrl;
+const isPlaceholder = typeof normalizedApiUrl === 'string' && /your-backend-api/i.test(normalizedApiUrl);
 
-export const API_BASE_URL = (rawApiUrl && !isPlaceholder)
-  ? rawApiUrl
-  : (typeof window !== 'undefined' && window.location.hostname === 'localhost')
+const isLocalhost = typeof window !== 'undefined'
+  && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+const hasConfiguredApiUrl = Boolean(normalizedApiUrl && !isPlaceholder);
+
+export const API_BASE_URL = hasConfiguredApiUrl
+  ? normalizedApiUrl
+  : isLocalhost
     ? 'http://localhost:5000/api/v1'
     : '/api/v1';
 
-// Runtime warning to help detect misconfiguration in production
 if (typeof window !== 'undefined') {
-  if (!rawApiUrl || isPlaceholder) {
-    // Only warn in non-local environments
-    if (window.location.hostname !== 'localhost') {
-      // eslint-disable-next-line no-console
-      console.warn('Warning: VITE_API_URL is not set or is a placeholder. Frontend will use', API_BASE_URL, 'as API base. Set VITE_API_URL in your Vercel project to your backend URL to use real API.');
-    }
+  if (hasConfiguredApiUrl) {
+    console.debug('VITE_API_URL loaded from env:', normalizedApiUrl);
+    console.debug('API_BASE_URL configured as:', API_BASE_URL);
+  } else {
+    console.warn('VITE_API_URL is not configured. Frontend will use local backend:', API_BASE_URL, '\nCopy .env.example to .env and set VITE_API_URL=https://your-backend-url/api/v1 to use deployed API.');
   }
 }
+
+export const API_ORIGIN = typeof API_BASE_URL === 'string'
+  ? API_BASE_URL.replace(/\/api\/v1$/, '')
+  : API_BASE_URL;
+
+export const API_AUTH_URL = `${API_ORIGIN}/auth`;
 
 export const SITE_NAME = 'Furniqo';
 export const SITE_DESCRIPTION = 'Premium furniture for modern living';

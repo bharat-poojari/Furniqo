@@ -6,7 +6,7 @@ import apiWrapper from '../services/apiWrapper';
 import MediaLibraryPicker from '../components/common/MediaLibraryPicker';
 import { getUploadUrl } from '../utils/uploadResponseUtils';
 import toast from 'react-hot-toast';
-import { API_BASE_URL } from '../utils/constants';
+import { API_BASE_URL, API_ORIGIN } from '../utils/constants';
 
 const AdminCategories = () => {
   const [categories, setCategories] = useState([]);
@@ -66,9 +66,8 @@ const AdminCategories = () => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const baseWithoutApi = API_BASE_URL.replace('/api/v1', '');
     const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-    return `${baseWithoutApi}${cleanPath}`;
+    return `${API_ORIGIN}${cleanPath}`;
   };
 
   const handleImageUpload = async (e) => {

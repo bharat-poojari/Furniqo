@@ -10,7 +10,7 @@ import {
 import apiWrapper from '../services/apiWrapper';
 import MediaLibraryPicker from '../components/common/MediaLibraryPicker';
 import { getUploadUrl } from '../utils/uploadResponseUtils';
-import { API_BASE_URL } from '../utils/constants';
+import { API_BASE_URL, API_ORIGIN } from '../utils/constants';
 import toast from 'react-hot-toast';
 
 // Rich text editor component
@@ -324,7 +324,7 @@ const AdminBlog = () => {
       }
       
       // Process image URLs
-      const baseWithoutApi = apiUrl.replace('/api/v1', '');
+      const baseWithoutApi = API_ORIGIN;
       const processedPosts = postsData.map(post => ({
         ...post,
         imageUrl: post.image ? (post.image.startsWith('http') ? post.image : `${baseWithoutApi}${post.image}`) : null,
@@ -365,8 +365,7 @@ const AdminBlog = () => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return imagePath;
     }
-    const baseWithoutApi = apiUrl.replace('/api/v1', '');
-    return `${baseWithoutApi}${imagePath}`;
+    return `${API_ORIGIN}${imagePath}`;
   };
 
   const handleImageUpload = async (e) => {

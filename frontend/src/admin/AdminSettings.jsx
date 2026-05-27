@@ -30,6 +30,7 @@ import {
   FiKey
 } from 'react-icons/fi';
 import apiWrapper from '../services/apiWrapper';
+import { API_BASE_URL } from '../utils/constants';
 import toast from 'react-hot-toast';
 
 const AdminSettings = () => {
@@ -740,7 +741,7 @@ const AdminSettings = () => {
                     <div>
                       <p className="font-medium text-amber-800 dark:text-amber-300">API Information</p>
                       <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
-                        Base URL: {window.location.origin}/api/v1
+                        Base URL: {API_BASE_URL}
                       </p>
                       <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 font-mono">
                         Version: 1.0.0

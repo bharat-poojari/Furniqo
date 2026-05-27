@@ -69,14 +69,17 @@ class APIWrapper {
         timeoutId = setTimeout(() => {
           controller.abort();
           reject(new Error('Request timeout'));
-        }, 1500);
+        }, 5000);
       });
 
       const apiUrl = API_BASE_URL;
+      console.debug('Checking backend health at', `${apiUrl}/health`);
 
       const response = await Promise.race([
-        fetch(`${apiUrl.replace(/\/api\/v1$/, '')}/health`, {
+        fetch(`${apiUrl}/health`, {
           method: 'GET',
+          mode: 'cors',
+          cache: 'no-store',
           signal: controller.signal,
           headers: {
             'Content-Type': 'application/json',

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiArrowRight, FiChevronLeft, FiChevronRight, FiPause, FiPlay } from 'react-icons/fi';
 import { heroSlides as mockHeroSlides } from '../../data/data';
-import { API_BASE_URL } from '../../utils/constants';
+import { API_BASE_URL, API_ORIGIN } from '../../utils/constants';
 import { cn } from '../../utils/cn';
 import apiWrapper from '../../services/apiWrapper';
 
@@ -106,8 +106,7 @@ const getImageUrl = (imagePath) => {
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
-  const baseWithoutApi = API_BASE_URL.replace('/api/v1', '');
-  return `${baseWithoutApi}${imagePath}`;
+  return `${API_ORIGIN}${imagePath}`;
 };
 
 // Normalize slide data from API response
