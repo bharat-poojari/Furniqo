@@ -80,16 +80,33 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:5173,http://localhost:5000').split(',');
+// CORS: allow a configurable list of origins via ALLOWED_ORIGINS env var (comma-separated).
+// In production set ALLOWED_ORIGINS=https://the-furniqo.vercel.app,https://your-other-origin
+const defaultOrigins = ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5000'];
+const allowedOrigins = (process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+  : defaultOrigins
+);
+
 app.use(cors({
   origin: (origin, cb) => {
+    // Allow server-to-server or tools without an origin (curl, Postman)
     if (!origin) return cb(null, true);
-    if (allowedOrigins.includes(origin)) return cb(null, true);
+
+    // Allow wildcard if explicitly configured
+    if (allowedOrigins.includes('*')) return cb(null, true);
+
+    const match = allowedOrigins.some(o => o.toLowerCase() === origin.toLowerCase());
+    if (match) return cb(null, true);
+
     console.warn(`CORS blocked origin: ${origin}`);
     return cb(null, false);
   },
   credentials: true,
-  exposedHeaders: ['Authorization']
+  exposedHeaders: ['Authorization'],
+  // Ensure preflight OPTIONS requests get a proper success status
+  optionsSuccessStatus: 204,
+  preflightContinue: false,
 }));
 
 app.use(morgan('dev'));
